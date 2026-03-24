@@ -6,13 +6,13 @@ use clap::Parser;
 mod api;
 mod cli;
 mod commands;
-#[allow(dead_code)]
 mod config;
 mod context;
 mod error;
 mod output;
 
 use cli::{Cli, Commands};
+use context::AppContext;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -27,8 +27,14 @@ async fn main() {
 
 async fn run(cli: Cli) -> Result<()> {
     match cli.command {
-        Commands::Init(ref args) => commands::init::run(args).await,
-        Commands::Ping => commands::ping::run().await,
-        Commands::Config(ref cmd) => commands::config::run(cmd),
+        Commands::Init(ref args) => commands::init::run(args, cli.quiet).await,
+        Commands::Ping => {
+            let ctx = AppContext::build(&cli)?;
+            commands::ping::run(&ctx).await
+        }
+        Commands::Config(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::config::run(&ctx, cmd)
+        }
     }
 }

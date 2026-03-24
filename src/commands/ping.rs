@@ -1,5 +1,8 @@
 use anyhow::Result;
 
-pub async fn run() -> Result<()> {
-    todo!("Ping command implemented in Plan 02")
+use crate::context::AppContext;
+
+#[allow(unused_variables)]
+pub async fn run(ctx: &AppContext) -> Result<()> {
+    todo!("Ping command implemented in Task 2")
 }
