@@ -1,0 +1,16 @@
+# Pipelite CLI Configuration
+# Test fixture for config loading tests
+
+[server]
+# Pipelite CRM server URL
+url = "https://test.pipelite.io"
+# API key for authentication (keep this secret!)
+api_key = "pk_test_fixture_key"
+
+[output]
+# Default output format: json, table, csv, plain
+format = "table"
+
+[display]
+# Disable colored output
+no_color = false

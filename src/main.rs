@@ -6,6 +6,7 @@ use clap::Parser;
 mod api;
 mod cli;
 mod commands;
+#[allow(dead_code)]
 mod config;
 mod context;
 mod error;
