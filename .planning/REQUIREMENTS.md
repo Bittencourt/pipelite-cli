@@ -8,16 +8,16 @@
 ### Authentication
 
 - [ ] **AUTH-01**: User can initialize CLI with API key via `pipelite init` interactive flow
-- [ ] **AUTH-02**: User can authenticate via `PIPELITE_API_KEY` environment variable for CI/scripts
-- [ ] **AUTH-03**: API key is stored in config file with 0600 permissions (never as CLI flag)
+- [x] **AUTH-02**: User can authenticate via `PIPELITE_API_KEY` environment variable for CI/scripts
+- [x] **AUTH-03**: API key is stored in config file with 0600 permissions (never as CLI flag)
 - [ ] **AUTH-04**: User can test connection with `pipelite ping` showing server status and latency
 
 ### Configuration
 
-- [ ] **CONF-01**: User can store persistent config in `~/.pipelite/config.toml` (XDG-compliant paths)
+- [x] **CONF-01**: User can store persistent config in `~/.pipelite/config.toml` (XDG-compliant paths)
 - [ ] **CONF-02**: User can view config with `pipelite config show`
 - [ ] **CONF-03**: User can set config values with `pipelite config set <key> <value>`
-- [ ] **CONF-04**: Config precedence follows flags > env vars > config file
+- [x] **CONF-04**: Config precedence follows flags > env vars > config file
 
 ### Entity CRUD — Deals
 
@@ -84,8 +84,8 @@
 
 ### Error Handling
 
-- [ ] **ERRH-01**: CLI returns non-zero exit codes on failure (1=runtime, 2=misuse)
-- [ ] **ERRH-02**: Error messages are actionable with suggested next commands
+- [x] **ERRH-01**: CLI returns non-zero exit codes on failure (1=runtime, 2=misuse)
+- [x] **ERRH-02**: Error messages are actionable with suggested next commands
 - [ ] **ERRH-03**: CLI shows `--help` with usage examples on every command
 
 ### Interactive Mode
@@ -121,7 +121,7 @@
 
 - [ ] **UX-01**: ASCII art splash screen when running `pipelite` with no subcommand on TTY
 - [ ] **UX-02**: Quiet mode (`-q`) suppresses non-essential output
-- [ ] **UX-03**: `pipelite --version` shows version string
+- [x] **UX-03**: `pipelite --version` shows version string
 - [ ] **UX-04**: `--dry-run` on mutations shows what would be sent without executing
 
 ## v2 Requirements
@@ -164,13 +164,13 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Pending |
-| CONF-01 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Complete |
 | CONF-02 | Phase 1 | Pending |
 | CONF-03 | Phase 1 | Pending |
-| CONF-04 | Phase 1 | Pending |
+| CONF-04 | Phase 1 | Complete |
 | DEAL-01 | Phase 2 | Pending |
 | DEAL-02 | Phase 2 | Pending |
 | DEAL-03 | Phase 2 | Pending |
@@ -210,8 +210,8 @@
 | OUTP-07 | Phase 2 | Pending |
 | FILT-01 | Phase 2 | Pending |
 | FILT-02 | Phase 2 | Pending |
-| ERRH-01 | Phase 1 | Pending |
-| ERRH-02 | Phase 1 | Pending |
+| ERRH-01 | Phase 1 | Complete |
+| ERRH-02 | Phase 1 | Complete |
 | ERRH-03 | Phase 1 | Pending |
 | INTR-01 | Phase 4 | Pending |
 | INTR-02 | Phase 4 | Pending |
@@ -229,7 +229,7 @@
 | DASH-02 | Phase 5 | Pending |
 | UX-01 | Phase 5 | Pending |
 | UX-02 | Phase 1 | Pending |
-| UX-03 | Phase 1 | Pending |
+| UX-03 | Phase 1 | Complete |
 | UX-04 | Phase 4 | Pending |
 
 **Coverage:**
