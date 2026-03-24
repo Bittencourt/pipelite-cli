@@ -7,16 +7,16 @@
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can initialize CLI with API key via `pipelite init` interactive flow
+- [x] **AUTH-01**: User can initialize CLI with API key via `pipelite init` interactive flow
 - [x] **AUTH-02**: User can authenticate via `PIPELITE_API_KEY` environment variable for CI/scripts
 - [x] **AUTH-03**: API key is stored in config file with 0600 permissions (never as CLI flag)
-- [ ] **AUTH-04**: User can test connection with `pipelite ping` showing server status and latency
+- [x] **AUTH-04**: User can test connection with `pipelite ping` showing server status and latency
 
 ### Configuration
 
 - [x] **CONF-01**: User can store persistent config in `~/.pipelite/config.toml` (XDG-compliant paths)
-- [ ] **CONF-02**: User can view config with `pipelite config show`
-- [ ] **CONF-03**: User can set config values with `pipelite config set <key> <value>`
+- [x] **CONF-02**: User can view config with `pipelite config show`
+- [x] **CONF-03**: User can set config values with `pipelite config set <key> <value>`
 - [x] **CONF-04**: Config precedence follows flags > env vars > config file
 
 ### Entity CRUD — Deals
@@ -86,7 +86,7 @@
 
 - [x] **ERRH-01**: CLI returns non-zero exit codes on failure (1=runtime, 2=misuse)
 - [x] **ERRH-02**: Error messages are actionable with suggested next commands
-- [ ] **ERRH-03**: CLI shows `--help` with usage examples on every command
+- [x] **ERRH-03**: CLI shows `--help` with usage examples on every command
 
 ### Interactive Mode
 
@@ -120,7 +120,7 @@
 ### UX Polish
 
 - [ ] **UX-01**: ASCII art splash screen when running `pipelite` with no subcommand on TTY
-- [ ] **UX-02**: Quiet mode (`-q`) suppresses non-essential output
+- [x] **UX-02**: Quiet mode (`-q`) suppresses non-essential output
 - [x] **UX-03**: `pipelite --version` shows version string
 - [ ] **UX-04**: `--dry-run` on mutations shows what would be sent without executing
 
@@ -163,13 +163,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Complete |
 | CONF-01 | Phase 1 | Complete |
-| CONF-02 | Phase 1 | Pending |
-| CONF-03 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Complete |
+| CONF-03 | Phase 1 | Complete |
 | CONF-04 | Phase 1 | Complete |
 | DEAL-01 | Phase 2 | Pending |
 | DEAL-02 | Phase 2 | Pending |
@@ -212,7 +212,7 @@
 | FILT-02 | Phase 2 | Pending |
 | ERRH-01 | Phase 1 | Complete |
 | ERRH-02 | Phase 1 | Complete |
-| ERRH-03 | Phase 1 | Pending |
+| ERRH-03 | Phase 1 | Complete |
 | INTR-01 | Phase 4 | Pending |
 | INTR-02 | Phase 4 | Pending |
 | INTR-03 | Phase 4 | Pending |
@@ -228,7 +228,7 @@
 | DASH-01 | Phase 5 | Pending |
 | DASH-02 | Phase 5 | Pending |
 | UX-01 | Phase 5 | Pending |
-| UX-02 | Phase 1 | Pending |
+| UX-02 | Phase 1 | Complete |
 | UX-03 | Phase 1 | Complete |
 | UX-04 | Phase 4 | Pending |
 

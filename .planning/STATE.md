@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-24T23:48:55.245Z"
-last_activity: 2026-03-24 -- Completed 01-01 project skeleton and config
+status: completed
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-24T23:57:10.896Z"
+last_activity: 2026-03-24 -- Completed 01-02 HTTP client, commands, and integration tests
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -25,29 +25,29 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 
 ## Current Position
 
-Phase: 1 of 5 (Foundation)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-24 -- Completed 01-01 project skeleton and config
+Phase: 1 of 5 (Foundation) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-03-24 -- Completed 01-02 HTTP client, commands, and integration tests
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 7min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 5.5min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Foundation | 1 | 7min | 7min |
+| 1. Foundation | 2 | 11min | 5.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (7min)
-- Trend: Starting
+- Last 5 plans: 01-01 (7min), 01-02 (4min)
+- Trend: Accelerating
 
 *Updated after each plan completion*
 
@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - [01-01]: Used build.rs single BUILD_VERSION env var for rich --version string
 - [01-01]: reqwest 0.13 uses 'rustls' feature not 'rustls-tls'
 - [01-01]: Rust 2024 edition requires unsafe blocks for env::set_var/remove_var in tests
+- [01-02]: Commands/config moved from single file to directory module for table helper co-location
+- [01-02]: Init detects non-TTY stdin and requires --url/--key in headless mode
+- [01-02]: Config show defaults to JSON when piped (non-TTY) via detect_format
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T23:47:50Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-foundation/01-02-PLAN.md
+Last session: 2026-03-24T23:57:10.893Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: None
