@@ -163,80 +163,80 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| CONF-03 | — | Pending |
-| CONF-04 | — | Pending |
-| DEAL-01 | — | Pending |
-| DEAL-02 | — | Pending |
-| DEAL-03 | — | Pending |
-| DEAL-04 | — | Pending |
-| DEAL-05 | — | Pending |
-| ORG-01 | — | Pending |
-| ORG-02 | — | Pending |
-| ORG-03 | — | Pending |
-| ORG-04 | — | Pending |
-| ORG-05 | — | Pending |
-| PEOP-01 | — | Pending |
-| PEOP-02 | — | Pending |
-| PEOP-03 | — | Pending |
-| PEOP-04 | — | Pending |
-| PEOP-05 | — | Pending |
-| ACTV-01 | — | Pending |
-| ACTV-02 | — | Pending |
-| ACTV-03 | — | Pending |
-| ACTV-04 | — | Pending |
-| ACTV-05 | — | Pending |
-| PIPE-01 | — | Pending |
-| PIPE-02 | — | Pending |
-| PIPE-03 | — | Pending |
-| PIPE-04 | — | Pending |
-| PIPE-05 | — | Pending |
-| STAG-01 | — | Pending |
-| STAG-02 | — | Pending |
-| STAG-03 | — | Pending |
-| STAG-04 | — | Pending |
-| STAG-05 | — | Pending |
-| OUTP-01 | — | Pending |
-| OUTP-02 | — | Pending |
-| OUTP-03 | — | Pending |
-| OUTP-04 | — | Pending |
-| OUTP-05 | — | Pending |
-| OUTP-06 | — | Pending |
-| OUTP-07 | — | Pending |
-| FILT-01 | — | Pending |
-| FILT-02 | — | Pending |
-| ERRH-01 | — | Pending |
-| ERRH-02 | — | Pending |
-| ERRH-03 | — | Pending |
-| INTR-01 | — | Pending |
-| INTR-02 | — | Pending |
-| INTR-03 | — | Pending |
-| HEAD-01 | — | Pending |
-| HEAD-02 | — | Pending |
-| HEAD-03 | — | Pending |
-| SHLL-01 | — | Pending |
-| SHLL-02 | — | Pending |
-| SHLL-03 | — | Pending |
-| CACH-01 | — | Pending |
-| CACH-02 | — | Pending |
-| CACH-03 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| UX-01 | — | Pending |
-| UX-02 | — | Pending |
-| UX-03 | — | Pending |
-| UX-04 | — | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Pending |
+| CONF-03 | Phase 1 | Pending |
+| CONF-04 | Phase 1 | Pending |
+| DEAL-01 | Phase 2 | Pending |
+| DEAL-02 | Phase 2 | Pending |
+| DEAL-03 | Phase 2 | Pending |
+| DEAL-04 | Phase 2 | Pending |
+| DEAL-05 | Phase 2 | Pending |
+| ORG-01 | Phase 3 | Pending |
+| ORG-02 | Phase 3 | Pending |
+| ORG-03 | Phase 3 | Pending |
+| ORG-04 | Phase 3 | Pending |
+| ORG-05 | Phase 3 | Pending |
+| PEOP-01 | Phase 3 | Pending |
+| PEOP-02 | Phase 3 | Pending |
+| PEOP-03 | Phase 3 | Pending |
+| PEOP-04 | Phase 3 | Pending |
+| PEOP-05 | Phase 3 | Pending |
+| ACTV-01 | Phase 3 | Pending |
+| ACTV-02 | Phase 3 | Pending |
+| ACTV-03 | Phase 3 | Pending |
+| ACTV-04 | Phase 3 | Pending |
+| ACTV-05 | Phase 3 | Pending |
+| PIPE-01 | Phase 3 | Pending |
+| PIPE-02 | Phase 3 | Pending |
+| PIPE-03 | Phase 3 | Pending |
+| PIPE-04 | Phase 3 | Pending |
+| PIPE-05 | Phase 3 | Pending |
+| STAG-01 | Phase 3 | Pending |
+| STAG-02 | Phase 3 | Pending |
+| STAG-03 | Phase 3 | Pending |
+| STAG-04 | Phase 3 | Pending |
+| STAG-05 | Phase 3 | Pending |
+| OUTP-01 | Phase 2 | Pending |
+| OUTP-02 | Phase 2 | Pending |
+| OUTP-03 | Phase 2 | Pending |
+| OUTP-04 | Phase 2 | Pending |
+| OUTP-05 | Phase 2 | Pending |
+| OUTP-06 | Phase 2 | Pending |
+| OUTP-07 | Phase 2 | Pending |
+| FILT-01 | Phase 2 | Pending |
+| FILT-02 | Phase 2 | Pending |
+| ERRH-01 | Phase 1 | Pending |
+| ERRH-02 | Phase 1 | Pending |
+| ERRH-03 | Phase 1 | Pending |
+| INTR-01 | Phase 4 | Pending |
+| INTR-02 | Phase 4 | Pending |
+| INTR-03 | Phase 4 | Pending |
+| HEAD-01 | Phase 4 | Pending |
+| HEAD-02 | Phase 4 | Pending |
+| HEAD-03 | Phase 4 | Pending |
+| SHLL-01 | Phase 4 | Pending |
+| SHLL-02 | Phase 4 | Pending |
+| SHLL-03 | Phase 4 | Pending |
+| CACH-01 | Phase 5 | Pending |
+| CACH-02 | Phase 5 | Pending |
+| CACH-03 | Phase 5 | Pending |
+| DASH-01 | Phase 5 | Pending |
+| DASH-02 | Phase 5 | Pending |
+| UX-01 | Phase 5 | Pending |
+| UX-02 | Phase 1 | Pending |
+| UX-03 | Phase 1 | Pending |
+| UX-04 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 59 total
-- Mapped to phases: 0
-- Unmapped: 59 (awaiting roadmap)
+- v1 requirements: 68 total
+- Mapped to phases: 68
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after initial definition*
+*Last updated: 2026-03-23 after roadmap creation*
