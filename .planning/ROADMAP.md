@@ -30,11 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can run `pipelite ping` and see server status and latency
   4. User can view and modify config with `pipelite config show` and `pipelite config set`
   5. Failed commands return non-zero exit codes with actionable error messages and `--help` shows usage examples on every command
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Project skeleton, CLI definitions, error types, and config module
+- [ ] 01-02-PLAN.md -- HTTP client, AppContext, all commands (init/ping/config), and integration tests
 
 ### Phase 2: Core CRUD and Output
 **Goal**: Users can perform full CRUD on deals with all output formats, filtering, and field selection -- proving the complete vertical stack
@@ -106,7 +106,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/0 | Not started | - |
+| 1. Foundation | 0/2 | Planning complete | - |
 | 2. Core CRUD and Output | 0/0 | Not started | - |
 | 3. Full Entity Coverage | 0/0 | Not started | - |
 | 4. Developer Experience | 0/0 | Not started | - |
