@@ -56,25 +56,25 @@ fn config_help_shows_subcommands() {
 #[test]
 fn config_set_parses_positional_args() {
     // config set should parse key and value as positional args
-    // The handler uses todo!() so it will panic, but clap parsing should succeed
-    // We verify clap doesn't reject the args by checking for the todo panic message
+    // Without a config file, it exits with an error about missing config
     Command::cargo_bin("pipelite")
         .unwrap()
         .args(["config", "set", "output.format", "json"])
         .assert()
-        .failure() // todo!() causes panic -> non-zero exit
-        .stderr(predicate::str::contains("not yet implemented"));
+        .failure()
+        .code(1);
 }
 
 #[test]
 fn global_flags_parse_without_error() {
-    // Global flags should parse; command will todo!() but flags are accepted
+    // Global flags should parse without clap rejecting them
+    // The command itself may fail (no server), but flags are accepted by clap
     Command::cargo_bin("pipelite")
         .unwrap()
         .args(["--format", "json", "--no-color", "-q", "-v", "ping"])
         .assert()
-        .failure() // todo!() in ping
-        .stderr(predicate::str::contains("not yet implemented"));
+        .failure()
+        .code(1); // Runtime error, not clap misuse (code 2)
 }
 
 #[test]
