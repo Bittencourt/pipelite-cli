@@ -53,19 +53,19 @@
 
 ### Entity CRUD — Pipelines
 
-- [ ] **PIPE-01**: User can list pipelines with `pipelite pipelines list`
-- [ ] **PIPE-02**: User can get a pipeline by ID with `pipelite pipelines get <id>`
-- [ ] **PIPE-03**: User can create a pipeline with `pipelite pipelines create`
-- [ ] **PIPE-04**: User can update a pipeline with `pipelite pipelines update <id>`
-- [ ] **PIPE-05**: User can delete a pipeline with `pipelite pipelines delete <id>`
+- [x] **PIPE-01**: User can list pipelines with `pipelite pipelines list`
+- [x] **PIPE-02**: User can get a pipeline by ID with `pipelite pipelines get <id>`
+- [x] **PIPE-03**: User can create a pipeline with `pipelite pipelines create`
+- [x] **PIPE-04**: User can update a pipeline with `pipelite pipelines update <id>`
+- [x] **PIPE-05**: User can delete a pipeline with `pipelite pipelines delete <id>`
 
 ### Entity CRUD — Stages
 
-- [ ] **STAG-01**: User can list stages with `pipelite stages list`
-- [ ] **STAG-02**: User can get a stage by ID with `pipelite stages get <id>`
-- [ ] **STAG-03**: User can create a stage with `pipelite stages create`
-- [ ] **STAG-04**: User can update a stage with `pipelite stages update <id>`
-- [ ] **STAG-05**: User can delete a stage with `pipelite stages delete <id>`
+- [x] **STAG-01**: User can list stages with `pipelite stages list`
+- [x] **STAG-02**: User can get a stage by ID with `pipelite stages get <id>`
+- [x] **STAG-03**: User can create a stage with `pipelite stages create`
+- [x] **STAG-04**: User can update a stage with `pipelite stages update <id>`
+- [x] **STAG-05**: User can delete a stage with `pipelite stages delete <id>`
 
 ### Output Formatting
 
@@ -191,16 +191,16 @@
 | ACTV-03 | Phase 3 | Complete |
 | ACTV-04 | Phase 3 | Complete |
 | ACTV-05 | Phase 3 | Complete |
-| PIPE-01 | Phase 3 | Pending |
-| PIPE-02 | Phase 3 | Pending |
-| PIPE-03 | Phase 3 | Pending |
-| PIPE-04 | Phase 3 | Pending |
-| PIPE-05 | Phase 3 | Pending |
-| STAG-01 | Phase 3 | Pending |
-| STAG-02 | Phase 3 | Pending |
-| STAG-03 | Phase 3 | Pending |
-| STAG-04 | Phase 3 | Pending |
-| STAG-05 | Phase 3 | Pending |
+| PIPE-01 | Phase 3 | Complete |
+| PIPE-02 | Phase 3 | Complete |
+| PIPE-03 | Phase 3 | Complete |
+| PIPE-04 | Phase 3 | Complete |
+| PIPE-05 | Phase 3 | Complete |
+| STAG-01 | Phase 3 | Complete |
+| STAG-02 | Phase 3 | Complete |
+| STAG-03 | Phase 3 | Complete |
+| STAG-04 | Phase 3 | Complete |
+| STAG-05 | Phase 3 | Complete |
 | OUTP-01 | Phase 2 | Complete |
 | OUTP-02 | Phase 2 | Complete |
 | OUTP-03 | Phase 2 | Complete |

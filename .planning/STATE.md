@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 03-02 activities CRUD
-last_updated: "2026-03-25T02:38:00Z"
-last_activity: 2026-03-25 -- Completed 03-02 activities CRUD
+stopped_at: Completed 03-03 pipelines+stages CRUD
+last_updated: "2026-03-25T02:43:00Z"
+last_activity: 2026-03-25 -- Completed 03-03 pipelines+stages CRUD
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal -- fast, scriptable, and composable with other tools.
-**Current focus:** Phase 3: Full Entity Coverage
+**Current focus:** Phase 3: Full Entity Coverage (Complete)
 
 ## Current Position
 
 Phase: 3 of 5 (Full Entity Coverage)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-03-25 -- Completed 03-02 activities CRUD
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-03-25 -- Completed 03-03 pipelines+stages CRUD
 
-Progress: [███████▌  ] 75%
+Progress: [████████▊ ] 88%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [███████▌  ] 75%
 | Phase 02 P03 | 1min | 1 tasks | 2 files |
 | Phase 03 P01 | 7min | 2 tasks | 21 files |
 | Phase 03 P02 | 7min | 2 tasks | 13 files |
+| Phase 03 P03 | 12min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,10 @@ Recent decisions affecting current work:
 - [03-02]: Used update_activity_raw() with serde_json::Value for --mark-undone null-clearing
 - [03-02]: Client-side --done filter on activities list (completed_at not null)
 - [03-02]: Individual-create loop pattern for --stdin batch on entities without batch endpoint
+- [03-03]: Stage 'type' field uses #[serde(rename = "type")] with stage_type Rust field name
+- [03-03]: stages list validates --pipeline at runtime (CliError::Validation) for helpful error
+- [03-03]: stages get/update/delete take only stage ID (no --pipeline needed)
+- [03-03]: Pipeline alias 'pl', Stages alias 's'
 
 ### Pending Todos
 
@@ -96,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T02:38:00Z
-Stopped at: Completed 03-02 activities CRUD
-Resume file: .planning/phases/03-full-entity-coverage/03-02-SUMMARY.md
+Last session: 2026-03-25T02:43:00Z
+Stopped at: Completed 03-03 pipelines+stages CRUD
+Resume file: .planning/phases/03-full-entity-coverage/03-03-SUMMARY.md

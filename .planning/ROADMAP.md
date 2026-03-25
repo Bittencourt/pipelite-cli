@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Auth, config, HTTP client, error handling, and output abstraction (completed 2026-03-25)
 - [ ] **Phase 2: Core CRUD and Output** - Full deal CRUD with all output formats, filtering, and field selection
-- [ ] **Phase 3: Full Entity Coverage** - Replicate CRUD pattern across orgs, people, activities, pipelines, and stages
+- [x] **Phase 3: Full Entity Coverage** - Replicate CRUD pattern across orgs, people, activities, pipelines, and stages (completed 2026-03-25)
 - [ ] **Phase 4: Developer Experience** - Interactive prompts, headless mode, shell completions, and dry-run
 - [ ] **Phase 5: Power Features** - Local caching, pipeline dashboard, and splash screen
 
@@ -63,7 +63,7 @@ Plans:
   3. User can list, get, create, update, and delete activities via `pipelite activities` subcommands
   4. User can list, get, create, update, and delete pipelines and stages via `pipelite pipelines` and `pipelite stages` subcommands
   5. All entity commands support the same output formats, filtering, and field selection as deals
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md -- Organizations and People: CRUD, batch create via /batch endpoint, integration tests
@@ -110,6 +110,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete    | 2026-03-25 |
 | 2. Core CRUD and Output | 2/3 | In Progress|  |
-| 3. Full Entity Coverage | 2/3 | In Progress|  |
+| 3. Full Entity Coverage | 3/3 | Complete   | 2026-03-25 |
 | 4. Developer Experience | 0/0 | Not started | - |
 | 5. Power Features | 0/0 | Not started | - |
