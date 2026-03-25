@@ -96,12 +96,14 @@ Plans:
   2. Cache is used for interactive prompt dropdowns and shell completions, making them faster
   3. User can view pipeline overview with `pipelite dashboard` showing deal counts and total values per stage
   4. Running `pipelite` with no subcommand on a TTY shows an ASCII art splash screen
-**Plans:** 3 plans
+**Plans:** 5 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Cache module with TTL, cache clear/refresh commands, mutation invalidation wiring
+- [ ] 05-01-PLAN.md -- Cache module with TTL, cache clear/refresh commands, AppContext wiring
 - [ ] 05-02-PLAN.md -- Pipeline dashboard command and ASCII art splash screen
 - [ ] 05-03-PLAN.md -- Cache integration into interactive prompts (cache-through for FuzzySelect)
+- [ ] 05-04-PLAN.md -- Mutation cache invalidation wiring across all create/update/delete commands
+- [ ] 05-05-PLAN.md -- Dynamic shell completions with ArgValueCandidates from cache
 
 ## Progress
 
@@ -114,4 +116,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Core CRUD and Output | 2/3 | In Progress|  |
 | 3. Full Entity Coverage | 3/3 | Complete   | 2026-03-25 |
 | 4. Developer Experience | 3/3 | Complete   | 2026-03-25 |
-| 5. Power Features | 0/3 | Not started | - |
+| 5. Power Features | 0/5 | Not started | - |
