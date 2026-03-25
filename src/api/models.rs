@@ -310,6 +310,58 @@ pub fn pipelines_table_config() -> TableConfig {
     }
 }
 
+// -- Stage entity --
+
+/// A stage entity from the Pipelite CRM API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Stage {
+    pub id: String,
+    pub pipeline_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(rename = "type")]
+    pub stage_type: String,
+    pub position: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Payload for creating a new stage.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StageCreate {
+    pub name: String,
+    pub pipeline_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub stage_type: Option<String>,
+}
+
+/// Payload for updating an existing stage. All fields optional.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StageUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub stage_type: Option<String>,
+}
+
+/// Default table columns for stage list display.
+pub fn stages_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["id", "name", "pipeline_id", "position"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -601,5 +653,50 @@ mod tests {
         assert_eq!(obj.len(), 1);
         assert!(obj.contains_key("name"));
         assert!(!obj.contains_key("is_default"));
+    }
+
+    #[test]
+    fn stage_deserializes_from_json() {
+        let json_data = json!({
+            "id": "stg_abc123",
+            "pipeline_id": "pl_001",
+            "name": "Qualified",
+            "description": null,
+            "color": "#ff0000",
+            "type": "open",
+            "position": 2,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let stage: Stage = serde_json::from_value(json_data).unwrap();
+        assert_eq!(stage.id, "stg_abc123");
+        assert_eq!(stage.pipeline_id, "pl_001");
+        assert_eq!(stage.name, "Qualified");
+        assert!(stage.description.is_none());
+        assert_eq!(stage.color.as_deref(), Some("#ff0000"));
+        assert_eq!(stage.stage_type, "open");
+        assert_eq!(stage.position, 2);
+    }
+
+    #[test]
+    fn stage_create_required_only() {
+        let create = StageCreate {
+            name: "New Stage".to_string(),
+            pipeline_id: "pl_001".to_string(),
+            description: None,
+            color: None,
+            stage_type: None,
+        };
+
+        let json = serde_json::to_value(&create).unwrap();
+        let obj = json.as_object().unwrap();
+
+        assert_eq!(obj.len(), 2);
+        assert!(obj.contains_key("name"));
+        assert!(obj.contains_key("pipeline_id"));
+        assert!(!obj.contains_key("description"));
+        assert!(!obj.contains_key("color"));
+        assert!(!obj.contains_key("type"));
     }
 }

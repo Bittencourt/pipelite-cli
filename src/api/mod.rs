@@ -12,7 +12,8 @@ use crate::error::CliError;
 use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
     DealUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
-    PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse,
+    PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage, StageCreate,
+    StageUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -681,6 +682,81 @@ impl PipeliteClient {
         self.handle_delete_response(response).await
     }
 
+    // ── Stages ────────────────────────────────────────────────────
+
+    /// List stages with required pipeline_id filter and pagination.
+    pub async fn list_stages(
+        &self,
+        params: &StagesListParams,
+    ) -> Result<ApiListResponse<Stage>> {
+        let url = format!("{}/api/v1/stages", self.base_url);
+        let query_pairs = params.to_query_pairs();
+        let response = self
+            .client
+            .get(&url)
+            .query(&query_pairs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    /// Get a single stage by ID.
+    pub async fn get_stage(
+        &self,
+        id: &str,
+        expand: Option<&[String]>,
+    ) -> Result<Stage> {
+        let url = format!("{}/api/v1/stages/{}", self.base_url, id);
+        let mut req = self.client.get(&url);
+        if let Some(expand) = expand {
+            req = req.query(&[("expand", expand.join(","))]);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new stage.
+    pub async fn create_stage(&self, data: &StageCreate) -> Result<Stage> {
+        let url = format!("{}/api/v1/stages", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing stage.
+    pub async fn update_stage(&self, id: &str, data: &StageUpdate) -> Result<Stage> {
+        let url = format!("{}/api/v1/stages/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a stage by ID.
+    pub async fn delete_stage(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/stages/{}", self.base_url, id);
+        let response = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_delete_response(response).await
+    }
+
     /// Map a reqwest request error to a CliError.
     fn map_request_error(&self, e: reqwest::Error) -> CliError {
         if e.is_timeout() {
@@ -843,6 +919,31 @@ impl PipelinesListParams {
     pub fn to_query_pairs(&self) -> Vec<(String, String)> {
         let mut pairs = Vec::new();
 
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
+
+        if let Some(ref expand) = self.expand {
+            pairs.push(("expand".to_string(), expand.join(",")));
+        }
+
+        pairs
+    }
+}
+
+/// Parameters for listing stages with required pipeline_id filter.
+pub struct StagesListParams {
+    pub pipeline_id: String,
+    pub limit: u64,
+    pub offset: u64,
+    pub expand: Option<Vec<String>>,
+}
+
+impl StagesListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        pairs.push(("pipeline_id".to_string(), self.pipeline_id.clone()));
         pairs.push(("limit".to_string(), self.limit.to_string()));
         pairs.push(("offset".to_string(), self.offset.to_string()));
 

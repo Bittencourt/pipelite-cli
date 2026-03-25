@@ -5,6 +5,7 @@ pub mod init;
 pub mod orgs;
 pub mod people;
 pub mod pipelines;
+pub mod stages;
 
 use clap::{Parser, Subcommand};
 
@@ -16,6 +17,7 @@ use init::InitArgs;
 use orgs::OrgsCommands;
 use people::PeopleCommands;
 use pipelines::PipelinesCommands;
+use stages::StagesCommands;
 
 /// Build a rich version string with rustc version and platform info.
 fn build_version() -> &'static str {
@@ -110,4 +112,12 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite pipelines list\n  pipelite pipelines get pl_abc123\n  pipelite pipelines create --name \"Sales Pipeline\""
     )]
     Pipelines(PipelinesCommands),
+
+    /// Manage stages in a pipeline
+    #[command(
+        subcommand,
+        alias = "s",
+        after_help = "Examples:\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages get stg_abc123\n  pipelite stages create --name \"Qualified\" --pipeline pl_abc123"
+    )]
+    Stages(StagesCommands),
 }

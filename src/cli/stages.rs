@@ -1,0 +1,135 @@
+use clap::{Args, Subcommand};
+
+/// Manage stages in a pipeline.
+#[derive(Subcommand)]
+pub enum StagesCommands {
+    /// List stages for a pipeline
+    #[command(
+        after_help = "Examples:\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages list --pipeline pl_abc123 --limit 10\n  pipelite stages list --pipeline pl_abc123 --all --format json"
+    )]
+    List(StagesListArgs),
+
+    /// Get a single stage by ID
+    #[command(
+        after_help = "Examples:\n  pipelite stages get stg_abc123\n  pipelite stages get stg_abc123 --format json\n  pipelite stages get stg_abc123 --fields id,name,position"
+    )]
+    Get(StagesGetArgs),
+
+    /// Create a new stage
+    #[command(
+        after_help = "Examples:\n  pipelite stages create --name \"Qualified\" --pipeline pl_abc123\n  pipelite stages create --name \"Won\" --pipeline pl_abc123 --type won --color \"#00ff00\"\n  echo '[{\"name\":\"A\",\"pipeline_id\":\"pl_001\"}]' | pipelite stages create --stdin"
+    )]
+    Create(StagesCreateArgs),
+
+    /// Update an existing stage
+    #[command(
+        after_help = "Examples:\n  pipelite stages update stg_abc123 --name \"New Name\"\n  pipelite stages update stg_abc123 --color \"#ff0000\" --type won"
+    )]
+    Update(StagesUpdateArgs),
+
+    /// Delete a stage
+    #[command(
+        after_help = "Examples:\n  pipelite stages delete stg_abc123"
+    )]
+    Delete(StagesDeleteArgs),
+}
+
+#[derive(Args)]
+pub struct StagesListArgs {
+    /// Pipeline ID (required)
+    #[arg(long)]
+    pub pipeline: Option<String>,
+
+    /// Maximum number of results (default: 50)
+    #[arg(long, default_value = "50")]
+    pub limit: u64,
+
+    /// Pagination offset (default: 0)
+    #[arg(long, default_value = "0")]
+    pub offset: u64,
+
+    /// Auto-paginate to fetch all results (up to 1000)
+    #[arg(long)]
+    pub all: bool,
+
+    /// Select specific fields (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub fields: Option<Vec<String>>,
+
+    /// Expand relations (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub expand: Option<Vec<String>>,
+}
+
+#[derive(Args)]
+pub struct StagesGetArgs {
+    /// Stage ID
+    pub id: String,
+
+    /// Select specific fields (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub fields: Option<Vec<String>>,
+
+    /// Expand relations (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub expand: Option<Vec<String>>,
+}
+
+#[derive(Args)]
+pub struct StagesCreateArgs {
+    /// Stage name (required)
+    #[arg(long)]
+    pub name: Option<String>,
+
+    /// Pipeline ID (required)
+    #[arg(long)]
+    pub pipeline: Option<String>,
+
+    /// Stage color (hex)
+    #[arg(long)]
+    pub color: Option<String>,
+
+    /// Stage type (open, won, lost)
+    #[arg(long = "type")]
+    pub stage_type: Option<String>,
+
+    /// Stage description
+    #[arg(long)]
+    pub description: Option<String>,
+
+    /// Custom field (key=value, repeatable)
+    #[arg(long = "custom-field")]
+    pub custom_field: Vec<String>,
+
+    /// Read JSON array from stdin for batch create
+    #[arg(long)]
+    pub stdin: bool,
+}
+
+#[derive(Args)]
+pub struct StagesUpdateArgs {
+    /// Stage ID
+    pub id: String,
+
+    /// Stage name
+    #[arg(long)]
+    pub name: Option<String>,
+
+    /// Stage color (hex)
+    #[arg(long)]
+    pub color: Option<String>,
+
+    /// Stage type (open, won, lost)
+    #[arg(long = "type")]
+    pub stage_type: Option<String>,
+
+    /// Stage description
+    #[arg(long)]
+    pub description: Option<String>,
+}
+
+#[derive(Args)]
+pub struct StagesDeleteArgs {
+    /// Stage ID
+    pub id: String,
+}

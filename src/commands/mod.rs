@@ -6,3 +6,4 @@ pub mod orgs;
 pub mod people;
 pub mod ping;
 pub mod pipelines;
+pub mod stages;
