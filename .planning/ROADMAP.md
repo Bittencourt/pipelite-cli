@@ -12,7 +12,7 @@ Pipelite CLI delivers a terminal-first CRM client in five phases. Phase 1 builds
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Auth, config, HTTP client, error handling, and output abstraction
+- [x] **Phase 1: Foundation** - Auth, config, HTTP client, error handling, and output abstraction (completed 2026-03-25)
 - [ ] **Phase 2: Core CRUD and Output** - Full deal CRUD with all output formats, filtering, and field selection
 - [ ] **Phase 3: Full Entity Coverage** - Replicate CRUD pattern across orgs, people, activities, pipelines, and stages
 - [ ] **Phase 4: Developer Experience** - Interactive prompts, headless mode, shell completions, and dry-run
@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can run `pipelite ping` and see server status and latency
   4. User can view and modify config with `pipelite config show` and `pipelite config set`
   5. Failed commands return non-zero exit codes with actionable error messages and `--help` shows usage examples on every command
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md -- Project skeleton, CLI definitions, error types, and config module
@@ -106,7 +106,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Planning complete | - |
+| 1. Foundation | 0/2 | Complete    | 2026-03-25 |
 | 2. Core CRUD and Output | 0/0 | Not started | - |
 | 3. Full Entity Coverage | 0/0 | Not started | - |
 | 4. Developer Experience | 0/0 | Not started | - |
