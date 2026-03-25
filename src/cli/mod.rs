@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod completions;
 pub mod config;
 pub mod deals;
 pub mod init;
@@ -11,6 +12,7 @@ use clap::{Parser, Subcommand};
 
 use crate::output::OutputFormat;
 use activities::ActivitiesCommands;
+use completions::CompletionsArgs;
 use config::ConfigCommands;
 use deals::DealsCommands;
 use init::InitArgs;
@@ -53,6 +55,14 @@ pub struct Cli {
     /// Show verbose debug information
     #[arg(short, long, global = true)]
     pub verbose: bool,
+
+    /// Disable interactive prompts
+    #[arg(long, global = true)]
+    pub no_input: bool,
+
+    /// Preview mutations without executing
+    #[arg(long, global = true)]
+    pub dry_run: bool,
 }
 
 #[derive(Subcommand)]
@@ -120,4 +130,10 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages get stg_abc123\n  pipelite stages create --name \"Qualified\" --pipeline pl_abc123"
     )]
     Stages(StagesCommands),
+
+    /// Generate shell completions
+    #[command(
+        after_help = "Install completions:\n  Bash: source <(pipelite completions bash)\n  Zsh:  source <(pipelite completions zsh)\n  Fish: pipelite completions fish > ~/.config/fish/completions/pipelite.fish"
+    )]
+    Completions(CompletionsArgs),
 }

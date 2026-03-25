@@ -8,8 +8,10 @@ mod cli;
 mod commands;
 mod config;
 mod context;
+mod dry_run;
 mod error;
 mod output;
+mod prompt;
 
 use cli::{Cli, Commands};
 use context::AppContext;
@@ -60,5 +62,6 @@ async fn run(cli: Cli) -> Result<()> {
             let ctx = AppContext::build(&cli)?;
             commands::stages::run(&ctx, cmd).await
         }
+        Commands::Completions(ref args) => commands::completions::run(args),
     }
 }

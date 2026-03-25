@@ -17,6 +17,8 @@ pub struct AppContext {
     pub quiet: bool,
     pub verbose: bool,
     pub color: bool,
+    pub no_input: bool,
+    pub dry_run: bool,
 }
 
 impl AppContext {
@@ -33,6 +35,8 @@ impl AppContext {
             && std::io::stdout().is_terminal()
             && std::env::var("NO_COLOR").is_err();
 
+        let no_input = cli.no_input || !std::io::stdin().is_terminal();
+
         Ok(Self {
             config,
             client,
@@ -40,6 +44,8 @@ impl AppContext {
             quiet: cli.quiet,
             verbose: cli.verbose,
             color,
+            no_input,
+            dry_run: cli.dry_run,
         })
     }
 }

@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod completions;
 pub mod config;
 pub mod deals;
 pub mod init;

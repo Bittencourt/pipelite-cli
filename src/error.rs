@@ -2,7 +2,6 @@ use colored::Colorize;
 
 /// Structured CLI error types with detail and hint fields.
 #[derive(Debug, thiserror::Error)]
-#[allow(dead_code)]
 pub enum CliError {
     #[error("Authentication failed")]
     Auth { detail: String, hint: String },
@@ -25,6 +24,9 @@ pub enum CliError {
         detail: String,
         hint: String,
     },
+
+    #[error("Missing input")]
+    MissingInput { detail: String, hint: String },
 }
 
 /// Display a structured error message on stderr.
@@ -44,6 +46,7 @@ pub fn display_error(err: &anyhow::Error, color: bool) {
                 detail,
                 hint,
             } => (cli_err.to_string(), detail, hint),
+            CliError::MissingInput { detail, hint } => (cli_err.to_string(), detail, hint),
         };
         eprintln!("{}", format_error(&title, detail, hint, color));
     } else {
@@ -60,6 +63,8 @@ pub fn display_error(err: &anyhow::Error, color: bool) {
 /// Returns 2 for clap usage errors (misuse), 1 for everything else.
 pub fn exit_code(err: &anyhow::Error) -> i32 {
     if err.downcast_ref::<clap::Error>().is_some() {
+        2
+    } else if err.downcast_ref::<CliError>().is_some_and(|e| matches!(e, CliError::MissingInput { .. })) {
         2
     } else {
         1
