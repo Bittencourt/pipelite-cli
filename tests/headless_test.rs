@@ -112,21 +112,22 @@ fn activities_create_missing_required() {
         .stderr(predicate::str::contains("--type"));
 }
 
-// ─── Stages (Validation / exit code 1 / fail-on-first) ──────────────────────
+// ─── Stages (MissingInput / exit code 2 / batch reporting) ──────────────────
 
 #[test]
 fn stages_create_missing_required() {
-    // Stages still use fail-on-first Validation error
+    // Stages create lists ALL missing: --name and --pipeline
     cmd()
         .write_stdin("")
         .arg("stages")
         .arg("create")
         .assert()
-        .code(1)
-        .stderr(predicate::str::contains("--name"));
+        .code(2)
+        .stderr(predicate::str::contains("--name"))
+        .stderr(predicate::str::contains("--pipeline"));
 }
 
-// ─── Pipelines (Validation / exit code 1 / fail-on-first) ───────────────────
+// ─── Pipelines (MissingInput / exit code 2 / batch reporting) ───────────────
 
 #[test]
 fn pipelines_create_missing_name() {
@@ -135,7 +136,7 @@ fn pipelines_create_missing_name() {
         .arg("pipelines")
         .arg("create")
         .assert()
-        .code(1)
+        .code(2)
         .stderr(predicate::str::contains("--name"));
 }
 
