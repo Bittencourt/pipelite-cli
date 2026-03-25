@@ -63,5 +63,9 @@ async fn run(cli: Cli) -> Result<()> {
             commands::stages::run(&ctx, cmd).await
         }
         Commands::Completions(ref args) => commands::completions::run(args),
+        Commands::Dashboard(ref args) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::dashboard::run(&ctx, args).await
+        }
     }
 }

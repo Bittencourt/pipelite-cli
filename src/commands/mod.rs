@@ -1,6 +1,7 @@
 pub mod activities;
 pub mod completions;
 pub mod config;
+pub mod dashboard;
 pub mod deals;
 pub mod init;
 pub mod orgs;

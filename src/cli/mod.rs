@@ -1,6 +1,7 @@
 pub mod activities;
 pub mod completions;
 pub mod config;
+pub mod dashboard;
 pub mod deals;
 pub mod init;
 pub mod orgs;
@@ -14,6 +15,7 @@ use crate::output::OutputFormat;
 use activities::ActivitiesCommands;
 use completions::CompletionsArgs;
 use config::ConfigCommands;
+use dashboard::DashboardArgs;
 use deals::DealsCommands;
 use init::InitArgs;
 use orgs::OrgsCommands;
@@ -136,4 +138,10 @@ pub enum Commands {
         after_help = "Install completions:\n  Bash: source <(pipelite completions bash)\n  Zsh:  source <(pipelite completions zsh)\n  Fish: pipelite completions fish > ~/.config/fish/completions/pipelite.fish"
     )]
     Completions(CompletionsArgs),
+
+    /// Show pipeline overview with deal counts and values per stage
+    #[command(
+        after_help = "Examples:\n  pipelite dashboard\n  pipelite dashboard --format json\n  pipelite dashboard --format csv"
+    )]
+    Dashboard(DashboardArgs),
 }
