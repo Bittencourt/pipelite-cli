@@ -3,43 +3,99 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{StageCreate, stages_table_config};
+use crate::api::PipelinesListParams;
 use crate::cli::stages::StagesCreateArgs;
 use crate::context::AppContext;
+use crate::dry_run;
 use crate::error::CliError;
 use crate::output;
+use crate::prompt;
 
 /// Create a new stage (or batch create from stdin).
 ///
 /// When --stdin is set, reads a JSON array and creates each individually
 /// (no batch endpoint for stages). Otherwise, builds a single StageCreate
-/// from CLI flags. Both --name and --pipeline are required.
+/// from CLI flags (with interactive prompts on TTY when flags are missing).
+/// Both --name and --pipeline are required.
 pub async fn run(ctx: &AppContext, args: &StagesCreateArgs) -> Result<()> {
+    // Validate mutual exclusivity: --stdin vs individual flags
     if args.stdin {
-        batch_create(ctx).await
-    } else {
-        single_create(ctx, args).await
+        let has_flags = args.name.is_some()
+            || args.pipeline.is_some()
+            || args.color.is_some()
+            || args.stage_type.is_some()
+            || args.description.is_some()
+            || !args.custom_field.is_empty();
+
+        if has_flags {
+            return Err(CliError::Validation {
+                detail: "--stdin and individual field flags are mutually exclusive".to_string(),
+                hint: "Use either --stdin or individual flags, not both.".to_string(),
+            }
+            .into());
+        }
+
+        return batch_create(ctx).await;
     }
+
+    single_create(ctx, args).await
 }
 
-/// Create a single stage from CLI flags.
+/// Create a single stage from CLI flags, with interactive prompts for missing fields.
 async fn single_create(ctx: &AppContext, args: &StagesCreateArgs) -> Result<()> {
-    let name = args.name.as_ref().ok_or_else(|| CliError::Validation {
-        detail: "Missing required flag: --name".to_string(),
-        hint: "Usage: pipelite stages create --name <name> --pipeline <pipeline_id>".to_string(),
-    })?;
+    let mut missing = Vec::new();
 
-    let pipeline_id = args.pipeline.as_ref().ok_or_else(|| CliError::Validation {
-        detail: "Missing required flag: --pipeline".to_string(),
-        hint: "Usage: pipelite stages create --name <name> --pipeline <pipeline_id>".to_string(),
-    })?;
+    // Required: name
+    let name = prompt::require_text(
+        &args.name,
+        "name",
+        "Stage name",
+        &mut missing,
+        ctx.no_input,
+    )?;
+
+    // Required: pipeline (via FuzzySelect when on TTY)
+    let pipeline_id = if args.pipeline.is_some() {
+        args.pipeline.clone()
+    } else if std::io::stdin().is_terminal() && !ctx.no_input {
+        select_pipeline_interactive(ctx).await?
+    } else {
+        missing.push("--pipeline".to_string());
+        None
+    };
+
+    // Check required fields before proceeding to optional ones
+    prompt::check_missing(
+        &missing,
+        "Usage: pipelite stages create --name <name> --pipeline <pipeline_id>",
+    )?;
+
+    let name = name.unwrap();
+    let pipeline_id = pipeline_id.unwrap();
+
+    // Optional fields
+    let stage_type = prompt::optional_text(
+        &args.stage_type,
+        "Stage type (open, won, or lost)",
+        ctx.no_input,
+    )?;
+    let color = prompt::optional_text(&args.color, "Color (hex)", ctx.no_input)?;
+    let description = prompt::optional_text(&args.description, "Description", ctx.no_input)?;
 
     let data = StageCreate {
-        name: name.clone(),
-        pipeline_id: pipeline_id.clone(),
-        description: args.description.clone(),
-        color: args.color.clone(),
-        stage_type: args.stage_type.clone(),
+        name,
+        pipeline_id,
+        description,
+        color,
+        stage_type,
     };
+
+    // Dry-run intercept
+    if ctx.dry_run {
+        let body = serde_json::to_value(&data)?;
+        let url = format!("{}/api/v1/stages", ctx.client.base_url());
+        return dry_run::render_dry_run("POST", &url, &body, &ctx.output_format, ctx.color);
+    }
 
     let stage = ctx.client.create_stage(&data).await?;
     let item = serde_json::to_value(&stage)?;
@@ -52,6 +108,34 @@ async fn single_create(ctx: &AppContext, args: &StagesCreateArgs) -> Result<()> 
         .collect();
 
     output::render_single(&item, &ctx.output_format, &columns, &None, ctx.color)
+}
+
+/// Interactive pipeline selection via FuzzySelect.
+async fn select_pipeline_interactive(ctx: &AppContext) -> Result<Option<String>> {
+    let pipelines_resp = ctx
+        .client
+        .list_pipelines(&PipelinesListParams {
+            limit: 100,
+            offset: 0,
+            expand: None,
+        })
+        .await?;
+
+    let options: Vec<(String, String)> = pipelines_resp
+        .data
+        .iter()
+        .map(|p| (p.id.clone(), p.name.clone()))
+        .collect();
+
+    let mut missing = Vec::new();
+    prompt::require_select(
+        &None,
+        "pipeline",
+        "Select pipeline",
+        &options,
+        &mut missing,
+        false, // Already checked TTY above
+    )
 }
 
 /// Batch create stages from JSON array on stdin (individual-create loop).
@@ -74,6 +158,16 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
             hint: "Stdin must contain a JSON array of stage objects with 'name' and 'pipeline_id' fields."
                 .to_string(),
         })?;
+
+    // Dry-run: show each payload that would be sent
+    if ctx.dry_run {
+        let url = format!("{}/api/v1/stages", ctx.client.base_url());
+        for stage in &stages {
+            let body = serde_json::to_value(stage)?;
+            dry_run::render_dry_run("POST", &url, &body, &ctx.output_format, ctx.color)?;
+        }
+        return Ok(());
+    }
 
     let total = stages.len();
     let mut created = Vec::new();

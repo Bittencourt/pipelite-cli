@@ -1,21 +1,62 @@
+use std::io::IsTerminal;
+
 use anyhow::Result;
 
 use crate::api::models::{PipelineUpdate, pipelines_table_config};
 use crate::cli::pipelines::PipelinesUpdateArgs;
 use crate::context::AppContext;
+use crate::dry_run;
+use crate::error::CliError;
 use crate::output;
+use crate::prompt;
 
 /// Update an existing pipeline.
 ///
-/// Builds a PipelineUpdate from optional CLI flags and sends to the API.
-/// Renders the updated pipeline on success.
+/// If no flags are provided on a TTY, prompts interactively for all fields
+/// (all optional -- user can skip any). In headless mode with no flags,
+/// returns a validation error.
 pub async fn run(ctx: &AppContext, args: &PipelinesUpdateArgs) -> Result<()> {
-    let is_default = if args.default { Some(true) } else { None };
+    let has_flags = args.name.is_some() || args.default;
+
+    // If no flags provided in headless mode, error out
+    if !has_flags && (ctx.no_input || !std::io::stdin().is_terminal()) {
+        return Err(CliError::Validation {
+            detail: "No fields to update. Provide at least one flag.".to_string(),
+            hint: "Usage: pipelite pipelines update <id> --name <name> [--default]".to_string(),
+        }
+        .into());
+    }
+
+    // Collect field values (from flags or interactive prompts)
+    let name = if has_flags {
+        args.name.clone()
+    } else {
+        prompt::optional_text(&args.name, "Pipeline name", ctx.no_input)?
+    };
+
+    let is_default = if args.default {
+        Some(true)
+    } else if !has_flags && std::io::stdin().is_terminal() && !ctx.no_input {
+        let confirm = dialoguer::Confirm::new()
+            .with_prompt("Set as default pipeline?")
+            .default(false)
+            .interact()?;
+        if confirm { Some(true) } else { None }
+    } else {
+        None
+    };
 
     let data = PipelineUpdate {
-        name: args.name.clone(),
+        name,
         is_default,
     };
+
+    // Dry-run intercept
+    if ctx.dry_run {
+        let body = serde_json::to_value(&data)?;
+        let url = format!("{}/api/v1/pipelines/{}", ctx.client.base_url(), args.id);
+        return dry_run::render_dry_run("PUT", &url, &body, &ctx.output_format, ctx.color);
+    }
 
     let pipeline = ctx.client.update_pipeline(&args.id, &data).await?;
     let item = serde_json::to_value(&pipeline)?;
