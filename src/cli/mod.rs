@@ -1,13 +1,21 @@
+pub mod activities;
 pub mod config;
 pub mod deals;
 pub mod init;
+pub mod orgs;
+pub mod people;
+pub mod pipelines;
 
 use clap::{Parser, Subcommand};
 
 use crate::output::OutputFormat;
+use activities::ActivitiesCommands;
 use config::ConfigCommands;
 use deals::DealsCommands;
 use init::InitArgs;
+use orgs::OrgsCommands;
+use people::PeopleCommands;
+use pipelines::PipelinesCommands;
 
 /// Build a rich version string with rustc version and platform info.
 fn build_version() -> &'static str {
@@ -70,4 +78,36 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite deals list\n  pipelite deals get deal_abc123\n  pipelite deals create --title \"Big Deal\" --stage stg_001"
     )]
     Deals(DealsCommands),
+
+    /// Manage organizations
+    #[command(
+        subcommand,
+        alias = "o",
+        after_help = "Examples:\n  pipelite orgs list\n  pipelite orgs get org_abc123\n  pipelite orgs create --name \"Acme Corp\""
+    )]
+    Orgs(OrgsCommands),
+
+    /// Manage people (contacts)
+    #[command(
+        subcommand,
+        alias = "p",
+        after_help = "Examples:\n  pipelite people list\n  pipelite people get per_abc123\n  pipelite people create --first-name John --last-name Doe"
+    )]
+    People(PeopleCommands),
+
+    /// Manage activities
+    #[command(
+        subcommand,
+        alias = "a",
+        after_help = "Examples:\n  pipelite activities list\n  pipelite activities get act_abc123\n  pipelite activities create --title \"Follow up\" --type type_call"
+    )]
+    Activities(ActivitiesCommands),
+
+    /// Manage pipelines
+    #[command(
+        subcommand,
+        alias = "pl",
+        after_help = "Examples:\n  pipelite pipelines list\n  pipelite pipelines get pl_abc123\n  pipelite pipelines create --name \"Sales Pipeline\""
+    )]
+    Pipelines(PipelinesCommands),
 }

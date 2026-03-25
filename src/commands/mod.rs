@@ -1,4 +1,8 @@
+pub mod activities;
 pub mod config;
 pub mod deals;
 pub mod init;
+pub mod orgs;
+pub mod people;
 pub mod ping;
+pub mod pipelines;

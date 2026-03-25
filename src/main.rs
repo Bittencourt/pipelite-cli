@@ -40,5 +40,21 @@ async fn run(cli: Cli) -> Result<()> {
             let ctx = AppContext::build(&cli)?;
             commands::deals::run(&ctx, cmd).await
         }
+        Commands::Orgs(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::orgs::run(&ctx, cmd).await
+        }
+        Commands::People(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::people::run(&ctx, cmd).await
+        }
+        Commands::Activities(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::activities::run(&ctx, cmd).await
+        }
+        Commands::Pipelines(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::pipelines::run(&ctx, cmd).await
+        }
     }
 }

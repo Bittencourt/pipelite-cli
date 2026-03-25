@@ -9,7 +9,11 @@ use serde::de::DeserializeOwned;
 use crate::config::AppConfig;
 use crate::error::CliError;
 
-use models::{ApiListResponse, ApiSingleResponse, Deal, DealCreate, DealUpdate, PingResponse};
+use models::{
+    Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
+    DealUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
+    PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse,
+};
 
 /// HTTP client for the Pipelite CRM API.
 ///
@@ -334,6 +338,349 @@ impl PipeliteClient {
         self.handle_response(response).await
     }
 
+    // ── Organizations ───────────────────────────────────────────────
+
+    /// List organizations with filtering and pagination.
+    pub async fn list_orgs(
+        &self,
+        params: &OrgsListParams,
+    ) -> Result<ApiListResponse<Organization>> {
+        let url = format!("{}/api/v1/organizations", self.base_url);
+        let query_pairs = params.to_query_pairs();
+        let response = self
+            .client
+            .get(&url)
+            .query(&query_pairs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    /// Get a single organization by ID.
+    pub async fn get_org(
+        &self,
+        id: &str,
+        expand: Option<&[String]>,
+    ) -> Result<Organization> {
+        let url = format!("{}/api/v1/organizations/{}", self.base_url, id);
+        let mut req = self.client.get(&url);
+        if let Some(expand) = expand {
+            req = req.query(&[("expand", expand.join(","))]);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new organization.
+    pub async fn create_org(&self, data: &OrganizationCreate) -> Result<Organization> {
+        let url = format!("{}/api/v1/organizations", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing organization.
+    pub async fn update_org(&self, id: &str, data: &OrganizationUpdate) -> Result<Organization> {
+        let url = format!("{}/api/v1/organizations/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete an organization by ID.
+    pub async fn delete_org(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/organizations/{}", self.base_url, id);
+        let response = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_delete_response(response).await
+    }
+
+    /// Batch create multiple organizations.
+    pub async fn batch_create_orgs(&self, orgs: &[OrganizationCreate]) -> Result<Vec<Organization>> {
+        let url = format!("{}/api/v1/organizations/batch", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(orgs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    // ── People ──────────────────────────────────────────────────────
+
+    /// List people with filtering and pagination.
+    pub async fn list_people(
+        &self,
+        params: &PeopleListParams,
+    ) -> Result<ApiListResponse<Person>> {
+        let url = format!("{}/api/v1/people", self.base_url);
+        let query_pairs = params.to_query_pairs();
+        let response = self
+            .client
+            .get(&url)
+            .query(&query_pairs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    /// Get a single person by ID.
+    pub async fn get_person(
+        &self,
+        id: &str,
+        expand: Option<&[String]>,
+    ) -> Result<Person> {
+        let url = format!("{}/api/v1/people/{}", self.base_url, id);
+        let mut req = self.client.get(&url);
+        if let Some(expand) = expand {
+            req = req.query(&[("expand", expand.join(","))]);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Person> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new person.
+    pub async fn create_person(&self, data: &PersonCreate) -> Result<Person> {
+        let url = format!("{}/api/v1/people", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Person> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing person.
+    pub async fn update_person(&self, id: &str, data: &PersonUpdate) -> Result<Person> {
+        let url = format!("{}/api/v1/people/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Person> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a person by ID.
+    pub async fn delete_person(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/people/{}", self.base_url, id);
+        let response = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_delete_response(response).await
+    }
+
+    /// Batch create multiple people.
+    pub async fn batch_create_people(&self, people: &[PersonCreate]) -> Result<Vec<Person>> {
+        let url = format!("{}/api/v1/people/batch", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(people)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    // ── Activities ─────────────────────────────────────────────────
+
+    /// List activities with filtering and pagination.
+    pub async fn list_activities(
+        &self,
+        params: &ActivitiesListParams,
+    ) -> Result<ApiListResponse<Activity>> {
+        let url = format!("{}/api/v1/activities", self.base_url);
+        let query_pairs = params.to_query_pairs();
+        let response = self
+            .client
+            .get(&url)
+            .query(&query_pairs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    /// Get a single activity by ID.
+    pub async fn get_activity(
+        &self,
+        id: &str,
+        expand: Option<&[String]>,
+    ) -> Result<Activity> {
+        let url = format!("{}/api/v1/activities/{}", self.base_url, id);
+        let mut req = self.client.get(&url);
+        if let Some(expand) = expand {
+            req = req.query(&[("expand", expand.join(","))]);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new activity.
+    pub async fn create_activity(&self, data: &ActivityCreate) -> Result<Activity> {
+        let url = format!("{}/api/v1/activities", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing activity.
+    pub async fn update_activity(&self, id: &str, data: &ActivityUpdate) -> Result<Activity> {
+        let url = format!("{}/api/v1/activities/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing activity using a raw JSON value.
+    ///
+    /// Used when we need to send `completed_at: null` explicitly
+    /// (e.g., --mark-undone), which typed ActivityUpdate cannot represent.
+    pub async fn update_activity_raw(&self, id: &str, data: &serde_json::Value) -> Result<Activity> {
+        let url = format!("{}/api/v1/activities/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete an activity by ID.
+    pub async fn delete_activity(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/activities/{}", self.base_url, id);
+        let response = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_delete_response(response).await
+    }
+
+    // ── Pipelines ─────────────────────────────────────────────────
+
+    /// List pipelines with pagination.
+    pub async fn list_pipelines(
+        &self,
+        params: &PipelinesListParams,
+    ) -> Result<ApiListResponse<Pipeline>> {
+        let url = format!("{}/api/v1/pipelines", self.base_url);
+        let query_pairs = params.to_query_pairs();
+        let response = self
+            .client
+            .get(&url)
+            .query(&query_pairs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    /// Get a single pipeline by ID.
+    pub async fn get_pipeline(
+        &self,
+        id: &str,
+        expand: Option<&[String]>,
+    ) -> Result<Pipeline> {
+        let url = format!("{}/api/v1/pipelines/{}", self.base_url, id);
+        let mut req = self.client.get(&url);
+        if let Some(expand) = expand {
+            req = req.query(&[("expand", expand.join(","))]);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new pipeline.
+    pub async fn create_pipeline(&self, data: &PipelineCreate) -> Result<Pipeline> {
+        let url = format!("{}/api/v1/pipelines", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing pipeline.
+    pub async fn update_pipeline(&self, id: &str, data: &PipelineUpdate) -> Result<Pipeline> {
+        let url = format!("{}/api/v1/pipelines/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a pipeline by ID.
+    pub async fn delete_pipeline(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/pipelines/{}", self.base_url, id);
+        let response = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_delete_response(response).await
+    }
+
     /// Map a reqwest request error to a CliError.
     fn map_request_error(&self, e: reqwest::Error) -> CliError {
         if e.is_timeout() {
@@ -380,6 +727,122 @@ impl DealsListParams {
         if let Some(ref owner) = self.owner {
             pairs.push(("owner_id".to_string(), owner.clone()));
         }
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
+
+        if let Some(ref expand) = self.expand {
+            pairs.push(("expand".to_string(), expand.join(",")));
+        }
+
+        pairs
+    }
+}
+
+/// Parameters for listing organizations with filtering and pagination.
+pub struct OrgsListParams {
+    pub owner: Option<String>,
+    pub limit: u64,
+    pub offset: u64,
+    pub expand: Option<Vec<String>>,
+}
+
+impl OrgsListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        if let Some(ref owner) = self.owner {
+            pairs.push(("owner_id".to_string(), owner.clone()));
+        }
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
+
+        if let Some(ref expand) = self.expand {
+            pairs.push(("expand".to_string(), expand.join(",")));
+        }
+
+        pairs
+    }
+}
+
+/// Parameters for listing people with filtering and pagination.
+pub struct PeopleListParams {
+    pub org: Option<String>,
+    pub owner: Option<String>,
+    pub limit: u64,
+    pub offset: u64,
+    pub expand: Option<Vec<String>>,
+}
+
+impl PeopleListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        if let Some(ref org) = self.org {
+            pairs.push(("organization_id".to_string(), org.clone()));
+        }
+        if let Some(ref owner) = self.owner {
+            pairs.push(("owner_id".to_string(), owner.clone()));
+        }
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
+
+        if let Some(ref expand) = self.expand {
+            pairs.push(("expand".to_string(), expand.join(",")));
+        }
+
+        pairs
+    }
+}
+
+/// Parameters for listing activities with filtering and pagination.
+pub struct ActivitiesListParams {
+    pub type_id: Option<String>,
+    pub deal_id: Option<String>,
+    pub owner_id: Option<String>,
+    pub limit: u64,
+    pub offset: u64,
+    pub expand: Option<Vec<String>>,
+}
+
+impl ActivitiesListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        if let Some(ref type_id) = self.type_id {
+            pairs.push(("type_id".to_string(), type_id.clone()));
+        }
+        if let Some(ref deal_id) = self.deal_id {
+            pairs.push(("deal_id".to_string(), deal_id.clone()));
+        }
+        if let Some(ref owner_id) = self.owner_id {
+            pairs.push(("owner_id".to_string(), owner_id.clone()));
+        }
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
+
+        if let Some(ref expand) = self.expand {
+            pairs.push(("expand".to_string(), expand.join(",")));
+        }
+
+        pairs
+    }
+}
+
+/// Parameters for listing pipelines with pagination.
+pub struct PipelinesListParams {
+    pub limit: u64,
+    pub offset: u64,
+    pub expand: Option<Vec<String>>,
+}
+
+impl PipelinesListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
         pairs.push(("limit".to_string(), self.limit.to_string()));
         pairs.push(("offset".to_string(), self.offset.to_string()));
 
