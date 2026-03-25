@@ -15,6 +15,16 @@ pub enum CliError {
 
     #[error("Not found")]
     NotFound { detail: String, hint: String },
+
+    #[error("Validation error")]
+    Validation { detail: String, hint: String },
+
+    #[error("API error")]
+    Api {
+        status: u16,
+        detail: String,
+        hint: String,
+    },
 }
 
 /// Display a structured error message on stderr.
@@ -28,6 +38,12 @@ pub fn display_error(err: &anyhow::Error, color: bool) {
             CliError::Connection { detail, hint } => (cli_err.to_string(), detail, hint),
             CliError::Config { detail, hint } => (cli_err.to_string(), detail, hint),
             CliError::NotFound { detail, hint } => (cli_err.to_string(), detail, hint),
+            CliError::Validation { detail, hint } => (cli_err.to_string(), detail, hint),
+            CliError::Api {
+                status: _,
+                detail,
+                hint,
+            } => (cli_err.to_string(), detail, hint),
         };
         eprintln!("{}", format_error(&title, detail, hint, color));
     } else {
