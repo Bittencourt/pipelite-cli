@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use crate::api::models::deals_table_config;
 use crate::cli::deals::DealsGetArgs;
 use crate::context::AppContext;
 use crate::output;
@@ -35,17 +34,10 @@ pub async fn run(ctx: &AppContext, args: &DealsGetArgs) -> Result<()> {
         "updated_at".to_string(),
     ];
 
-    // Fall back to default table config columns if none provided
-    let columns = if args.fields.is_some() {
-        let config = deals_table_config();
-        config
-            .default_columns
-            .iter()
-            .map(|s| s.to_string())
-            .collect()
-    } else {
-        all_columns
-    };
+    // Always use all columns as the base for single-item view.
+    // When --fields is provided, render_single uses those as effective_columns.
+    // When --fields is absent, render_single falls back to this full set.
+    let columns = all_columns;
 
     output::render_single(&item, &ctx.output_format, &columns, &args.fields, ctx.color)
 }

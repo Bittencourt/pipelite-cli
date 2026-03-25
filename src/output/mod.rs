@@ -41,7 +41,6 @@ pub fn detect_format(explicit: Option<OutputFormat>) -> OutputFormat {
 ///
 /// Dispatches to the appropriate submodule. For JSON, uses field filtering.
 /// For table/csv/plain, uses columns (overridden by fields if provided).
-#[allow(dead_code)]
 pub fn render_list(
     items: &[serde_json::Value],
     format: &OutputFormat,
@@ -63,7 +62,6 @@ pub fn render_list(
 }
 
 /// Render a single item in the specified output format.
-#[allow(dead_code)]
 pub fn render_single(
     item: &serde_json::Value,
     format: &OutputFormat,
