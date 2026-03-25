@@ -98,7 +98,7 @@
 
 - [x] **HEAD-01**: User can pass `--no-input` to guarantee no interactive prompts
 - [x] **HEAD-02**: Headless mode fails with clear error if required input is missing
-- [ ] **HEAD-03**: All mutations can be performed entirely via flags (no prompts needed)
+- [x] **HEAD-03**: All mutations can be performed entirely via flags (no prompts needed)
 
 ### Shell Completions
 
@@ -218,7 +218,7 @@
 | INTR-03 | Phase 4 | Complete |
 | HEAD-01 | Phase 4 | Complete |
 | HEAD-02 | Phase 4 | Complete |
-| HEAD-03 | Phase 4 | Pending |
+| HEAD-03 | Phase 4 | Complete |
 | SHLL-01 | Phase 4 | Complete |
 | SHLL-02 | Phase 4 | Complete |
 | SHLL-03 | Phase 4 | Complete |
