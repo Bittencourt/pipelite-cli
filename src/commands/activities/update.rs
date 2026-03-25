@@ -1,18 +1,44 @@
+use std::io::IsTerminal;
+
 use anyhow::Result;
 use chrono::Utc;
 
 use crate::api::models::{ActivityUpdate, activities_table_config};
 use crate::cli::activities::ActivitiesUpdateArgs;
 use crate::context::AppContext;
+use crate::dry_run;
 use crate::error::CliError;
 use crate::output;
+use crate::prompt;
 
 /// Update an existing activity.
 ///
 /// Builds an ActivityUpdate from optional CLI flags and sends to the API.
 /// Handles --mark-done (sets completed_at to current UTC time) and
 /// --mark-undone (sends completed_at: null via raw JSON).
+///
+/// If no flags are provided on a TTY, prompts interactively for updatable fields
+/// (all optional). Does NOT prompt for mark_done/mark_undone (explicit action flags).
 pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
+    let has_flags = args.title.is_some()
+        || args.type_id.is_some()
+        || args.deal.is_some()
+        || args.due_at.is_some()
+        || args.notes.is_some()
+        || args.completed_at.is_some()
+        || args.mark_done
+        || args.mark_undone
+        || !args.custom_field.is_empty();
+
+    // If no flags provided in headless mode, error out
+    if !has_flags && (ctx.no_input || !std::io::stdin().is_terminal()) {
+        return Err(CliError::Validation {
+            detail: "No fields to update. Provide at least one flag.".to_string(),
+            hint: "Usage: pipelite activities update <id> --title <title> [--type <type_id>] [--mark-done]".to_string(),
+        }
+        .into());
+    }
+
     let custom_fields = parse_custom_fields(&args.custom_field)?;
 
     // Handle --mark-undone specially: need to send completed_at: null explicitly
@@ -26,16 +52,54 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
         args.completed_at.clone()
     };
 
+    // Collect field values (from flags or interactive prompts)
+    let title = if has_flags {
+        args.title.clone()
+    } else {
+        prompt::optional_text(&args.title, "Title", ctx.no_input)?
+    };
+
+    let type_id = if has_flags {
+        args.type_id.clone()
+    } else {
+        prompt::optional_text(&args.type_id, "Activity type ID", ctx.no_input)?
+    };
+
+    let deal = if has_flags {
+        args.deal.clone()
+    } else {
+        prompt::optional_text(&args.deal, "Deal ID", ctx.no_input)?
+    };
+
+    let due_at = if has_flags {
+        args.due_at.clone()
+    } else {
+        prompt::optional_text(&args.due_at, "Due date/time (ISO format)", ctx.no_input)?
+    };
+
+    let notes = if has_flags {
+        args.notes.clone()
+    } else {
+        prompt::optional_text(&args.notes, "Notes", ctx.no_input)?
+    };
+
     let data = ActivityUpdate {
-        title: args.title.clone(),
-        type_id: args.type_id.clone(),
-        deal_id: args.deal.clone(),
+        title,
+        type_id,
+        deal_id: deal,
         owner_id: None,
-        due_at: args.due_at.clone(),
+        due_at,
         completed_at,
-        notes: args.notes.clone(),
+        notes,
         custom_fields,
     };
+
+    // Dry-run intercept
+    if ctx.dry_run {
+        let body = serde_json::to_value(&data)?;
+        let url = format!("{}/api/v1/activities/{}", ctx.client.base_url(), args.id);
+        return dry_run::render_dry_run("PUT", &url, &body, &ctx.output_format, ctx.color);
+    }
 
     let activity = ctx.client.update_activity(&args.id, &data).await?;
     render_result(ctx, &activity)
@@ -80,6 +144,13 @@ async fn update_with_null_completed(
     }
 
     let json_value = serde_json::Value::Object(payload);
+
+    // Dry-run intercept
+    if ctx.dry_run {
+        let url = format!("{}/api/v1/activities/{}", ctx.client.base_url(), args.id);
+        return dry_run::render_dry_run("PUT", &url, &json_value, &ctx.output_format, ctx.color);
+    }
+
     let activity = ctx.client.update_activity_raw(&args.id, &json_value).await?;
     render_result(ctx, &activity)
 }

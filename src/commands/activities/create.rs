@@ -5,45 +5,95 @@ use anyhow::Result;
 use crate::api::models::{ActivityCreate, activities_table_config};
 use crate::cli::activities::ActivitiesCreateArgs;
 use crate::context::AppContext;
+use crate::dry_run;
 use crate::error::CliError;
 use crate::output;
+use crate::prompt;
 
 /// Create a new activity (or batch create from stdin).
 ///
 /// When --stdin is set, reads a JSON array of ActivityCreate objects from stdin
 /// and creates them one-by-one (no batch endpoint for activities).
-/// Otherwise, builds a single ActivityCreate from CLI flags.
+/// Otherwise, builds a single ActivityCreate from CLI flags (with interactive
+/// prompts on TTY when flags are missing).
 pub async fn run(ctx: &AppContext, args: &ActivitiesCreateArgs) -> Result<()> {
+    // Validate mutual exclusivity: --stdin vs individual flags
     if args.stdin {
-        batch_create(ctx).await
-    } else {
-        single_create(ctx, args).await
+        let has_flags = args.title.is_some()
+            || args.type_id.is_some()
+            || args.deal.is_some()
+            || args.due_at.is_some()
+            || args.notes.is_some()
+            || !args.custom_field.is_empty();
+
+        if has_flags {
+            return Err(CliError::Validation {
+                detail: "--stdin and individual field flags are mutually exclusive".to_string(),
+                hint: "Use either --stdin or individual flags, not both.".to_string(),
+            }
+            .into());
+        }
+
+        return batch_create(ctx).await;
     }
+
+    single_create(ctx, args).await
 }
 
-/// Create a single activity from CLI flags.
+/// Create a single activity from CLI flags, with interactive prompts for missing fields.
 async fn single_create(ctx: &AppContext, args: &ActivitiesCreateArgs) -> Result<()> {
-    let title = args.title.as_ref().ok_or_else(|| CliError::Validation {
-        detail: "Missing required flag: --title".to_string(),
-        hint: "Usage: pipelite activities create --title <title> --type <type_id>".to_string(),
-    })?;
+    let mut missing = Vec::new();
 
-    let type_id = args.type_id.as_ref().ok_or_else(|| CliError::Validation {
-        detail: "Missing required flag: --type".to_string(),
-        hint: "Usage: pipelite activities create --title <title> --type <type_id>".to_string(),
-    })?;
+    // Required: title
+    let title = prompt::require_text(
+        &args.title,
+        "title",
+        "Activity title",
+        &mut missing,
+        ctx.no_input,
+    )?;
+
+    // Required: type_id (text input, no FuzzySelect since activity types are not listable)
+    let type_id = prompt::require_text(
+        &args.type_id,
+        "type",
+        "Activity type ID",
+        &mut missing,
+        ctx.no_input,
+    )?;
+
+    // Check required fields before proceeding to optional ones
+    prompt::check_missing(
+        &missing,
+        "Usage: pipelite activities create --title <title> --type <type_id>",
+    )?;
+
+    let title = title.unwrap();
+    let type_id = type_id.unwrap();
+
+    // Optional fields
+    let deal = prompt::optional_text(&args.deal, "Deal ID", ctx.no_input)?;
+    let due_at = prompt::optional_text(&args.due_at, "Due date/time (ISO format)", ctx.no_input)?;
+    let notes = prompt::optional_text(&args.notes, "Notes", ctx.no_input)?;
 
     let custom_fields = parse_custom_fields(&args.custom_field)?;
 
     let data = ActivityCreate {
-        title: title.clone(),
-        type_id: type_id.clone(),
-        deal_id: args.deal.clone(),
+        title,
+        type_id,
+        deal_id: deal,
         owner_id: None,
-        due_at: args.due_at.clone(),
-        notes: args.notes.clone(),
+        due_at,
+        notes,
         custom_fields,
     };
+
+    // Dry-run intercept
+    if ctx.dry_run {
+        let body = serde_json::to_value(&data)?;
+        let url = format!("{}/api/v1/activities", ctx.client.base_url());
+        return dry_run::render_dry_run("POST", &url, &body, &ctx.output_format, ctx.color);
+    }
 
     let activity = ctx.client.create_activity(&data).await?;
     let item = serde_json::to_value(&activity)?;
@@ -81,6 +131,16 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
             hint: "Stdin must contain a JSON array of activity objects with 'title' and 'type_id' fields."
                 .to_string(),
         })?;
+
+    // Dry-run: show each payload that would be sent
+    if ctx.dry_run {
+        let url = format!("{}/api/v1/activities", ctx.client.base_url());
+        for item in &items {
+            let body = serde_json::to_value(item)?;
+            dry_run::render_dry_run("POST", &url, &body, &ctx.output_format, ctx.color)?;
+        }
+        return Ok(());
+    }
 
     let total = items.len();
     let mut created_items: Vec<serde_json::Value> = Vec::new();
