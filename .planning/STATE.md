@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-25T12:08:13Z"
-last_activity: 2026-03-25 -- Completed 04-01 interactive prompts, dry-run, completions
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-03-25T12:17:48.986Z"
+last_activity: 2026-03-25 -- Completed 04-02 entity-wide prompts, headless validation, and dry-run
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 90
+  completed_phases: 4
+  total_plans: 11
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 4 of 5 (Developer Experience)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-25 -- Completed 04-01 interactive prompts, dry-run, completions
+Plan: 2 of 2 in current phase
+Status: Completed
+Last activity: 2026-03-25 -- Completed 04-02 entity-wide prompts, headless validation, and dry-run
 
-Progress: [█████████ ] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -56,6 +56,8 @@ Progress: [█████████ ] 90%
 | Phase 03 P02 | 7min | 2 tasks | 13 files |
 | Phase 03 P03 | 12min | 2 tasks | 13 files |
 | Phase 04 P01 | 7min | 2 tasks | 14 files |
+| Phase 04 P02 | 5min | 2 tasks | 15 files |
+| Phase 04 P03 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -95,6 +97,10 @@ Recent decisions affecting current work:
 - [04-01]: MissingInput exit code 2 (same as clap usage errors, distinct from runtime exit 1)
 - [04-01]: Batch error reporting: collect ALL missing required flags, report once via check_missing
 - [04-01]: --stdin and individual flags mutually exclusive (validation error)
+- [Phase 04]: Integration tests use env vars with fake values for config bypass, and unreachable server for dry-run proof
+- [04-02]: People org selection uses optional FuzzySelect with '(none - skip)' at top since org is not required
+- [04-02]: Pipeline default boolean uses dialoguer::Confirm on TTY for natural boolean UX
+- [04-02]: Activities batch dry-run shows each individual payload (no batch endpoint)
 
 ### Pending Todos
 
@@ -107,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T12:08:13Z
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-developer-experience/04-01-SUMMARY.md
+Last session: 2026-03-25T12:17:48.983Z
+Stopped at: Completed 04-03-PLAN.md
+Resume file: None
