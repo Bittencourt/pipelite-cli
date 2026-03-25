@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-01 output layer and Deal models
-last_updated: "2026-03-25T01:09:55.609Z"
-last_activity: 2026-03-24 -- Completed 02-01 output layer and Deal models
+stopped_at: Completed 02-02 deal CRUD commands
+last_updated: "2026-03-25T01:36:18Z"
+last_activity: 2026-03-24 -- Completed 02-02 deal CRUD commands
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 2 of 5 (Core CRUD and Output)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-24 -- Completed 02-01 output layer and Deal models
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-03-24 -- Completed 02-02 deal CRUD commands
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 5.3min
-- Total execution time: 0.3 hours
+- Total plans completed: 4
+- Average duration: 5.5min
+- Total execution time: 0.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Foundation | 2 | 11min | 5.5min |
-| 2. Core CRUD and Output | 1 | 5min | 5min |
+| 2. Core CRUD and Output | 2 | 11min | 5.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (7min), 01-02 (4min), 02-01 (5min)
+- Last 5 plans: 01-01 (7min), 01-02 (4min), 02-01 (5min), 02-02 (6min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -70,6 +70,10 @@ Recent decisions affecting current work:
 - [02-01]: Output modules are fully generic (serde_json::Value, not Deal-specific) for entity reuse
 - [02-01]: format_value uses field name heuristics (_at/_date for relative time, 'value' for currency)
 - [02-01]: Internal format_* helpers return String for testability; public render_* writes to stdout
+- [02-02]: Create/update --title/--stage are Option validated at runtime to allow --stdin mode
+- [02-02]: Generic handle_response<T> on PipeliteClient for typed HTTP error mapping
+- [02-02]: Auto-paginate fetches batches of 100, caps at 1000, warns to stderr
+- [02-02]: Get single deal shows all 13 fields; list shows compact 6-column default
 
 ### Pending Todos
 
@@ -82,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T01:27:08Z
-Stopped at: Completed 02-01 output layer and Deal models
-Resume file: .planning/phases/02-core-crud-and-output/02-01-SUMMARY.md
+Last session: 2026-03-25T01:36:18Z
+Stopped at: Completed 02-02 deal CRUD commands
+Resume file: .planning/phases/02-core-crud-and-output/02-02-SUMMARY.md

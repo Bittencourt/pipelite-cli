@@ -21,11 +21,11 @@
 
 ### Entity CRUD — Deals
 
-- [ ] **DEAL-01**: User can list deals with `pipelite deals list`
-- [ ] **DEAL-02**: User can get a deal by ID with `pipelite deals get <id>`
-- [ ] **DEAL-03**: User can create a deal with `pipelite deals create`
-- [ ] **DEAL-04**: User can update a deal with `pipelite deals update <id>`
-- [ ] **DEAL-05**: User can delete a deal with `pipelite deals delete <id>`
+- [x] **DEAL-01**: User can list deals with `pipelite deals list`
+- [x] **DEAL-02**: User can get a deal by ID with `pipelite deals get <id>`
+- [x] **DEAL-03**: User can create a deal with `pipelite deals create`
+- [x] **DEAL-04**: User can update a deal with `pipelite deals update <id>`
+- [x] **DEAL-05**: User can delete a deal with `pipelite deals delete <id>`
 
 ### Entity CRUD — Organizations
 
@@ -79,8 +79,8 @@
 
 ### List Filtering
 
-- [ ] **FILT-01**: User can filter lists by entity-specific fields (e.g., `--stage`, `--owner`)
-- [ ] **FILT-02**: User can paginate results with `--limit` and `--offset`
+- [x] **FILT-01**: User can filter lists by entity-specific fields (e.g., `--stage`, `--owner`)
+- [x] **FILT-02**: User can paginate results with `--limit` and `--offset`
 
 ### Error Handling
 
@@ -171,11 +171,11 @@
 | CONF-02 | Phase 1 | Complete |
 | CONF-03 | Phase 1 | Complete |
 | CONF-04 | Phase 1 | Complete |
-| DEAL-01 | Phase 2 | Pending |
-| DEAL-02 | Phase 2 | Pending |
-| DEAL-03 | Phase 2 | Pending |
-| DEAL-04 | Phase 2 | Pending |
-| DEAL-05 | Phase 2 | Pending |
+| DEAL-01 | Phase 2 | Complete |
+| DEAL-02 | Phase 2 | Complete |
+| DEAL-03 | Phase 2 | Complete |
+| DEAL-04 | Phase 2 | Complete |
+| DEAL-05 | Phase 2 | Complete |
 | ORG-01 | Phase 3 | Pending |
 | ORG-02 | Phase 3 | Pending |
 | ORG-03 | Phase 3 | Pending |
@@ -208,8 +208,8 @@
 | OUTP-05 | Phase 2 | Complete |
 | OUTP-06 | Phase 2 | Complete |
 | OUTP-07 | Phase 2 | Complete |
-| FILT-01 | Phase 2 | Pending |
-| FILT-02 | Phase 2 | Pending |
+| FILT-01 | Phase 2 | Complete |
+| FILT-02 | Phase 2 | Complete |
 | ERRH-01 | Phase 1 | Complete |
 | ERRH-02 | Phase 1 | Complete |
 | ERRH-03 | Phase 1 | Complete |
