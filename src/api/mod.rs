@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use crate::config::AppConfig;
 use crate::error::CliError;
 
-use models::{ApiListResponse, Deal, DealCreate, DealUpdate, PingResponse};
+use models::{ApiListResponse, ApiSingleResponse, Deal, DealCreate, DealUpdate, PingResponse};
 
 /// HTTP client for the Pipelite CRM API.
 ///
@@ -240,7 +240,8 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = req.send().await.map_err(|e| self.map_request_error(e))?;
-        self.handle_response(response).await
+        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response).await?;
+        Ok(wrapper.data)
     }
 
     /// Create a new deal.
@@ -253,7 +254,8 @@ impl PipeliteClient {
             .send()
             .await
             .map_err(|e| self.map_request_error(e))?;
-        self.handle_response(response).await
+        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response).await?;
+        Ok(wrapper.data)
     }
 
     /// Update an existing deal.
@@ -266,7 +268,8 @@ impl PipeliteClient {
             .send()
             .await
             .map_err(|e| self.map_request_error(e))?;
-        self.handle_response(response).await
+        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response).await?;
+        Ok(wrapper.data)
     }
 
     /// Delete a deal by ID.

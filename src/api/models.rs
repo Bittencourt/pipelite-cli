@@ -6,6 +6,12 @@ pub struct PingResponse {
     pub status: String,
 }
 
+/// Generic wrapper for single-item API responses.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ApiSingleResponse<T> {
+    pub data: T,
+}
+
 /// Generic wrapper for paginated API list responses.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ApiListResponse<T> {
