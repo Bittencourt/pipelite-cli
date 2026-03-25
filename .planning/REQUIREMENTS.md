@@ -69,13 +69,13 @@
 
 ### Output Formatting
 
-- [ ] **OUTP-01**: User can get JSON output with `--format json` (default when piped)
-- [ ] **OUTP-02**: User can get table output (default when interactive TTY)
-- [ ] **OUTP-03**: User can get CSV output with `--format csv`
-- [ ] **OUTP-04**: User can get plain output with `--format plain` (values only, no headers)
-- [ ] **OUTP-05**: User can select specific fields with `--fields=id,title,value`
-- [ ] **OUTP-06**: Output auto-detects TTY vs pipe and adjusts format accordingly
-- [ ] **OUTP-07**: Colored output with `NO_COLOR` env var and `--no-color` flag support
+- [x] **OUTP-01**: User can get JSON output with `--format json` (default when piped)
+- [x] **OUTP-02**: User can get table output (default when interactive TTY)
+- [x] **OUTP-03**: User can get CSV output with `--format csv`
+- [x] **OUTP-04**: User can get plain output with `--format plain` (values only, no headers)
+- [x] **OUTP-05**: User can select specific fields with `--fields=id,title,value`
+- [x] **OUTP-06**: Output auto-detects TTY vs pipe and adjusts format accordingly
+- [x] **OUTP-07**: Colored output with `NO_COLOR` env var and `--no-color` flag support
 
 ### List Filtering
 
@@ -201,13 +201,13 @@
 | STAG-03 | Phase 3 | Pending |
 | STAG-04 | Phase 3 | Pending |
 | STAG-05 | Phase 3 | Pending |
-| OUTP-01 | Phase 2 | Pending |
-| OUTP-02 | Phase 2 | Pending |
-| OUTP-03 | Phase 2 | Pending |
-| OUTP-04 | Phase 2 | Pending |
-| OUTP-05 | Phase 2 | Pending |
-| OUTP-06 | Phase 2 | Pending |
-| OUTP-07 | Phase 2 | Pending |
+| OUTP-01 | Phase 2 | Complete |
+| OUTP-02 | Phase 2 | Complete |
+| OUTP-03 | Phase 2 | Complete |
+| OUTP-04 | Phase 2 | Complete |
+| OUTP-05 | Phase 2 | Complete |
+| OUTP-06 | Phase 2 | Complete |
+| OUTP-07 | Phase 2 | Complete |
 | FILT-01 | Phase 2 | Pending |
 | FILT-02 | Phase 2 | Pending |
 | ERRH-01 | Phase 1 | Complete |

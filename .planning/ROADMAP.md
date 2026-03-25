@@ -46,7 +46,7 @@ Plans:
   3. User can explicitly choose output format with `--format json|table|csv|plain` and select fields with `--fields`
   4. User can filter deal lists with entity-specific flags and paginate with `--limit` and `--offset`
   5. Colored output works in terminal and respects `NO_COLOR` env var and `--no-color` flag
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 02-01-PLAN.md -- Deal data models, API response wrappers, and generic output rendering layer (table/JSON/CSV/plain)
@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete    | 2026-03-25 |
-| 2. Core CRUD and Output | 0/2 | Not started | - |
+| 2. Core CRUD and Output | 1/2 | In Progress|  |
 | 3. Full Entity Coverage | 0/0 | Not started | - |
 | 4. Developer Experience | 0/0 | Not started | - |
 | 5. Power Features | 0/0 | Not started | - |
