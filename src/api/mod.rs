@@ -65,38 +65,18 @@ impl PipeliteClient {
     /// Returns the status string from the server response.
     /// Maps HTTP errors to appropriate CliError variants.
     pub async fn ping(&self) -> Result<String> {
+        // Try /api/v1/ping first; fall back to an authenticated lightweight
+        // request if the server doesn't expose a dedicated ping endpoint.
         let url = format!("{}/api/v1/ping", self.base_url);
 
-        let response = self.client.get(&url).send().await.map_err(|e| {
-            if e.is_timeout() {
-                CliError::Connection {
-                    detail: format!("Request timed out connecting to {}", self.base_url),
-                    hint: "Check that the server URL is correct and the server is running."
-                        .to_string(),
-                }
-            } else if e.is_connect() {
-                CliError::Connection {
-                    detail: format!("Could not connect to {}", self.base_url),
-                    hint: "Check your network connection and verify the server URL.".to_string(),
-                }
-            } else {
-                CliError::Connection {
-                    detail: format!("HTTP request failed: {}", e),
-                    hint: "Check the server URL and try again.".to_string(),
-                }
-            }
-        })?;
-
+        let response = self.send_ping_request(&url).await?;
         let status_code = response.status();
 
-        if status_code == reqwest::StatusCode::UNAUTHORIZED
-            || status_code == reqwest::StatusCode::FORBIDDEN
-        {
-            return Err(CliError::Auth {
-                detail: format!("Server returned {} for {}", status_code, url),
-                hint: "Check your API key. Run `pipelite init` to reconfigure.".to_string(),
-            }
-            .into());
+        self.check_auth_status(status_code, &url)?;
+
+        if status_code == reqwest::StatusCode::NOT_FOUND {
+            // Server has no /ping endpoint — verify connectivity via deals
+            return self.ping_fallback().await;
         }
 
         if !status_code.is_success() {
@@ -115,6 +95,63 @@ impl PipeliteClient {
         })?;
 
         Ok(ping.status)
+    }
+
+    /// Fallback connectivity check using a lightweight authenticated request.
+    async fn ping_fallback(&self) -> Result<String> {
+        let url = format!("{}/api/v1/deals?limit=1", self.base_url);
+        let response = self.send_ping_request(&url).await?;
+        let status_code = response.status();
+
+        self.check_auth_status(status_code, &url)?;
+
+        if !status_code.is_success() {
+            return Err(CliError::Connection {
+                detail: format!("Server returned HTTP {}", status_code),
+                hint: "The server may be experiencing issues. Try again later.".to_string(),
+            }
+            .into());
+        }
+
+        Ok("ok".to_string())
+    }
+
+    /// Send a GET request, mapping transport errors to CliError.
+    async fn send_ping_request(&self, url: &str) -> Result<reqwest::Response> {
+        self.client.get(url).send().await.map_err(|e| {
+            if e.is_timeout() {
+                CliError::Connection {
+                    detail: format!("Request timed out connecting to {}", self.base_url),
+                    hint: "Check that the server URL is correct and the server is running."
+                        .to_string(),
+                }
+            } else if e.is_connect() {
+                CliError::Connection {
+                    detail: format!("Could not connect to {}", self.base_url),
+                    hint: "Check your network connection and verify the server URL.".to_string(),
+                }
+            } else {
+                CliError::Connection {
+                    detail: format!("HTTP request failed: {}", e),
+                    hint: "Check the server URL and try again.".to_string(),
+                }
+            }
+            .into()
+        })
+    }
+
+    /// Check if a response status indicates an auth failure.
+    fn check_auth_status(&self, status: reqwest::StatusCode, url: &str) -> Result<()> {
+        if status == reqwest::StatusCode::UNAUTHORIZED
+            || status == reqwest::StatusCode::FORBIDDEN
+        {
+            return Err(CliError::Auth {
+                detail: format!("Server returned {} for {}", status, url),
+                hint: "Check your API key. Run `pipelite init` to reconfigure.".to_string(),
+            }
+            .into());
+        }
+        Ok(())
     }
 
     /// Get the base URL of this client.
