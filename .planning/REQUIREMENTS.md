@@ -45,11 +45,11 @@
 
 ### Entity CRUD — Activities
 
-- [ ] **ACTV-01**: User can list activities with `pipelite activities list`
-- [ ] **ACTV-02**: User can get an activity by ID with `pipelite activities get <id>`
-- [ ] **ACTV-03**: User can create an activity with `pipelite activities create`
-- [ ] **ACTV-04**: User can update an activity with `pipelite activities update <id>`
-- [ ] **ACTV-05**: User can delete an activity with `pipelite activities delete <id>`
+- [x] **ACTV-01**: User can list activities with `pipelite activities list`
+- [x] **ACTV-02**: User can get an activity by ID with `pipelite activities get <id>`
+- [x] **ACTV-03**: User can create an activity with `pipelite activities create`
+- [x] **ACTV-04**: User can update an activity with `pipelite activities update <id>`
+- [x] **ACTV-05**: User can delete an activity with `pipelite activities delete <id>`
 
 ### Entity CRUD — Pipelines
 
@@ -186,11 +186,11 @@
 | PEOP-03 | Phase 3 | Pending |
 | PEOP-04 | Phase 3 | Pending |
 | PEOP-05 | Phase 3 | Pending |
-| ACTV-01 | Phase 3 | Pending |
-| ACTV-02 | Phase 3 | Pending |
-| ACTV-03 | Phase 3 | Pending |
-| ACTV-04 | Phase 3 | Pending |
-| ACTV-05 | Phase 3 | Pending |
+| ACTV-01 | Phase 3 | Complete |
+| ACTV-02 | Phase 3 | Complete |
+| ACTV-03 | Phase 3 | Complete |
+| ACTV-04 | Phase 3 | Complete |
+| ACTV-05 | Phase 3 | Complete |
 | PIPE-01 | Phase 3 | Pending |
 | PIPE-02 | Phase 3 | Pending |
 | PIPE-03 | Phase 3 | Pending |

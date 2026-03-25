@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 3 context gathered
-last_updated: "2026-03-25T02:14:04.383Z"
-last_activity: 2026-03-25 -- Completed 02-03 gap closure fix
+status: in-progress
+stopped_at: Completed 03-02 activities CRUD
+last_updated: "2026-03-25T02:38:00Z"
+last_activity: 2026-03-25 -- Completed 03-02 activities CRUD
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 8
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal -- fast, scriptable, and composable with other tools.
-**Current focus:** Phase 2: Core CRUD and Output
+**Current focus:** Phase 3: Full Entity Coverage
 
 ## Current Position
 
-Phase: 2 of 5 (Core CRUD and Output)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-03-25 -- Completed 02-03 gap closure fix
+Phase: 3 of 5 (Full Entity Coverage)
+Plan: 2 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-25 -- Completed 03-02 activities CRUD
 
-Progress: [██████████] 100%
+Progress: [███████▌  ] 75%
 
 ## Performance Metrics
 
@@ -52,6 +52,8 @@ Progress: [██████████] 100%
 
 *Updated after each plan completion*
 | Phase 02 P03 | 1min | 1 tasks | 2 files |
+| Phase 03 P01 | 7min | 2 tasks | 21 files |
+| Phase 03 P02 | 7min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -76,6 +78,12 @@ Recent decisions affecting current work:
 - [02-02]: Auto-paginate fetches batches of 100, caps at 1000, warns to stderr
 - [02-02]: Get single deal shows all 13 fields; list shows compact 6-column default
 - [Phase 02-03]: Removed field-selection conditional entirely -- all_columns always correct for single-item get view
+- [03-01]: Orgs default table: id, name, owner_id, updated_at -- compact 4-column list
+- [03-01]: People default table: id, full_name, email, organization_id, updated_at -- uses computed full_name
+- [03-01]: People create validates both --first-name and --last-name as required at runtime
+- [03-02]: Used update_activity_raw() with serde_json::Value for --mark-undone null-clearing
+- [03-02]: Client-side --done filter on activities list (completed_at not null)
+- [03-02]: Individual-create loop pattern for --stdin batch on entities without batch endpoint
 
 ### Pending Todos
 
@@ -88,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T02:14:04.380Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-full-entity-coverage/03-CONTEXT.md
+Last session: 2026-03-25T02:38:00Z
+Stopped at: Completed 03-02 activities CRUD
+Resume file: .planning/phases/03-full-entity-coverage/03-02-SUMMARY.md

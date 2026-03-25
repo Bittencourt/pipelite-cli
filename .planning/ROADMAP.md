@@ -63,7 +63,7 @@ Plans:
   3. User can list, get, create, update, and delete activities via `pipelite activities` subcommands
   4. User can list, get, create, update, and delete pipelines and stages via `pipelite pipelines` and `pipelite stages` subcommands
   5. All entity commands support the same output formats, filtering, and field selection as deals
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md -- Organizations and People: CRUD, batch create via /batch endpoint, integration tests
@@ -110,6 +110,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete    | 2026-03-25 |
 | 2. Core CRUD and Output | 2/3 | In Progress|  |
-| 3. Full Entity Coverage | 0/3 | Not started | - |
+| 3. Full Entity Coverage | 2/3 | In Progress|  |
 | 4. Developer Experience | 0/0 | Not started | - |
 | 5. Power Features | 0/0 | Not started | - |
