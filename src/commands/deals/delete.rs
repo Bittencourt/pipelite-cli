@@ -4,6 +4,14 @@ use crate::cli::deals::DealsDeleteArgs;
 use crate::context::AppContext;
 
 /// Delete a deal by ID.
-pub async fn run(_ctx: &AppContext, _args: &DealsDeleteArgs) -> Result<()> {
-    todo!("Implemented in Task 2")
+///
+/// Prints a confirmation message unless --quiet is set.
+pub async fn run(ctx: &AppContext, args: &DealsDeleteArgs) -> Result<()> {
+    ctx.client.delete_deal(&args.id).await?;
+
+    if !ctx.quiet {
+        println!("Deleted deal {}", args.id);
+    }
+
+    Ok(())
 }
