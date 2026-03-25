@@ -90,21 +90,21 @@
 
 ### Interactive Mode
 
-- [ ] **INTR-01**: Running create/update with no flags opens interactive prompts for required fields
-- [ ] **INTR-02**: Interactive prompts show dropdowns for known values (stages, pipelines)
-- [ ] **INTR-03**: Interactive prompts only activate when stdin is a TTY
+- [x] **INTR-01**: Running create/update with no flags opens interactive prompts for required fields
+- [x] **INTR-02**: Interactive prompts show dropdowns for known values (stages, pipelines)
+- [x] **INTR-03**: Interactive prompts only activate when stdin is a TTY
 
 ### Headless Mode
 
-- [ ] **HEAD-01**: User can pass `--no-input` to guarantee no interactive prompts
-- [ ] **HEAD-02**: Headless mode fails with clear error if required input is missing
+- [x] **HEAD-01**: User can pass `--no-input` to guarantee no interactive prompts
+- [x] **HEAD-02**: Headless mode fails with clear error if required input is missing
 - [ ] **HEAD-03**: All mutations can be performed entirely via flags (no prompts needed)
 
 ### Shell Completions
 
-- [ ] **SHLL-01**: User can generate shell completions for bash
-- [ ] **SHLL-02**: User can generate shell completions for zsh
-- [ ] **SHLL-03**: User can generate shell completions for fish
+- [x] **SHLL-01**: User can generate shell completions for bash
+- [x] **SHLL-02**: User can generate shell completions for zsh
+- [x] **SHLL-03**: User can generate shell completions for fish
 
 ### Local Caching
 
@@ -122,7 +122,7 @@
 - [ ] **UX-01**: ASCII art splash screen when running `pipelite` with no subcommand on TTY
 - [x] **UX-02**: Quiet mode (`-q`) suppresses non-essential output
 - [x] **UX-03**: `pipelite --version` shows version string
-- [ ] **UX-04**: `--dry-run` on mutations shows what would be sent without executing
+- [x] **UX-04**: `--dry-run` on mutations shows what would be sent without executing
 
 ## v2 Requirements
 
@@ -213,15 +213,15 @@
 | ERRH-01 | Phase 1 | Complete |
 | ERRH-02 | Phase 1 | Complete |
 | ERRH-03 | Phase 1 | Complete |
-| INTR-01 | Phase 4 | Pending |
-| INTR-02 | Phase 4 | Pending |
-| INTR-03 | Phase 4 | Pending |
-| HEAD-01 | Phase 4 | Pending |
-| HEAD-02 | Phase 4 | Pending |
+| INTR-01 | Phase 4 | Complete |
+| INTR-02 | Phase 4 | Complete |
+| INTR-03 | Phase 4 | Complete |
+| HEAD-01 | Phase 4 | Complete |
+| HEAD-02 | Phase 4 | Complete |
 | HEAD-03 | Phase 4 | Pending |
-| SHLL-01 | Phase 4 | Pending |
-| SHLL-02 | Phase 4 | Pending |
-| SHLL-03 | Phase 4 | Pending |
+| SHLL-01 | Phase 4 | Complete |
+| SHLL-02 | Phase 4 | Complete |
+| SHLL-03 | Phase 4 | Complete |
 | CACH-01 | Phase 5 | Pending |
 | CACH-02 | Phase 5 | Pending |
 | CACH-03 | Phase 5 | Pending |
@@ -230,7 +230,7 @@
 | UX-01 | Phase 5 | Pending |
 | UX-02 | Phase 1 | Complete |
 | UX-03 | Phase 1 | Complete |
-| UX-04 | Phase 4 | Pending |
+| UX-04 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 68 total

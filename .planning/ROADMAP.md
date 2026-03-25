@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation | 2/2 | Complete    | 2026-03-25 |
 | 2. Core CRUD and Output | 2/3 | In Progress|  |
 | 3. Full Entity Coverage | 3/3 | Complete   | 2026-03-25 |
-| 4. Developer Experience | 0/3 | Not started | - |
+| 4. Developer Experience | 1/3 | In Progress | - |
 | 5. Power Features | 0/0 | Not started | - |
