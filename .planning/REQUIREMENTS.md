@@ -29,19 +29,19 @@
 
 ### Entity CRUD — Organizations
 
-- [ ] **ORG-01**: User can list organizations with `pipelite orgs list`
-- [ ] **ORG-02**: User can get an org by ID with `pipelite orgs get <id>`
-- [ ] **ORG-03**: User can create an org with `pipelite orgs create`
-- [ ] **ORG-04**: User can update an org with `pipelite orgs update <id>`
-- [ ] **ORG-05**: User can delete an org with `pipelite orgs delete <id>`
+- [x] **ORG-01**: User can list organizations with `pipelite orgs list`
+- [x] **ORG-02**: User can get an org by ID with `pipelite orgs get <id>`
+- [x] **ORG-03**: User can create an org with `pipelite orgs create`
+- [x] **ORG-04**: User can update an org with `pipelite orgs update <id>`
+- [x] **ORG-05**: User can delete an org with `pipelite orgs delete <id>`
 
 ### Entity CRUD — People
 
-- [ ] **PEOP-01**: User can list people with `pipelite people list`
-- [ ] **PEOP-02**: User can get a person by ID with `pipelite people get <id>`
-- [ ] **PEOP-03**: User can create a person with `pipelite people create`
-- [ ] **PEOP-04**: User can update a person with `pipelite people update <id>`
-- [ ] **PEOP-05**: User can delete a person with `pipelite people delete <id>`
+- [x] **PEOP-01**: User can list people with `pipelite people list`
+- [x] **PEOP-02**: User can get a person by ID with `pipelite people get <id>`
+- [x] **PEOP-03**: User can create a person with `pipelite people create`
+- [x] **PEOP-04**: User can update a person with `pipelite people update <id>`
+- [x] **PEOP-05**: User can delete a person with `pipelite people delete <id>`
 
 ### Entity CRUD — Activities
 
@@ -176,16 +176,16 @@
 | DEAL-03 | Phase 2 | Complete |
 | DEAL-04 | Phase 2 | Complete |
 | DEAL-05 | Phase 2 | Complete |
-| ORG-01 | Phase 3 | Pending |
-| ORG-02 | Phase 3 | Pending |
-| ORG-03 | Phase 3 | Pending |
-| ORG-04 | Phase 3 | Pending |
-| ORG-05 | Phase 3 | Pending |
-| PEOP-01 | Phase 3 | Pending |
-| PEOP-02 | Phase 3 | Pending |
-| PEOP-03 | Phase 3 | Pending |
-| PEOP-04 | Phase 3 | Pending |
-| PEOP-05 | Phase 3 | Pending |
+| ORG-01 | Phase 3 | Complete |
+| ORG-02 | Phase 3 | Complete |
+| ORG-03 | Phase 3 | Complete |
+| ORG-04 | Phase 3 | Complete |
+| ORG-05 | Phase 3 | Complete |
+| PEOP-01 | Phase 3 | Complete |
+| PEOP-02 | Phase 3 | Complete |
+| PEOP-03 | Phase 3 | Complete |
+| PEOP-04 | Phase 3 | Complete |
+| PEOP-05 | Phase 3 | Complete |
 | ACTV-01 | Phase 3 | Complete |
 | ACTV-02 | Phase 3 | Complete |
 | ACTV-03 | Phase 3 | Complete |
