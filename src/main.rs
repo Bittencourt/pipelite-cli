@@ -36,5 +36,9 @@ async fn run(cli: Cli) -> Result<()> {
             let ctx = AppContext::build(&cli)?;
             commands::config::run(&ctx, cmd)
         }
+        Commands::Deals(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::deals::run(&ctx, cmd).await
+        }
     }
 }

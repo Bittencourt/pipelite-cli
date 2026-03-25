@@ -1,10 +1,12 @@
 pub mod config;
+pub mod deals;
 pub mod init;
 
 use clap::{Parser, Subcommand};
 
 use crate::output::OutputFormat;
 use config::ConfigCommands;
+use deals::DealsCommands;
 use init::InitArgs;
 
 /// Build a rich version string with rustc version and platform info.
@@ -61,4 +63,11 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite config show\n  pipelite config set output.format json"
     )]
     Config(ConfigCommands),
+
+    /// Manage deals in your pipeline
+    #[command(
+        subcommand,
+        after_help = "Examples:\n  pipelite deals list\n  pipelite deals get deal_abc123\n  pipelite deals create --title \"Big Deal\" --stage stg_001"
+    )]
+    Deals(DealsCommands),
 }
