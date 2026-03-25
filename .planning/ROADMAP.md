@@ -80,11 +80,12 @@ Plans:
   3. All mutations can be performed entirely via flags without any prompts
   4. User can generate shell completions for bash, zsh, and fish
   5. User can preview mutations with `--dry-run` showing what would be sent without executing
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Infrastructure: global flags, prompt module, dry-run module, completions command, deals refactor as proof-of-pattern
+- [ ] 04-02-PLAN.md -- Entity refactoring: replicate prompt/dry-run pattern across orgs, people, activities, pipelines, stages
+- [ ] 04-03-PLAN.md -- Integration tests: headless mode, completions, and dry-run test coverage
 
 ### Phase 5: Power Features
 **Goal**: Power users get local caching for speed, a pipeline dashboard for overview, and polish touches
@@ -111,5 +112,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation | 2/2 | Complete    | 2026-03-25 |
 | 2. Core CRUD and Output | 2/3 | In Progress|  |
 | 3. Full Entity Coverage | 3/3 | Complete   | 2026-03-25 |
-| 4. Developer Experience | 0/0 | Not started | - |
+| 4. Developer Experience | 0/3 | Not started | - |
 | 5. Power Features | 0/0 | Not started | - |
