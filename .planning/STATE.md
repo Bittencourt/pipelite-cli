@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-26T00:02:15.532Z"
-last_activity: 2026-03-25 -- Completed 05-02 dashboard and splash screen
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-03-26T00:10:15.723Z"
+last_activity: 2026-03-26 -- Completed 05-05 dynamic shell completions
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 15
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 5 of 5 (Power Features)
-Plan: 2 of 2 in current phase
+Plan: 5 of 5 in current phase
 Status: In Progress
-Last activity: 2026-03-25 -- Completed 05-02 dashboard and splash screen
+Last activity: 2026-03-26 -- Completed 05-05 dynamic shell completions
 
 Progress: [██████████] 100%
 
@@ -60,6 +60,8 @@ Progress: [██████████] 100%
 | Phase 04 P03 | 5min | 2 tasks | 3 files |
 | Phase 05 P02 | 4min | 2 tasks | 8 files |
 | Phase 05 P01 | 4min | 1 tasks | 10 files |
+| Phase 05 P04 | 5min | 1 tasks | 18 files |
+| Phase 05 P05 | 5min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -109,6 +111,9 @@ Recent decisions affecting current work:
 - [Phase 05-01]: CacheStore uses atomic write (temp file + rename) to prevent JSON corruption
 - [Phase 05-01]: Cache stored as Option<CacheStore> on AppContext -- None on dir creation failure for graceful degradation
 - [Phase 05-01]: Stages cached per-pipeline as stages_{pipeline_id} to support pipeline-scoped invalidation
+- [Phase 05]: Stage delete uses invalidate_prefix('stages_') since pipeline_id unavailable from delete response
+- [Phase 05]: ArgValueCandidates closures read from CacheStore only -- no network calls for instant non-blocking completions
+- [Phase 05]: Filter args (--stage, --org, --deal, --pipeline) also wired with cross-entity completion candidates
 
 ### Pending Todos
 
@@ -121,6 +126,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T00:02:12.406Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-26T00:10:15.719Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None
