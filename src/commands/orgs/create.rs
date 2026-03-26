@@ -3,6 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{OrganizationCreate, orgs_table_config};
+use crate::cache::KEY_ORGS;
 use crate::cli::orgs::OrgsCreateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -82,6 +83,11 @@ async fn single_create(ctx: &AppContext, args: &OrgsCreateArgs) -> Result<()> {
     }
 
     let org = ctx.client.create_org(&data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ORGS);
+    }
+
     let item = serde_json::to_value(&org)?;
 
     let config = orgs_table_config();
@@ -123,6 +129,11 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
     }
 
     let created = ctx.client.batch_create_orgs(&orgs).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ORGS);
+    }
+
     let items: Vec<serde_json::Value> = created
         .iter()
         .map(|o| serde_json::to_value(o).map_err(Into::into))

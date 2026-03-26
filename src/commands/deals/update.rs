@@ -3,6 +3,7 @@ use std::io::IsTerminal;
 use anyhow::Result;
 
 use crate::api::models::{DealUpdate, deals_table_config};
+use crate::cache::KEY_DEALS;
 use crate::cli::deals::DealsUpdateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -98,6 +99,11 @@ pub async fn run(ctx: &AppContext, args: &DealsUpdateArgs) -> Result<()> {
     }
 
     let deal = ctx.client.update_deal(&args.id, &data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_DEALS);
+    }
+
     let item = serde_json::to_value(&deal)?;
 
     let config = deals_table_config();

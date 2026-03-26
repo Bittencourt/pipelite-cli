@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::cache::KEY_PEOPLE;
 use crate::cli::people::PeopleDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -22,6 +23,10 @@ pub async fn run(ctx: &AppContext, args: &PeopleDeleteArgs) -> Result<()> {
     }
 
     ctx.client.delete_person(&args.id).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PEOPLE);
+    }
 
     if !ctx.quiet {
         println!("Deleted person {}", args.id);

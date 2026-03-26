@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::cache::KEY_PIPELINES;
 use crate::cli::pipelines::PipelinesDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -22,6 +23,11 @@ pub async fn run(ctx: &AppContext, args: &PipelinesDeleteArgs) -> Result<()> {
     }
 
     ctx.client.delete_pipeline(&args.id).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PIPELINES);
+        cache.invalidate_prefix("stages_");
+    }
 
     if !ctx.quiet {
         println!("Deleted pipeline {}", args.id);

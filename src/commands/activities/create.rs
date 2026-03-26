@@ -3,6 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{ActivityCreate, activities_table_config};
+use crate::cache::KEY_ACTIVITIES;
 use crate::cli::activities::ActivitiesCreateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -96,6 +97,11 @@ async fn single_create(ctx: &AppContext, args: &ActivitiesCreateArgs) -> Result<
     }
 
     let activity = ctx.client.create_activity(&data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ACTIVITIES);
+    }
+
     let item = serde_json::to_value(&activity)?;
 
     let config = activities_table_config();
@@ -164,6 +170,12 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
     }
     if !ctx.quiet && total > 0 {
         eprintln!(); // clear progress line
+    }
+
+    if !created_items.is_empty() {
+        if let Some(ref cache) = ctx.cache {
+            cache.invalidate(KEY_ACTIVITIES);
+        }
     }
 
     let config = activities_table_config();

@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::cache::KEY_ACTIVITIES;
 use crate::cli::activities::ActivitiesDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -22,6 +23,10 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesDeleteArgs) -> Result<()> {
     }
 
     ctx.client.delete_activity(&args.id).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ACTIVITIES);
+    }
 
     if !ctx.quiet {
         println!("Deleted activity {}", args.id);

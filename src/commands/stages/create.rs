@@ -3,7 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{StageCreate, stages_table_config};
-use crate::api::PipelinesListParams;
+use crate::cache::KEY_STAGES;
 use crate::cli::stages::StagesCreateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -98,6 +98,12 @@ async fn single_create(ctx: &AppContext, args: &StagesCreateArgs) -> Result<()> 
     }
 
     let stage = ctx.client.create_stage(&data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_STAGES);
+        cache.invalidate(&format!("stages_{}", data.pipeline_id));
+    }
+
     let item = serde_json::to_value(&stage)?;
 
     let config = stages_table_config();
@@ -111,21 +117,10 @@ async fn single_create(ctx: &AppContext, args: &StagesCreateArgs) -> Result<()> 
 }
 
 /// Interactive pipeline selection via FuzzySelect.
+///
+/// Uses cache-through helper for instant response when cache is warm.
 async fn select_pipeline_interactive(ctx: &AppContext) -> Result<Option<String>> {
-    let pipelines_resp = ctx
-        .client
-        .list_pipelines(&PipelinesListParams {
-            limit: 100,
-            offset: 0,
-            expand: None,
-        })
-        .await?;
-
-    let options: Vec<(String, String)> = pipelines_resp
-        .data
-        .iter()
-        .map(|p| (p.id.clone(), p.name.clone()))
-        .collect();
+    let options = prompt::get_pipelines_cached(ctx.cache.as_ref(), &ctx.client).await?;
 
     let mut missing = Vec::new();
     prompt::require_select(
@@ -190,6 +185,13 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
             total,
             errors.len()
         );
+    }
+
+    if !created.is_empty() {
+        if let Some(ref cache) = ctx.cache {
+            cache.invalidate(KEY_STAGES);
+            cache.invalidate_prefix("stages_");
+        }
     }
 
     let items: Vec<serde_json::Value> = created

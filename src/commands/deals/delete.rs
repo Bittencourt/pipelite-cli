@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::cache::KEY_DEALS;
 use crate::cli::deals::DealsDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -22,6 +23,10 @@ pub async fn run(ctx: &AppContext, args: &DealsDeleteArgs) -> Result<()> {
     }
 
     ctx.client.delete_deal(&args.id).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_DEALS);
+    }
 
     if !ctx.quiet {
         println!("Deleted deal {}", args.id);

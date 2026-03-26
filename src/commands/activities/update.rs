@@ -4,6 +4,7 @@ use anyhow::Result;
 use chrono::Utc;
 
 use crate::api::models::{ActivityUpdate, activities_table_config};
+use crate::cache::KEY_ACTIVITIES;
 use crate::cli::activities::ActivitiesUpdateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -102,6 +103,11 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
     }
 
     let activity = ctx.client.update_activity(&args.id, &data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ACTIVITIES);
+    }
+
     render_result(ctx, &activity)
 }
 
@@ -152,6 +158,11 @@ async fn update_with_null_completed(
     }
 
     let activity = ctx.client.update_activity_raw(&args.id, &json_value).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ACTIVITIES);
+    }
+
     render_result(ctx, &activity)
 }
 

@@ -3,6 +3,7 @@ use std::io::IsTerminal;
 use anyhow::Result;
 
 use crate::api::models::{PersonUpdate, people_table_config};
+use crate::cache::KEY_PEOPLE;
 use crate::cli::people::PeopleUpdateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -90,6 +91,11 @@ pub async fn run(ctx: &AppContext, args: &PeopleUpdateArgs) -> Result<()> {
     }
 
     let person = ctx.client.update_person(&args.id, &data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PEOPLE);
+    }
+
     let item = serde_json::to_value(&person)?;
 
     let config = people_table_config();

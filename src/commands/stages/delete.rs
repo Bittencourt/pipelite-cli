@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::cache::KEY_STAGES;
 use crate::cli::stages::StagesDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -23,6 +24,11 @@ pub async fn run(ctx: &AppContext, args: &StagesDeleteArgs) -> Result<()> {
     }
 
     ctx.client.delete_stage(&args.id).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_STAGES);
+        cache.invalidate_prefix("stages_");
+    }
 
     if !ctx.quiet {
         println!("Deleted stage {}", args.id);

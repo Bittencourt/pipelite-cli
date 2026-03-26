@@ -3,7 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{PersonCreate, people_table_config};
-use crate::api::OrgsListParams;
+use crate::cache::KEY_PEOPLE;
 use crate::cli::people::PeopleCreateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -107,6 +107,11 @@ async fn single_create(ctx: &AppContext, args: &PeopleCreateArgs) -> Result<()> 
     }
 
     let person = ctx.client.create_person(&data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PEOPLE);
+    }
+
     let item = serde_json::to_value(&person)?;
 
     let config = people_table_config();
@@ -120,27 +125,21 @@ async fn single_create(ctx: &AppContext, args: &PeopleCreateArgs) -> Result<()> 
 }
 
 /// Interactive org selection via FuzzySelect with a "None/Skip" option at top.
+///
+/// Uses cache-through helper for instant response when cache is warm.
 async fn select_org_interactive(ctx: &AppContext) -> Result<Option<String>> {
-    let orgs_resp = ctx
-        .client
-        .list_orgs(&OrgsListParams {
-            owner: None,
-            limit: 100,
-            offset: 0,
-            expand: None,
-        })
-        .await?;
+    let org_options = prompt::get_orgs_cached(ctx.cache.as_ref(), &ctx.client).await?;
 
-    if orgs_resp.data.is_empty() {
+    if org_options.is_empty() {
         return Ok(None);
     }
 
     let mut display: Vec<String> = vec!["(none - skip)".to_string()];
     let mut ids: Vec<Option<String>> = vec![None];
 
-    for org in &orgs_resp.data {
-        display.push(format!("{} ({})", org.name, org.id));
-        ids.push(Some(org.id.clone()));
+    for (id, name) in &org_options {
+        display.push(format!("{} ({})", name, id));
+        ids.push(Some(id.clone()));
     }
 
     let selection = dialoguer::FuzzySelect::new()
@@ -181,6 +180,11 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
     }
 
     let created = ctx.client.batch_create_people(&people).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PEOPLE);
+    }
+
     let items: Vec<serde_json::Value> = created
         .iter()
         .map(|p| serde_json::to_value(p).map_err(Into::into))

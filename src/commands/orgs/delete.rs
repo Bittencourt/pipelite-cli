@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::cache::KEY_ORGS;
 use crate::cli::orgs::OrgsDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -22,6 +23,10 @@ pub async fn run(ctx: &AppContext, args: &OrgsDeleteArgs) -> Result<()> {
     }
 
     ctx.client.delete_org(&args.id).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ORGS);
+    }
 
     if !ctx.quiet {
         println!("Deleted organization {}", args.id);

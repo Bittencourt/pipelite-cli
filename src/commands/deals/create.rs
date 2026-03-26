@@ -3,7 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{DealCreate, deals_table_config};
-use crate::api::{PipelinesListParams, StagesListParams};
+use crate::cache::KEY_DEALS;
 use crate::cli::deals::DealsCreateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -108,6 +108,11 @@ async fn single_create(ctx: &AppContext, args: &DealsCreateArgs) -> Result<()> {
     }
 
     let deal = ctx.client.create_deal(&data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_DEALS);
+    }
+
     let item = serde_json::to_value(&deal)?;
 
     let config = deals_table_config();
@@ -121,22 +126,11 @@ async fn single_create(ctx: &AppContext, args: &DealsCreateArgs) -> Result<()> {
 }
 
 /// Interactive stage selection: first pick a pipeline, then pick a stage within it.
+///
+/// Uses cache-through helpers for instant response when cache is warm.
 async fn select_stage_interactive(ctx: &AppContext) -> Result<Option<String>> {
-    // Fetch all pipelines
-    let pipelines_resp = ctx
-        .client
-        .list_pipelines(&PipelinesListParams {
-            limit: 100,
-            offset: 0,
-            expand: None,
-        })
-        .await?;
-
-    let pipeline_options: Vec<(String, String)> = pipelines_resp
-        .data
-        .iter()
-        .map(|p| (p.id.clone(), p.name.clone()))
-        .collect();
+    // Fetch pipelines (cache-first, API fallback)
+    let pipeline_options = prompt::get_pipelines_cached(ctx.cache.as_ref(), &ctx.client).await?;
 
     let mut missing = Vec::new();
     let pipeline_id = prompt::require_select(
@@ -153,22 +147,8 @@ async fn select_stage_interactive(ctx: &AppContext) -> Result<Option<String>> {
         None => return Ok(None),
     };
 
-    // Fetch stages for selected pipeline
-    let stages_resp = ctx
-        .client
-        .list_stages(&StagesListParams {
-            pipeline_id: pipeline_id.clone(),
-            limit: 100,
-            offset: 0,
-            expand: None,
-        })
-        .await?;
-
-    let stage_options: Vec<(String, String)> = stages_resp
-        .data
-        .iter()
-        .map(|s| (s.id.clone(), s.name.clone()))
-        .collect();
+    // Fetch stages for selected pipeline (cache-first, API fallback)
+    let stage_options = prompt::get_stages_cached(ctx.cache.as_ref(), &ctx.client, &pipeline_id).await?;
 
     let stage_id = prompt::require_select(
         &None,
@@ -210,6 +190,11 @@ async fn batch_create(ctx: &AppContext, _args: &DealsCreateArgs) -> Result<()> {
     }
 
     let created = ctx.client.batch_create_deals(&deals).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_DEALS);
+    }
+
     let items: Vec<serde_json::Value> = created
         .iter()
         .map(|d| serde_json::to_value(d).map_err(Into::into))

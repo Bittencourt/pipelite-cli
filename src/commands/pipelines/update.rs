@@ -3,6 +3,7 @@ use std::io::IsTerminal;
 use anyhow::Result;
 
 use crate::api::models::{PipelineUpdate, pipelines_table_config};
+use crate::cache::KEY_PIPELINES;
 use crate::cli::pipelines::PipelinesUpdateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -59,6 +60,12 @@ pub async fn run(ctx: &AppContext, args: &PipelinesUpdateArgs) -> Result<()> {
     }
 
     let pipeline = ctx.client.update_pipeline(&args.id, &data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PIPELINES);
+        cache.invalidate_prefix("stages_");
+    }
+
     let item = serde_json::to_value(&pipeline)?;
 
     let config = pipelines_table_config();

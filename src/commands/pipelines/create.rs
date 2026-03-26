@@ -3,6 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{PipelineCreate, pipelines_table_config};
+use crate::cache::KEY_PIPELINES;
 use crate::cli::pipelines::PipelinesCreateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -83,6 +84,12 @@ async fn single_create(ctx: &AppContext, args: &PipelinesCreateArgs) -> Result<(
     }
 
     let pipeline = ctx.client.create_pipeline(&data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_PIPELINES);
+        cache.invalidate_prefix("stages_");
+    }
+
     let item = serde_json::to_value(&pipeline)?;
 
     let config = pipelines_table_config();
@@ -147,6 +154,13 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
             total,
             errors.len()
         );
+    }
+
+    if !created.is_empty() {
+        if let Some(ref cache) = ctx.cache {
+            cache.invalidate(KEY_PIPELINES);
+            cache.invalidate_prefix("stages_");
+        }
     }
 
     let items: Vec<serde_json::Value> = created

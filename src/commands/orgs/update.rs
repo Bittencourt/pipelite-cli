@@ -3,6 +3,7 @@ use std::io::IsTerminal;
 use anyhow::Result;
 
 use crate::api::models::{OrganizationUpdate, orgs_table_config};
+use crate::cache::KEY_ORGS;
 use crate::cli::orgs::OrgsUpdateArgs;
 use crate::context::AppContext;
 use crate::dry_run;
@@ -74,6 +75,11 @@ pub async fn run(ctx: &AppContext, args: &OrgsUpdateArgs) -> Result<()> {
     }
 
     let org = ctx.client.update_org(&args.id, &data).await?;
+
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate(KEY_ORGS);
+    }
+
     let item = serde_json::to_value(&org)?;
 
     let config = orgs_table_config();
