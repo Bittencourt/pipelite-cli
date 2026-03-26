@@ -110,7 +110,7 @@
 
 - [x] **CACH-01**: CLI caches pipeline/stage/user metadata locally with TTL-based invalidation
 - [x] **CACH-02**: User can clear cache with `pipelite cache clear`
-- [ ] **CACH-03**: Cache is used for interactive prompt dropdowns and shell completions
+- [x] **CACH-03**: Cache is used for interactive prompt dropdowns and shell completions
 
 ### Dashboard
 
@@ -224,7 +224,7 @@
 | SHLL-03 | Phase 4 | Complete |
 | CACH-01 | Phase 5 | Complete |
 | CACH-02 | Phase 5 | Complete |
-| CACH-03 | Phase 5 | Pending |
+| CACH-03 | Phase 5 | Complete |
 | DASH-01 | Phase 5 | Complete |
 | DASH-02 | Phase 5 | Complete |
 | UX-01 | Phase 5 | Complete |
