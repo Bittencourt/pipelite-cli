@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod cache;
 pub mod completions;
 pub mod config;
 pub mod dashboard;
@@ -13,6 +14,7 @@ use clap::{Parser, Subcommand};
 
 use crate::output::OutputFormat;
 use activities::ActivitiesCommands;
+use cache::CacheCommands;
 use completions::CompletionsArgs;
 use config::ConfigCommands;
 use dashboard::DashboardArgs;
@@ -132,6 +134,14 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages get stg_abc123\n  pipelite stages create --name \"Qualified\" --pipeline pl_abc123"
     )]
     Stages(StagesCommands),
+
+    /// Manage local cache
+    #[command(
+        subcommand,
+        alias = "c",
+        after_help = "Examples:\n  pipelite cache clear\n  pipelite cache refresh"
+    )]
+    Cache(CacheCommands),
 
     /// Generate shell completions
     #[command(

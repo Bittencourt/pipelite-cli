@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod cache;
 pub mod completions;
 pub mod config;
 pub mod dashboard;

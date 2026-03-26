@@ -3,6 +3,7 @@ use std::io::IsTerminal;
 use anyhow::Result;
 
 use crate::api::PipeliteClient;
+use crate::cache::CacheStore;
 use crate::cli::Cli;
 use crate::config::{load_config, AppConfig};
 use crate::output::{detect_format, OutputFormat};
@@ -19,6 +20,7 @@ pub struct AppContext {
     pub color: bool,
     pub no_input: bool,
     pub dry_run: bool,
+    pub cache: Option<CacheStore>,
 }
 
 impl AppContext {
@@ -37,6 +39,16 @@ impl AppContext {
 
         let no_input = cli.no_input || !std::io::stdin().is_terminal();
 
+        let cache = match CacheStore::new() {
+            Ok(store) => Some(store),
+            Err(e) => {
+                if cli.verbose {
+                    eprintln!("Warning: cache unavailable: {}", e);
+                }
+                None
+            }
+        };
+
         Ok(Self {
             config,
             client,
@@ -46,6 +58,7 @@ impl AppContext {
             color,
             no_input,
             dry_run: cli.dry_run,
+            cache,
         })
     }
 }
