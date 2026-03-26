@@ -62,7 +62,7 @@ impl CacheStore {
 
     /// Create a CacheStore with a custom directory (for testing).
     #[cfg(test)]
-    fn with_dir(dir: PathBuf) -> Result<Self> {
+    pub(crate) fn with_dir(dir: PathBuf) -> Result<Self> {
         fs::create_dir_all(&dir)?;
         Ok(Self { cache_dir: dir })
     }
