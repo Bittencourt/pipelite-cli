@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-26T00:02:03.409Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-26T00:02:15.532Z"
 last_activity: 2026-03-25 -- Completed 05-02 dashboard and splash screen
 progress:
   total_phases: 5
@@ -106,6 +106,9 @@ Recent decisions affecting current work:
 - [05-02]: Pre-parse arg interception before Cli::parse() for splash screen on bare invocation
 - [05-02]: JSON format renders single array of pipeline objects; table format renders per-pipeline sections
 - [05-02]: CSV/plain formats flatten all pipelines into single list with pipeline column
+- [Phase 05-01]: CacheStore uses atomic write (temp file + rename) to prevent JSON corruption
+- [Phase 05-01]: Cache stored as Option<CacheStore> on AppContext -- None on dir creation failure for graceful degradation
+- [Phase 05-01]: Stages cached per-pipeline as stages_{pipeline_id} to support pipeline-scoped invalidation
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T00:00:48Z
-Stopped at: Completed 05-02-PLAN.md
-Resume file: .planning/phases/05-power-features/05-02-SUMMARY.md
+Last session: 2026-03-26T00:02:12.406Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
