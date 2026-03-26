@@ -1,4 +1,52 @@
 use clap::{Args, Subcommand};
+use clap_complete::engine::{ArgValueCandidates, CompletionCandidate};
+
+use crate::cache::CacheStore;
+
+fn deal_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_DEALS)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
+
+fn org_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_ORGS)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
+
+fn stage_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_STAGES)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
 
 /// Manage deals in your pipeline.
 #[derive(Subcommand)]
@@ -37,11 +85,11 @@ pub enum DealsCommands {
 #[derive(Args)]
 pub struct DealsListArgs {
     /// Filter by stage ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(stage_id_candidates))]
     pub stage: Option<String>,
 
     /// Filter by organization ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
     /// Filter by owner ID
@@ -72,6 +120,7 @@ pub struct DealsListArgs {
 #[derive(Args)]
 pub struct DealsGetArgs {
     /// Deal ID
+    #[arg(add = ArgValueCandidates::new(deal_id_candidates))]
     pub id: String,
 
     /// Select specific fields (comma-separated)
@@ -90,7 +139,7 @@ pub struct DealsCreateArgs {
     pub title: Option<String>,
 
     /// Stage ID (required)
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(stage_id_candidates))]
     pub stage: Option<String>,
 
     /// Deal value
@@ -98,7 +147,7 @@ pub struct DealsCreateArgs {
     pub value: Option<f64>,
 
     /// Organization ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
     /// Person ID
@@ -125,6 +174,7 @@ pub struct DealsCreateArgs {
 #[derive(Args)]
 pub struct DealsUpdateArgs {
     /// Deal ID
+    #[arg(add = ArgValueCandidates::new(deal_id_candidates))]
     pub id: String,
 
     /// Deal title
@@ -132,7 +182,7 @@ pub struct DealsUpdateArgs {
     pub title: Option<String>,
 
     /// Stage ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(stage_id_candidates))]
     pub stage: Option<String>,
 
     /// Deal value
@@ -140,7 +190,7 @@ pub struct DealsUpdateArgs {
     pub value: Option<f64>,
 
     /// Organization ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
     /// Person ID
@@ -163,5 +213,6 @@ pub struct DealsUpdateArgs {
 #[derive(Args)]
 pub struct DealsDeleteArgs {
     /// Deal ID
+    #[arg(add = ArgValueCandidates::new(deal_id_candidates))]
     pub id: String,
 }

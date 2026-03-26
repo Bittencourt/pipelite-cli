@@ -1,4 +1,22 @@
 use clap::{Args, Subcommand};
+use clap_complete::engine::{ArgValueCandidates, CompletionCandidate};
+
+use crate::cache::CacheStore;
+
+fn pipeline_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_PIPELINES)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
 
 /// Manage pipelines.
 #[derive(Subcommand)]
@@ -60,6 +78,7 @@ pub struct PipelinesListArgs {
 #[derive(Args)]
 pub struct PipelinesGetArgs {
     /// Pipeline ID
+    #[arg(add = ArgValueCandidates::new(pipeline_id_candidates))]
     pub id: String,
 
     /// Select specific fields (comma-separated)
@@ -93,6 +112,7 @@ pub struct PipelinesCreateArgs {
 #[derive(Args)]
 pub struct PipelinesUpdateArgs {
     /// Pipeline ID
+    #[arg(add = ArgValueCandidates::new(pipeline_id_candidates))]
     pub id: String,
 
     /// Pipeline name
@@ -107,5 +127,6 @@ pub struct PipelinesUpdateArgs {
 #[derive(Args)]
 pub struct PipelinesDeleteArgs {
     /// Pipeline ID
+    #[arg(add = ArgValueCandidates::new(pipeline_id_candidates))]
     pub id: String,
 }

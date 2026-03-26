@@ -1,4 +1,37 @@
 use clap::{Args, Subcommand};
+use clap_complete::engine::{ArgValueCandidates, CompletionCandidate};
+
+use crate::cache::CacheStore;
+
+fn person_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_PEOPLE)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
+
+fn org_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_ORGS)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
 
 /// Manage people in your CRM.
 #[derive(Subcommand)]
@@ -37,7 +70,7 @@ pub enum PeopleCommands {
 #[derive(Args)]
 pub struct PeopleListArgs {
     /// Filter by organization ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
     /// Filter by owner ID
@@ -68,6 +101,7 @@ pub struct PeopleListArgs {
 #[derive(Args)]
 pub struct PeopleGetArgs {
     /// Person ID
+    #[arg(add = ArgValueCandidates::new(person_id_candidates))]
     pub id: String,
 
     /// Select specific fields (comma-separated)
@@ -102,7 +136,7 @@ pub struct PeopleCreateArgs {
     pub notes: Option<String>,
 
     /// Organization ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
     /// Custom field (key=value, repeatable)
@@ -117,6 +151,7 @@ pub struct PeopleCreateArgs {
 #[derive(Args)]
 pub struct PeopleUpdateArgs {
     /// Person ID
+    #[arg(add = ArgValueCandidates::new(person_id_candidates))]
     pub id: String,
 
     /// First name
@@ -140,7 +175,7 @@ pub struct PeopleUpdateArgs {
     pub notes: Option<String>,
 
     /// Organization ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
     /// Custom field (key=value, repeatable)
@@ -151,5 +186,6 @@ pub struct PeopleUpdateArgs {
 #[derive(Args)]
 pub struct PeopleDeleteArgs {
     /// Person ID
+    #[arg(add = ArgValueCandidates::new(person_id_candidates))]
     pub id: String,
 }

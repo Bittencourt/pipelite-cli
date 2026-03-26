@@ -1,4 +1,22 @@
 use clap::{Args, Subcommand};
+use clap_complete::engine::{ArgValueCandidates, CompletionCandidate};
+
+use crate::cache::CacheStore;
+
+fn org_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_ORGS)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
 
 /// Manage organizations in your CRM.
 #[derive(Subcommand)]
@@ -64,6 +82,7 @@ pub struct OrgsListArgs {
 #[derive(Args)]
 pub struct OrgsGetArgs {
     /// Organization ID
+    #[arg(add = ArgValueCandidates::new(org_id_candidates))]
     pub id: String,
 
     /// Select specific fields (comma-separated)
@@ -105,6 +124,7 @@ pub struct OrgsCreateArgs {
 #[derive(Args)]
 pub struct OrgsUpdateArgs {
     /// Organization ID
+    #[arg(add = ArgValueCandidates::new(org_id_candidates))]
     pub id: String,
 
     /// Organization name
@@ -131,5 +151,6 @@ pub struct OrgsUpdateArgs {
 #[derive(Args)]
 pub struct OrgsDeleteArgs {
     /// Organization ID
+    #[arg(add = ArgValueCandidates::new(org_id_candidates))]
     pub id: String,
 }

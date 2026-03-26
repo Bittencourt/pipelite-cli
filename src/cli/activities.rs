@@ -1,4 +1,37 @@
 use clap::{Args, Subcommand};
+use clap_complete::engine::{ArgValueCandidates, CompletionCandidate};
+
+use crate::cache::CacheStore;
+
+fn activity_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_ACTIVITIES)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
+
+fn deal_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_DEALS)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
 
 /// Manage activities in your CRM.
 #[derive(Subcommand)]
@@ -41,7 +74,7 @@ pub struct ActivitiesListArgs {
     pub type_id: Option<String>,
 
     /// Filter by deal ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(deal_id_candidates))]
     pub deal: Option<String>,
 
     /// Filter by owner ID
@@ -76,6 +109,7 @@ pub struct ActivitiesListArgs {
 #[derive(Args)]
 pub struct ActivitiesGetArgs {
     /// Activity ID
+    #[arg(add = ArgValueCandidates::new(activity_id_candidates))]
     pub id: String,
 
     /// Select specific fields (comma-separated)
@@ -98,7 +132,7 @@ pub struct ActivitiesCreateArgs {
     pub type_id: Option<String>,
 
     /// Deal ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(deal_id_candidates))]
     pub deal: Option<String>,
 
     /// Due date/time (ISO format)
@@ -121,6 +155,7 @@ pub struct ActivitiesCreateArgs {
 #[derive(Args)]
 pub struct ActivitiesUpdateArgs {
     /// Activity ID
+    #[arg(add = ArgValueCandidates::new(activity_id_candidates))]
     pub id: String,
 
     /// Activity title
@@ -132,7 +167,7 @@ pub struct ActivitiesUpdateArgs {
     pub type_id: Option<String>,
 
     /// Deal ID
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(deal_id_candidates))]
     pub deal: Option<String>,
 
     /// Due date/time (ISO format)
@@ -163,5 +198,6 @@ pub struct ActivitiesUpdateArgs {
 #[derive(Args)]
 pub struct ActivitiesDeleteArgs {
     /// Activity ID
+    #[arg(add = ArgValueCandidates::new(activity_id_candidates))]
     pub id: String,
 }

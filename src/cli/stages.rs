@@ -1,4 +1,37 @@
 use clap::{Args, Subcommand};
+use clap_complete::engine::{ArgValueCandidates, CompletionCandidate};
+
+use crate::cache::CacheStore;
+
+fn stage_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_STAGES)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
+
+fn pipeline_id_candidates() -> Vec<CompletionCandidate> {
+    let cache = match CacheStore::new() {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let items: Vec<(String, String)> = cache
+        .get(crate::cache::KEY_PIPELINES)
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|(id, name)| CompletionCandidate::new(id).help(Some(name.into())))
+        .collect()
+}
 
 /// Manage stages in a pipeline.
 #[derive(Subcommand)]
@@ -37,7 +70,7 @@ pub enum StagesCommands {
 #[derive(Args)]
 pub struct StagesListArgs {
     /// Pipeline ID (required)
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(pipeline_id_candidates))]
     pub pipeline: Option<String>,
 
     /// Maximum number of results (default: 50)
@@ -64,6 +97,7 @@ pub struct StagesListArgs {
 #[derive(Args)]
 pub struct StagesGetArgs {
     /// Stage ID
+    #[arg(add = ArgValueCandidates::new(stage_id_candidates))]
     pub id: String,
 
     /// Select specific fields (comma-separated)
@@ -82,7 +116,7 @@ pub struct StagesCreateArgs {
     pub name: Option<String>,
 
     /// Pipeline ID (required)
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(pipeline_id_candidates))]
     pub pipeline: Option<String>,
 
     /// Stage color (hex)
@@ -109,6 +143,7 @@ pub struct StagesCreateArgs {
 #[derive(Args)]
 pub struct StagesUpdateArgs {
     /// Stage ID
+    #[arg(add = ArgValueCandidates::new(stage_id_candidates))]
     pub id: String,
 
     /// Stage name
@@ -131,5 +166,6 @@ pub struct StagesUpdateArgs {
 #[derive(Args)]
 pub struct StagesDeleteArgs {
     /// Stage ID
+    #[arg(add = ArgValueCandidates::new(stage_id_candidates))]
     pub id: String,
 }
