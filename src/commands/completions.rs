@@ -28,5 +28,8 @@ pub fn run(args: &CompletionsArgs) -> anyhow::Result<()> {
         "\n# Install instructions:\n# {}",
         instruction.replace('\n', "\n# ")
     );
+    eprintln!("#");
+    eprintln!("# For dynamic entity ID completions, run:");
+    eprintln!("#   pipelite cache refresh");
     Ok(())
 }
