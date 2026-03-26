@@ -114,12 +114,12 @@
 
 ### Dashboard
 
-- [ ] **DASH-01**: User can view pipeline overview with `pipelite dashboard`
-- [ ] **DASH-02**: Dashboard shows deal counts and total values per pipeline stage
+- [x] **DASH-01**: User can view pipeline overview with `pipelite dashboard`
+- [x] **DASH-02**: Dashboard shows deal counts and total values per pipeline stage
 
 ### UX Polish
 
-- [ ] **UX-01**: ASCII art splash screen when running `pipelite` with no subcommand on TTY
+- [x] **UX-01**: ASCII art splash screen when running `pipelite` with no subcommand on TTY
 - [x] **UX-02**: Quiet mode (`-q`) suppresses non-essential output
 - [x] **UX-03**: `pipelite --version` shows version string
 - [x] **UX-04**: `--dry-run` on mutations shows what would be sent without executing
@@ -225,9 +225,9 @@
 | CACH-01 | Phase 5 | Pending |
 | CACH-02 | Phase 5 | Pending |
 | CACH-03 | Phase 5 | Pending |
-| DASH-01 | Phase 5 | Pending |
-| DASH-02 | Phase 5 | Pending |
-| UX-01 | Phase 5 | Pending |
+| DASH-01 | Phase 5 | Complete |
+| DASH-02 | Phase 5 | Complete |
+| UX-01 | Phase 5 | Complete |
 | UX-02 | Phase 1 | Complete |
 | UX-03 | Phase 1 | Complete |
 | UX-04 | Phase 4 | Complete |

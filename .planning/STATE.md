@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-25T23:34:49.112Z"
-last_activity: 2026-03-25 -- Completed 04-02 entity-wide prompts, headless validation, and dry-run
+status: executing
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-26T00:02:03.409Z"
+last_activity: 2026-03-25 -- Completed 05-02 dashboard and splash screen
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 16
+  completed_plans: 13
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal -- fast, scriptable, and composable with other tools.
-**Current focus:** Phase 4: Developer Experience
+**Current focus:** Phase 5: Power Features
 
 ## Current Position
 
-Phase: 4 of 5 (Developer Experience)
+Phase: 5 of 5 (Power Features)
 Plan: 2 of 2 in current phase
-Status: Completed
-Last activity: 2026-03-25 -- Completed 04-02 entity-wide prompts, headless validation, and dry-run
+Status: In Progress
+Last activity: 2026-03-25 -- Completed 05-02 dashboard and splash screen
 
 Progress: [██████████] 100%
 
@@ -58,6 +58,8 @@ Progress: [██████████] 100%
 | Phase 04 P01 | 7min | 2 tasks | 14 files |
 | Phase 04 P02 | 5min | 2 tasks | 15 files |
 | Phase 04 P03 | 5min | 2 tasks | 3 files |
+| Phase 05 P02 | 4min | 2 tasks | 8 files |
+| Phase 05 P01 | 4min | 1 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -101,6 +103,9 @@ Recent decisions affecting current work:
 - [04-02]: People org selection uses optional FuzzySelect with '(none - skip)' at top since org is not required
 - [04-02]: Pipeline default boolean uses dialoguer::Confirm on TTY for natural boolean UX
 - [04-02]: Activities batch dry-run shows each individual payload (no batch endpoint)
+- [05-02]: Pre-parse arg interception before Cli::parse() for splash screen on bare invocation
+- [05-02]: JSON format renders single array of pipeline objects; table format renders per-pipeline sections
+- [05-02]: CSV/plain formats flatten all pipelines into single list with pipeline column
 
 ### Pending Todos
 
@@ -113,6 +118,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T23:34:49.109Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-power-features/05-CONTEXT.md
+Last session: 2026-03-26T00:00:48Z
+Stopped at: Completed 05-02-PLAN.md
+Resume file: .planning/phases/05-power-features/05-02-SUMMARY.md
