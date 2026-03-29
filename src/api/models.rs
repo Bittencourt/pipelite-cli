@@ -362,6 +362,76 @@ pub fn stages_table_config() -> TableConfig {
     }
 }
 
+// -- Workflow entity --
+
+/// A workflow entity from the Pipelite CRM API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Workflow {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub triggers: Option<Vec<serde_json::Value>>,
+    #[serde(default)]
+    pub nodes: Option<Vec<serde_json::Value>>,
+    pub active: bool,
+    #[serde(default)]
+    pub created_by: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Payload for creating a new workflow.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowCreate {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub triggers: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nodes: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+}
+
+/// Payload for updating an existing workflow. All fields optional.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub triggers: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nodes: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+}
+
+/// Payload for triggering a workflow run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowRunTrigger {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+}
+
+/// Response from triggering a workflow run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowRunResponse {
+    pub run_id: String,
+    pub status: String,
+}
+
+/// Default table columns for workflow list display.
+pub fn workflows_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["id", "name", "active", "updated_at"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -677,6 +747,63 @@ mod tests {
         assert_eq!(stage.color.as_deref(), Some("#ff0000"));
         assert_eq!(stage.stage_type, "open");
         assert_eq!(stage.position, 2);
+    }
+
+    #[test]
+    fn workflow_deserializes_from_json() {
+        let json_data = json!({
+            "id": "wf_abc123",
+            "name": "New Deal Notification",
+            "description": "Sends a notification when a new deal is created",
+            "triggers": [{"type": "crm_event", "event": "deal.created"}],
+            "nodes": [{"id": "n1", "type": "action", "label": "Send Email", "config": {}}],
+            "active": true,
+            "created_by": "user_001",
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let workflow: Workflow = serde_json::from_value(json_data).unwrap();
+        assert_eq!(workflow.id, "wf_abc123");
+        assert_eq!(workflow.name, "New Deal Notification");
+        assert_eq!(workflow.description.as_deref(), Some("Sends a notification when a new deal is created"));
+        assert!(workflow.active);
+        assert_eq!(workflow.triggers.as_ref().unwrap().len(), 1);
+        assert_eq!(workflow.nodes.as_ref().unwrap().len(), 1);
+        assert_eq!(workflow.created_by.as_deref(), Some("user_001"));
+    }
+
+    #[test]
+    fn workflow_create_required_only_serializes_without_nulls() {
+        let create = WorkflowCreate {
+            name: "My Workflow".to_string(),
+            description: None,
+            triggers: None,
+            nodes: None,
+            active: None,
+        };
+
+        let json = serde_json::to_value(&create).unwrap();
+        let obj = json.as_object().unwrap();
+
+        assert_eq!(obj.len(), 1);
+        assert!(obj.contains_key("name"));
+        assert!(!obj.contains_key("description"));
+        assert!(!obj.contains_key("triggers"));
+        assert!(!obj.contains_key("nodes"));
+        assert!(!obj.contains_key("active"));
+    }
+
+    #[test]
+    fn workflow_run_response_deserializes() {
+        let json_data = json!({
+            "run_id": "run_xyz789",
+            "status": "pending"
+        });
+
+        let response: WorkflowRunResponse = serde_json::from_value(json_data).unwrap();
+        assert_eq!(response.run_id, "run_xyz789");
+        assert_eq!(response.status, "pending");
     }
 
     #[test]

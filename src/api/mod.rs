@@ -13,7 +13,7 @@ use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
     DealUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
     PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage, StageCreate,
-    StageUpdate,
+    StageUpdate, Workflow, WorkflowCreate, WorkflowRunResponse, WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -757,6 +757,101 @@ impl PipeliteClient {
         self.handle_delete_response(response).await
     }
 
+    // -- Workflows --
+
+    /// List workflows with filtering and pagination.
+    pub async fn list_workflows(
+        &self,
+        params: &WorkflowsListParams,
+    ) -> Result<ApiListResponse<Workflow>> {
+        let url = format!("{}/api/v1/workflows", self.base_url);
+        let query_pairs = params.to_query_pairs();
+        let response = self
+            .client
+            .get(&url)
+            .query(&query_pairs)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_response(response).await
+    }
+
+    /// Get a single workflow by ID.
+    pub async fn get_workflow(
+        &self,
+        id: &str,
+        expand: Option<&[String]>,
+    ) -> Result<Workflow> {
+        let url = format!("{}/api/v1/workflows/{}", self.base_url, id);
+        let mut req = self.client.get(&url);
+        if let Some(expand) = expand {
+            req = req.query(&[("expand", expand.join(","))]);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new workflow.
+    pub async fn create_workflow(&self, data: &WorkflowCreate) -> Result<Workflow> {
+        let url = format!("{}/api/v1/workflows", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update an existing workflow.
+    pub async fn update_workflow(&self, id: &str, data: &WorkflowUpdate) -> Result<Workflow> {
+        let url = format!("{}/api/v1/workflows/{}", self.base_url, id);
+        let response = self
+            .client
+            .put(&url)
+            .json(data)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a workflow by ID.
+    pub async fn delete_workflow(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/workflows/{}", self.base_url, id);
+        let response = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| self.map_request_error(e))?;
+        self.handle_delete_response(response).await
+    }
+
+    /// Trigger a workflow run.
+    ///
+    /// Posts to `/api/v1/workflows/{id}/run` with optional JSON data body.
+    /// Returns the run_id and status immediately (fire-and-forget).
+    pub async fn trigger_workflow(
+        &self,
+        id: &str,
+        data: Option<&serde_json::Value>,
+    ) -> Result<WorkflowRunResponse> {
+        let url = format!("{}/api/v1/workflows/{}/run", self.base_url, id);
+        let mut req = self.client.post(&url);
+        if let Some(body) = data {
+            req = req.json(body);
+        }
+        let response = req.send().await.map_err(|e| self.map_request_error(e))?;
+        let wrapper: ApiSingleResponse<WorkflowRunResponse> =
+            self.handle_response(response).await?;
+        Ok(wrapper.data)
+    }
+
     /// Map a reqwest request error to a CliError.
     fn map_request_error(&self, e: reqwest::Error) -> CliError {
         if e.is_timeout() {
@@ -944,6 +1039,33 @@ impl StagesListParams {
         let mut pairs = Vec::new();
 
         pairs.push(("pipeline_id".to_string(), self.pipeline_id.clone()));
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
+
+        if let Some(ref expand) = self.expand {
+            pairs.push(("expand".to_string(), expand.join(",")));
+        }
+
+        pairs
+    }
+}
+
+/// Parameters for listing workflows with filtering and pagination.
+pub struct WorkflowsListParams {
+    pub active: Option<bool>,
+    pub limit: u64,
+    pub offset: u64,
+    pub expand: Option<Vec<String>>,
+}
+
+impl WorkflowsListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        if let Some(active) = self.active {
+            pairs.push(("active".to_string(), active.to_string()));
+        }
         pairs.push(("limit".to_string(), self.limit.to_string()));
         pairs.push(("offset".to_string(), self.offset.to_string()));
 
