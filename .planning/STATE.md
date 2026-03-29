@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-26T00:15:22.409Z"
+stopped_at: Phase 6 context gathered
+last_updated: "2026-03-29T20:06:32.449Z"
 last_activity: 2026-03-26 -- Completed 05-05 dynamic shell completions
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
   total_plans: 16
   completed_plans: 16
@@ -35,6 +35,7 @@ Progress: [██████████] 100%
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 4
 - Average duration: 5.5min
 - Total execution time: 0.4 hours
@@ -47,6 +48,7 @@ Progress: [██████████] 100%
 | 2. Core CRUD and Output | 2 | 11min | 5.5min |
 
 **Recent Trend:**
+
 - Last 5 plans: 01-01 (7min), 01-02 (4min), 02-01 (5min), 02-02 (6min)
 - Trend: Stable
 
@@ -117,6 +119,10 @@ Recent decisions affecting current work:
 - [Phase 05]: Filter args (--stage, --org, --deal, --pipeline) also wired with cross-entity completion candidates
 - [Phase 05]: Cache-through helpers in prompt.rs use auto-paginate on miss and cache.set() to populate for next time
 
+### Roadmap Evolution
+
+- Phase 6 added: update the CLI tools to include the new workflow API
+
 ### Pending Todos
 
 None yet.
@@ -128,6 +134,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T00:11:30.043Z
-Stopped at: Completed 05-03-PLAN.md
-Resume file: None
+Last session: 2026-03-29T20:06:32.444Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-update-the-cli-tools-to-include-the-new-workflow-api/06-CONTEXT.md
