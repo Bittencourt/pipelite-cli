@@ -23,6 +23,9 @@ pub const KEY_DEALS: &str = "deals";
 pub const KEY_ORGS: &str = "orgs";
 pub const KEY_PEOPLE: &str = "people";
 pub const KEY_ACTIVITIES: &str = "activities";
+pub const KEY_WORKFLOWS: &str = "workflows";
+/// Workflows change rarely -- 1 hour cache.
+pub const TTL_WORKFLOWS: u64 = 3600;
 
 /// A cached entry with embedded timestamp and TTL for expiry checks.
 #[derive(Debug, Serialize, Deserialize)]

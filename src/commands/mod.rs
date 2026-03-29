@@ -10,3 +10,4 @@ pub mod people;
 pub mod ping;
 pub mod pipelines;
 pub mod stages;
+pub mod workflows;

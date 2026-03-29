@@ -9,6 +9,7 @@ pub mod orgs;
 pub mod people;
 pub mod pipelines;
 pub mod stages;
+pub mod workflows;
 
 use clap::{Parser, Subcommand};
 
@@ -24,6 +25,7 @@ use orgs::OrgsCommands;
 use people::PeopleCommands;
 use pipelines::PipelinesCommands;
 use stages::StagesCommands;
+use workflows::WorkflowsCommands;
 
 /// Build a rich version string with rustc version and platform info.
 fn build_version() -> &'static str {
@@ -134,6 +136,14 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages get stg_abc123\n  pipelite stages create --name \"Qualified\" --pipeline pl_abc123"
     )]
     Stages(StagesCommands),
+
+    /// Manage workflows
+    #[command(
+        subcommand,
+        alias = "w",
+        after_help = "Examples:\n  pipelite workflows list\n  pipelite workflows get wf_abc123\n  pipelite workflows trigger wf_abc123"
+    )]
+    Workflows(WorkflowsCommands),
 
     /// Manage local cache
     #[command(
