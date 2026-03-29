@@ -3,8 +3,8 @@ use std::io::IsTerminal;
 use anyhow::Result;
 use dialoguer::{FuzzySelect, Input};
 
-use crate::api::{OrgsListParams, PipelinesListParams, PipeliteClient, StagesListParams};
-use crate::cache::{CacheStore, KEY_ORGS, KEY_PIPELINES, TTL_ENTITY_LIST, TTL_PIPELINES, TTL_STAGES};
+use crate::api::{OrgsListParams, PipelinesListParams, PipeliteClient, StagesListParams, WorkflowsListParams};
+use crate::cache::{CacheStore, KEY_ORGS, KEY_PIPELINES, KEY_WORKFLOWS, TTL_ENTITY_LIST, TTL_PIPELINES, TTL_STAGES, TTL_WORKFLOWS};
 use crate::error::CliError;
 
 /// Prompt for a required text field interactively, or collect it from flag value.
@@ -312,6 +312,57 @@ pub async fn get_orgs_cached(
     Ok(all_items)
 }
 
+/// Fetch workflows with cache-through: try cache first, fall back to API on miss.
+///
+/// Returns `Vec<(id, name)>` suitable for FuzzySelect options and completions.
+pub async fn get_workflows_cached(
+    cache: Option<&CacheStore>,
+    client: &PipeliteClient,
+) -> Result<Vec<(String, String)>> {
+    // Try cache first
+    if let Some(store) = cache {
+        if let Some(cached) = store.get::<Vec<(String, String)>>(KEY_WORKFLOWS) {
+            return Ok(cached);
+        }
+    }
+
+    // Cache miss -- fetch from API with auto-paginate
+    let mut all_items: Vec<(String, String)> = Vec::new();
+    let mut offset: u64 = 0;
+    let limit: u64 = 100;
+
+    loop {
+        let resp = client
+            .list_workflows(&WorkflowsListParams {
+                active: None,
+                limit,
+                offset,
+                expand: None,
+            })
+            .await?;
+
+        let batch_len = resp.data.len() as u64;
+        for w in &resp.data {
+            all_items.push((w.id.clone(), w.name.clone()));
+        }
+
+        if batch_len < limit {
+            break;
+        }
+        offset += limit;
+        if offset >= 1000 {
+            break;
+        }
+    }
+
+    // Populate cache on successful fetch
+    if let Some(store) = cache {
+        let _ = store.set(KEY_WORKFLOWS, &all_items, TTL_WORKFLOWS);
+    }
+
+    Ok(all_items)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,5 +462,26 @@ mod tests {
         let result = get_orgs_cached(Some(&store), &client).await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], ("org_001".to_string(), "Acme Corp".to_string()));
+    }
+
+    #[tokio::test]
+    async fn get_workflows_cached_returns_cached_data_on_hit() {
+        let (store, _dir) = test_cache();
+        let items = vec![
+            ("wf_001".to_string(), "New Deal Alert".to_string()),
+            ("wf_002".to_string(), "Follow-up Reminder".to_string()),
+        ];
+        store.set(KEY_WORKFLOWS, &items, TTL_WORKFLOWS).unwrap();
+
+        // Create a client pointing to unreachable server -- should never be called
+        let client = PipeliteClient::from_credentials(
+            "http://127.0.0.1:1",
+            "fake-key",
+        ).unwrap();
+
+        let result = get_workflows_cached(Some(&store), &client).await.unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], ("wf_001".to_string(), "New Deal Alert".to_string()));
+        assert_eq!(result[1], ("wf_002".to_string(), "Follow-up Reminder".to_string()));
     }
 }

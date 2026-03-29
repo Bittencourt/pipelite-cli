@@ -4,7 +4,7 @@ use anyhow::Result;
 use colored::Colorize;
 use serde_json::json;
 
-use crate::api::{DealsListParams, PipelinesListParams, StagesListParams};
+use crate::api::{DealsListParams, PipelinesListParams, StagesListParams, WorkflowsListParams};
 use crate::cli::dashboard::DashboardArgs;
 use crate::context::AppContext;
 use crate::output::{self, OutputFormat};
@@ -30,6 +30,11 @@ pub async fn run(ctx: &AppContext, _args: &DashboardArgs) -> Result<()> {
     // 3. Fetch all deals (auto-paginate)
     let all_deals = fetch_all_deals(ctx).await?;
 
+    // 3b. Fetch all workflows for summary
+    let all_workflows = fetch_all_workflows(ctx).await?;
+    let active_workflows = all_workflows.iter().filter(|w| w.active).count();
+    let total_workflows = all_workflows.len();
+
     // 4. Build a map: stage_id -> (deal_count, total_value)
     let mut stage_stats: HashMap<String, (u64, f64)> = HashMap::new();
     for deal in &all_deals {
@@ -40,8 +45,8 @@ pub async fn run(ctx: &AppContext, _args: &DashboardArgs) -> Result<()> {
 
     // 5. Render output based on format
     match ctx.output_format {
-        OutputFormat::Json => render_json(&pipelines, &pipeline_stages, &stage_stats),
-        _ => render_display(ctx, &pipelines, &pipeline_stages, &stage_stats),
+        OutputFormat::Json => render_json(&pipelines, &pipeline_stages, &stage_stats, active_workflows, total_workflows),
+        _ => render_display(ctx, &pipelines, &pipeline_stages, &stage_stats, active_workflows, total_workflows),
     }
 }
 
@@ -134,13 +139,39 @@ async fn fetch_all_deals(ctx: &AppContext) -> Result<Vec<crate::api::models::Dea
     Ok(all)
 }
 
+/// Fetch all workflows with auto-pagination.
+async fn fetch_all_workflows(ctx: &AppContext) -> Result<Vec<crate::api::models::Workflow>> {
+    let mut all = Vec::new();
+    let mut offset = 0u64;
+    let limit = 500u64;
+
+    loop {
+        let params = WorkflowsListParams {
+            active: None,
+            limit,
+            offset,
+            expand: None,
+        };
+        let response = ctx.client.list_workflows(&params).await?;
+        let total = response.meta.total;
+        all.extend(response.data);
+        if all.len() as u64 >= total {
+            break;
+        }
+        offset += limit;
+    }
+    Ok(all)
+}
+
 /// Render dashboard output as JSON.
 fn render_json(
     pipelines: &[crate::api::models::Pipeline],
     pipeline_stages: &HashMap<String, Vec<crate::api::models::Stage>>,
     stage_stats: &HashMap<String, (u64, f64)>,
+    active_wf: usize,
+    total_wf: usize,
 ) -> Result<()> {
-    let mut result = Vec::new();
+    let mut pipeline_result = Vec::new();
 
     for pipeline in pipelines {
         let stages = pipeline_stages.get(&pipeline.id).cloned().unwrap_or_default();
@@ -159,7 +190,7 @@ fn render_json(
             }));
         }
 
-        result.push(json!({
+        pipeline_result.push(json!({
             "id": pipeline.id,
             "name": pipeline.name,
             "total_deals": total_deals,
@@ -168,7 +199,14 @@ fn render_json(
         }));
     }
 
-    println!("{}", serde_json::to_string_pretty(&result)?);
+    let output = json!({
+        "pipelines": pipeline_result,
+        "workflows": {
+            "active": active_wf,
+            "total": total_wf
+        }
+    });
+    println!("{}", serde_json::to_string_pretty(&output)?);
     Ok(())
 }
 
@@ -178,6 +216,8 @@ fn render_display(
     pipelines: &[crate::api::models::Pipeline],
     pipeline_stages: &HashMap<String, Vec<crate::api::models::Stage>>,
     stage_stats: &HashMap<String, (u64, f64)>,
+    active_wf: usize,
+    total_wf: usize,
 ) -> Result<()> {
     let is_flat = matches!(ctx.output_format, OutputFormat::Csv | OutputFormat::Plain);
 
@@ -203,6 +243,11 @@ fn render_display(
             "value".into(),
         ];
         output::render_list(&rows, &ctx.output_format, &columns, &None, ctx.color, None)?;
+
+        // Workflow summary line for flat formats
+        let wf_line = format!("Workflows: {} active of {} total", active_wf, total_wf);
+        println!();
+        println!("{}", wf_line);
     } else {
         // Table format: print per-pipeline sections
         for (i, pipeline) in pipelines.iter().enumerate() {
@@ -243,6 +288,15 @@ fn render_display(
                 "value".into(),
             ];
             output::render_list(&rows, &ctx.output_format, &columns, &None, ctx.color, None)?;
+        }
+
+        // Print workflow summary at the end
+        println!();
+        let wf_line = format!("Workflows: {} active of {} total", active_wf, total_wf);
+        if ctx.color {
+            println!("{}", wf_line.bold());
+        } else {
+            println!("{}", wf_line);
         }
     }
 
