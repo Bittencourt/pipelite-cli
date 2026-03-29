@@ -105,10 +105,26 @@ Plans:
 - [ ] 05-04-PLAN.md -- Mutation cache invalidation wiring across all create/update/delete commands
 - [ ] 05-05-PLAN.md -- Dynamic shell completions with ArgValueCandidates from cache
 
+### Phase 6: Workflow API Integration
+**Goal**: Users can manage workflows via full CRUD commands, trigger manual runs, and see workflow summary in the dashboard -- following all established CLI patterns
+**Depends on**: Phase 5
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10, D-11, D-12, D-13, D-14, D-15, D-16, D-17, D-18
+**Success Criteria** (what must be TRUE):
+  1. User can list, get, create, update, and delete workflows via `pipelite workflows` subcommands
+  2. User can trigger a workflow run with `pipelite workflows trigger <id>` and see run_id + status confirmation
+  3. Dashboard shows workflow summary (active count, total count) after pipeline sections
+  4. Workflow caching, shell completions, interactive prompts, and dry-run all work
+  5. All existing tests continue to pass, plus new workflow integration tests
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md -- Workflow models, API client, CLI args, all 6 command handlers, main.rs dispatch
+- [ ] 06-02-PLAN.md -- Dashboard workflow summary, cache constants, prompt helper, integration tests
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -117,3 +133,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Full Entity Coverage | 3/3 | Complete   | 2026-03-25 |
 | 4. Developer Experience | 3/3 | Complete   | 2026-03-25 |
 | 5. Power Features | 2/5 | In Progress|  |
+| 6. Workflow API Integration | 0/2 | Planned |  |
