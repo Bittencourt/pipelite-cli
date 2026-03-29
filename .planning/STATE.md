@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-29T20:06:32.449Z"
-last_activity: 2026-03-26 -- Completed 05-05 dynamic shell completions
+stopped_at: Completed 06-01 workflow entity CRUD + trigger
+last_updated: "2026-03-29T20:41:00Z"
+last_activity: 2026-03-29 -- Completed 06-01 workflow entity CRUD + trigger
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_plans: 18
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal -- fast, scriptable, and composable with other tools.
-**Current focus:** Phase 5: Power Features
+**Current focus:** Phase 6: Update the CLI tools to include the new Workflow API
 
 ## Current Position
 
-Phase: 5 of 5 (Power Features)
-Plan: 5 of 5 in current phase
+Phase: 6 of 6 (Workflow API)
+Plan: 1 of 2 in current phase
 Status: In Progress
-Last activity: 2026-03-26 -- Completed 05-05 dynamic shell completions
+Last activity: 2026-03-29 -- Completed 06-01 workflow entity CRUD + trigger
 
-Progress: [██████████] 100%
+Progress: [█████████▍] 94%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 05 P04 | 5min | 1 tasks | 18 files |
 | Phase 05 P05 | 5min | 2 tasks | 8 files |
 | Phase 05 P03 | 7min | 2 tasks | 5 files |
+| Phase 06 P01 | 8min | 2 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,10 @@ Recent decisions affecting current work:
 - [Phase 05]: ArgValueCandidates closures read from CacheStore only -- no network calls for instant non-blocking completions
 - [Phase 05]: Filter args (--stage, --org, --deal, --pipeline) also wired with cross-entity completion candidates
 - [Phase 05]: Cache-through helpers in prompt.rs use auto-paginate on miss and cache.set() to populate for next time
+- [06-01]: Triggers/nodes stored as serde_json::Value (not full Rust enums) for server-side validation
+- [06-01]: Trigger --data supports inline JSON and @filepath syntax (curl convention)
+- [06-01]: Delete command adds TTY confirmation with --force override (new pattern for workflows)
+- [06-01]: KEY_WORKFLOWS cache key with 1-hour TTL matching pipelines
 
 ### Roadmap Evolution
 
@@ -134,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T20:06:32.444Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-update-the-cli-tools-to-include-the-new-workflow-api/06-CONTEXT.md
+Last session: 2026-03-29T20:41:00Z
+Stopped at: Completed 06-01 workflow entity CRUD + trigger
+Resume file: .planning/phases/06-update-the-cli-tools-to-include-the-new-workflow-api/06-01-SUMMARY.md
