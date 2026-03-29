@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A lightweight Rust command-line tool that connects to any Pipelite CRM server via API key, providing full CRUD operations on all CRM entities (deals, orgs, people, activities, pipelines, stages). Designed for both interactive human use and headless scripting/agent workflows, with pipeable output in multiple formats.
+A lightweight Rust command-line tool that connects to any Pipelite CRM server via API key, providing full CRUD operations on all CRM entities (deals, orgs, people, activities, pipelines, stages, workflows). Designed for both interactive human use and headless scripting/agent workflows, with pipeable output in multiple formats.
 
 ## Core Value
 
@@ -17,7 +17,7 @@ Users can manage their entire Pipelite CRM from the terminal — fast, scriptabl
 ### Active
 
 - [ ] API key-based authentication to any Pipelite CRM server
-- [ ] Full CRUD on deals, orgs, people, activities, pipelines, and stages
+- [ ] Full CRUD on deals, orgs, people, activities, pipelines, stages, and workflows
 - [ ] Pipeable output with format flags (table/csv/json/plain)
 - [ ] Interactive prompts for create/update operations
 - [ ] Headless mode for scripts and agents (no prompts, stdin/flags only)
@@ -61,4 +61,4 @@ Users can manage their entire Pipelite CRM from the terminal — fast, scriptabl
 | Interactive + headless modes | Serves both humans and automation | — Pending |
 
 ---
-*Last updated: 2026-03-23 after initialization*
+*Last updated: 2026-03-29 after Phase 6 completion (workflow API integration)*
