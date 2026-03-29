@@ -11,6 +11,7 @@ pub const TTL_PIPELINES: u64 = 3600;
 /// Stages change rarely -- 1 hour cache.
 pub const TTL_STAGES: u64 = 3600;
 /// Users change very rarely -- 2 hour cache.
+#[allow(dead_code)]
 pub const TTL_USERS: u64 = 7200;
 /// Entity lists (deals, orgs, people, activities) change frequently -- 5 min cache.
 pub const TTL_ENTITY_LIST: u64 = 300;
@@ -18,6 +19,7 @@ pub const TTL_ENTITY_LIST: u64 = 300;
 // ── Key constants ──────────────────────────────────────────────────
 pub const KEY_PIPELINES: &str = "pipelines";
 pub const KEY_STAGES: &str = "stages";
+#[allow(dead_code)]
 pub const KEY_USERS: &str = "users";
 pub const KEY_DEALS: &str = "deals";
 pub const KEY_ORGS: &str = "orgs";

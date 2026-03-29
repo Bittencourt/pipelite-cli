@@ -89,6 +89,7 @@ fn format_with_commas(n: u64) -> String {
     result
 }
 
+#[allow(dead_code)]
 /// Truncate a string to max_width, appending "..." if it exceeds the limit.
 ///
 /// Returns the original string if it fits within max_width.

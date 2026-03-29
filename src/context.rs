@@ -11,6 +11,7 @@ use crate::output::{detect_format, OutputFormat};
 /// Application context carrying merged config, client, and output settings.
 ///
 /// This is the single source of truth passed to all command handlers.
+#[allow(dead_code)]
 pub struct AppContext {
     pub config: AppConfig,
     pub client: PipeliteClient,

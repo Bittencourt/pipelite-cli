@@ -9,6 +9,7 @@ pub enum CliError {
     #[error("Connection failed")]
     Connection { detail: String, hint: String },
 
+    #[allow(dead_code)]
     #[error("Configuration error")]
     Config { detail: String, hint: String },
 

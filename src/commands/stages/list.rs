@@ -69,7 +69,7 @@ async fn fetch_all(
     let max_records: u64 = 1000;
     let mut all_stages: Vec<Stage> = Vec::new();
     let mut offset: u64 = 0;
-    let mut total: u64 = 0;
+    let mut total: u64;
 
     loop {
         let params = StagesListParams {

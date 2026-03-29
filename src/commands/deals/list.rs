@@ -55,7 +55,7 @@ async fn fetch_all(ctx: &AppContext, args: &DealsListArgs, columns: &[String]) -
     let max_records: u64 = 1000;
     let mut all_deals: Vec<Deal> = Vec::new();
     let mut offset: u64 = 0;
-    let mut total: u64 = 0;
+    let mut total: u64;
 
     loop {
         let params = DealsListParams {

@@ -50,13 +50,13 @@ pub async fn run(ctx: &AppContext, _args: &DashboardArgs) -> Result<()> {
     }
 }
 
-/// Fetch all pipelines with auto-pagination (batches of 100).
+/// Fetch all pipelines with auto-pagination using meta.total.
 async fn fetch_all_pipelines(
     ctx: &AppContext,
 ) -> Result<Vec<crate::api::models::Pipeline>> {
     let mut all = Vec::new();
     let mut offset = 0u64;
-    let limit = 100u64;
+    let limit = 500u64;
 
     loop {
         let params = PipelinesListParams {
@@ -65,28 +65,24 @@ async fn fetch_all_pipelines(
             expand: None,
         };
         let response = ctx.client.list_pipelines(&params).await?;
-        let count = response.data.len() as u64;
+        let total = response.meta.total;
         all.extend(response.data);
-        if count < limit {
+        if all.len() as u64 >= total {
             break;
         }
         offset += limit;
-        if offset >= 1000 {
-            eprintln!("Warning: Dashboard capped at 1000 pipelines.");
-            break;
-        }
     }
     Ok(all)
 }
 
-/// Fetch all stages for a given pipeline with auto-pagination.
+/// Fetch all stages for a given pipeline with auto-pagination using meta.total.
 async fn fetch_all_stages(
     ctx: &AppContext,
     pipeline_id: &str,
 ) -> Result<Vec<crate::api::models::Stage>> {
     let mut all = Vec::new();
     let mut offset = 0u64;
-    let limit = 100u64;
+    let limit = 500u64;
 
     loop {
         let params = StagesListParams {
@@ -96,24 +92,21 @@ async fn fetch_all_stages(
             expand: None,
         };
         let response = ctx.client.list_stages(&params).await?;
-        let count = response.data.len() as u64;
+        let total = response.meta.total;
         all.extend(response.data);
-        if count < limit {
+        if all.len() as u64 >= total {
             break;
         }
         offset += limit;
-        if offset >= 1000 {
-            break;
-        }
     }
     Ok(all)
 }
 
-/// Fetch all deals with auto-pagination (batches of 100, cap at 1000).
+/// Fetch all deals with auto-pagination using meta.total.
 async fn fetch_all_deals(ctx: &AppContext) -> Result<Vec<crate::api::models::Deal>> {
     let mut all = Vec::new();
     let mut offset = 0u64;
-    let limit = 100u64;
+    let limit = 500u64;
 
     loop {
         let params = DealsListParams {
@@ -125,16 +118,12 @@ async fn fetch_all_deals(ctx: &AppContext) -> Result<Vec<crate::api::models::Dea
             expand: None,
         };
         let response = ctx.client.list_deals(&params).await?;
-        let count = response.data.len() as u64;
+        let total = response.meta.total;
         all.extend(response.data);
-        if count < limit {
+        if all.len() as u64 >= total {
             break;
         }
         offset += limit;
-        if offset >= 1000 {
-            eprintln!("Warning: Dashboard capped at 1000 deals.");
-            break;
-        }
     }
     Ok(all)
 }
