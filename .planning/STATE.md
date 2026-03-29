@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 06-01 workflow entity CRUD + trigger
-last_updated: "2026-03-29T20:41:00Z"
-last_activity: 2026-03-29 -- Completed 06-01 workflow entity CRUD + trigger
+status: completed
+stopped_at: Completed 06-02 dashboard workflow summary + integration tests
+last_updated: "2026-03-29T20:51:00Z"
+last_activity: 2026-03-29 -- Completed 06-02 dashboard workflow summary + integration tests
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 18
-  completed_plans: 17
-  percent: 94
+  completed_plans: 18
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 6 of 6 (Workflow API)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-29 -- Completed 06-01 workflow entity CRUD + trigger
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-03-29 -- Completed 06-02 dashboard workflow summary + integration tests
 
-Progress: [█████████▍] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [█████████▍] 94%
 | Phase 05 P05 | 5min | 2 tasks | 8 files |
 | Phase 05 P03 | 7min | 2 tasks | 5 files |
 | Phase 06 P01 | 8min | 2 tasks | 20 files |
+| Phase 06 P02 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,8 @@ Recent decisions affecting current work:
 - [06-01]: Trigger --data supports inline JSON and @filepath syntax (curl convention)
 - [06-01]: Delete command adds TTY confirmation with --force override (new pattern for workflows)
 - [06-01]: KEY_WORKFLOWS cache key with 1-hour TTL matching pipelines
+- [06-02]: Dashboard JSON output wraps pipelines array in object with workflows summary
+- [06-02]: Workflow summary shows active/total counts only (no runs API endpoint available)
 
 ### Roadmap Evolution
 
@@ -139,6 +142,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T20:41:00Z
-Stopped at: Completed 06-01 workflow entity CRUD + trigger
-Resume file: .planning/phases/06-update-the-cli-tools-to-include-the-new-workflow-api/06-01-SUMMARY.md
+Last session: 2026-03-29T20:51:00Z
+Stopped at: Completed 06-02 dashboard workflow summary + integration tests
+Resume file: .planning/phases/06-update-the-cli-tools-to-include-the-new-workflow-api/06-02-SUMMARY.md
