@@ -71,13 +71,13 @@ pub enum DealsCommands {
 
     /// Update an existing deal
     #[command(
-        after_help = "Examples:\n  pipelite deals update deal_abc123 --title \"New Title\"\n  pipelite deals update deal_abc123 --value 75000 --stage stg_002\n  pipelite deals update deal_abc123 --custom-field priority=high"
+        after_help = "Examples:\n  pipelite deals update deal_abc123 --title \"New Title\"\n  pipelite deals update deal_abc123 --value 75000 --stage stg_002\n  pipelite deals update deal_abc123 --custom-field priority=high\n  echo '[{\"id\":\"deal_1\",\"title\":\"New\"}]' | pipelite deals update --stdin"
     )]
     Update(DealsUpdateArgs),
 
     /// Delete a deal
     #[command(
-        after_help = "Examples:\n  pipelite deals delete deal_abc123"
+        after_help = "Examples:\n  pipelite deals delete deal_abc123\n  pipelite deals delete deal_1 deal_2 deal_3\n  echo '[\"deal_1\",\"deal_2\"]' | pipelite deals delete --stdin"
     )]
     Delete(DealsDeleteArgs),
 }
@@ -173,9 +173,13 @@ pub struct DealsCreateArgs {
 
 #[derive(Args)]
 pub struct DealsUpdateArgs {
-    /// Deal ID
-    #[arg(add = ArgValueCandidates::new(deal_id_candidates))]
-    pub id: String,
+    /// Deal ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(deal_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Deal title
     #[arg(long)]
@@ -212,7 +216,11 @@ pub struct DealsUpdateArgs {
 
 #[derive(Args)]
 pub struct DealsDeleteArgs {
-    /// Deal ID
-    #[arg(add = ArgValueCandidates::new(deal_id_candidates))]
-    pub id: String,
+    /// Deal ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(deal_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 }

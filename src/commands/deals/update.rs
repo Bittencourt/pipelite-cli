@@ -17,6 +17,13 @@ use crate::prompt;
 /// (all optional -- user can skip any). In headless mode with no flags,
 /// returns a validation error.
 pub async fn run(ctx: &AppContext, args: &DealsUpdateArgs) -> Result<()> {
+    // Extract id from Option — CLAUDE.md forbids unwrap() in production code.
+    // Use CliError::Validation with an actionable hint instead.
+    let id = args.id.as_deref().ok_or_else(|| CliError::Validation {
+        detail: "Missing deal ID".to_string(),
+        hint: "Provide a deal ID or use --stdin.".to_string(),
+    })?;
+
     let has_flags = args.title.is_some()
         || args.stage.is_some()
         || args.value.is_some()
@@ -94,11 +101,11 @@ pub async fn run(ctx: &AppContext, args: &DealsUpdateArgs) -> Result<()> {
     // Dry-run intercept
     if ctx.dry_run {
         let body = serde_json::to_value(&data)?;
-        let url = format!("{}/api/v1/deals/{}", ctx.client.base_url(), args.id);
+        let url = format!("{}/api/v1/deals/{}", ctx.client.base_url(), id);
         return dry_run::render_dry_run("PUT", &url, &body, &ctx.output_format, ctx.color);
     }
 
-    let deal = ctx.client.update_deal(&args.id, &data).await?;
+    let deal = ctx.client.update_deal(id, &data).await?;
 
     if let Some(ref cache) = ctx.cache {
         cache.invalidate(KEY_DEALS);
