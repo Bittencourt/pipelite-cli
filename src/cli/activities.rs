@@ -56,13 +56,13 @@ pub enum ActivitiesCommands {
 
     /// Update an existing activity
     #[command(
-        after_help = "Examples:\n  pipelite activities update act_abc123 --title \"New Title\"\n  pipelite activities update act_abc123 --mark-done\n  pipelite activities update act_abc123 --mark-undone"
+        after_help = "Examples:\n  pipelite activities update act_abc123 --title \"New Title\"\n  pipelite activities update act_abc123 --mark-done\n  pipelite activities update act_abc123 --mark-undone\n  echo '[{\"id\":\"act_1\",\"title\":\"New\"}]' | pipelite activities update --stdin"
     )]
     Update(ActivitiesUpdateArgs),
 
     /// Delete an activity
     #[command(
-        after_help = "Examples:\n  pipelite activities delete act_abc123"
+        after_help = "Examples:\n  pipelite activities delete act_abc123\n  pipelite activities delete act_1 act_2 act_3\n  echo '[\"act_1\",\"act_2\"]' | pipelite activities delete --stdin"
     )]
     Delete(ActivitiesDeleteArgs),
 }
@@ -154,9 +154,13 @@ pub struct ActivitiesCreateArgs {
 
 #[derive(Args)]
 pub struct ActivitiesUpdateArgs {
-    /// Activity ID
-    #[arg(add = ArgValueCandidates::new(activity_id_candidates))]
-    pub id: String,
+    /// Activity ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(activity_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Activity title
     #[arg(long)]
@@ -197,7 +201,11 @@ pub struct ActivitiesUpdateArgs {
 
 #[derive(Args)]
 pub struct ActivitiesDeleteArgs {
-    /// Activity ID
-    #[arg(add = ArgValueCandidates::new(activity_id_candidates))]
-    pub id: String,
+    /// Activity ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(activity_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 }
