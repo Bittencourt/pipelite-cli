@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
 status: executing
-stopped_at: v1.1 roadmap created — Phases 7-13, 30/30 requirements mapped, batch plans awaiting renumber
-last_updated: "2026-09-02T11:17:23.749Z"
+stopped_at: Completed 07-03-PLAN.md (pipelines/stages/workflows batch ops — all 7 entities batch-capable)
+last_updated: "2026-09-02T11:32:55.205Z"
 last_activity: 2026-09-02
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 ## Current Position
 
 Phase: 7 (batch-operations-for-all-entities) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-09-02
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [█████░░░░░] 50%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | v1.0 (Phases 1-6) | 18 | 34 tasks | — |
+| Phase 07 P03 | 10 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,8 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - `--force` (not `--yes`) is the confirmation-bypass flag — codebase consistency with `workflows delete`
 - Notes is a top-level command group with entity-type positional, not nested ×4 under entities
 - All v1.1 fixes land in Phase 8 (research ordering), not last — dead flags actively lie to users
+- [Phase 7]: Batch pattern replicated to pipelines/stages/workflows verbatim from deals/orgs reference; workflows batch delete skips confirmation on force/no-input/non-TTY while single-delete refusal behavior preserved
+- [Phase 7]: Pipeline mutations invalidate KEY_PIPELINES + stages_ cache prefix; batch stage updates use stages_ prefix invalidation (multi-pipeline safe)
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-02T11:17:23.719Z
-Stopped at: v1.1 roadmap created — Phases 7-13, 30/30 requirements mapped, batch plans awaiting renumber
+Last session: 2026-09-02T11:32:55.182Z
+Stopped at: Completed 07-03-PLAN.md (pipelines/stages/workflows batch ops — all 7 entities batch-capable)
 Resume file: None
