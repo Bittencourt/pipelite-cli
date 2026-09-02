@@ -62,7 +62,7 @@ pub enum ActivitiesCommands {
 
     /// Delete an activity
     #[command(
-        after_help = "Examples:\n  pipelite activities delete act_abc123\n  pipelite activities delete act_1 act_2 act_3\n  echo '[\"act_1\",\"act_2\"]' | pipelite activities delete --stdin"
+        after_help = "Examples:\n  pipelite activities delete act_abc123\n  pipelite activities delete act_1 act_2 act_3\n  echo '[\"act_1\",\"act_2\"]' | pipelite activities delete --stdin --force"
     )]
     Delete(ActivitiesDeleteArgs),
 }

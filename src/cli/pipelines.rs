@@ -47,7 +47,7 @@ pub enum PipelinesCommands {
 
     /// Delete a pipeline
     #[command(
-        after_help = "Examples:\n  pipelite pipelines delete pl_abc123\n  pipelite pipelines delete pl_1 pl_2 pl_3\n  echo '[\"pl_1\",\"pl_2\"]' | pipelite pipelines delete --stdin"
+        after_help = "Examples:\n  pipelite pipelines delete pl_abc123\n  pipelite pipelines delete pl_1 pl_2 pl_3\n  echo '[\"pl_1\",\"pl_2\"]' | pipelite pipelines delete --stdin --force"
     )]
     Delete(PipelinesDeleteArgs),
 }

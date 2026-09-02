@@ -62,7 +62,7 @@ pub enum PeopleCommands {
 
     /// Delete a person
     #[command(
-        after_help = "Examples:\n  pipelite people delete per_abc123\n  pipelite people delete per_1 per_2 per_3\n  echo '[\"per_1\",\"per_2\"]' | pipelite people delete --stdin"
+        after_help = "Examples:\n  pipelite people delete per_abc123\n  pipelite people delete per_1 per_2 per_3\n  echo '[\"per_1\",\"per_2\"]' | pipelite people delete --stdin --force"
     )]
     Delete(PeopleDeleteArgs),
 }

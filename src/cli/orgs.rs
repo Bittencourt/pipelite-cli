@@ -47,7 +47,7 @@ pub enum OrgsCommands {
 
     /// Delete an organization
     #[command(
-        after_help = "Examples:\n  pipelite orgs delete org_abc123\n  pipelite orgs delete org_1 org_2 org_3\n  echo '[\"org_1\",\"org_2\"]' | pipelite orgs delete --stdin"
+        after_help = "Examples:\n  pipelite orgs delete org_abc123\n  pipelite orgs delete org_1 org_2 org_3\n  echo '[\"org_1\",\"org_2\"]' | pipelite orgs delete --stdin --force"
     )]
     Delete(OrgsDeleteArgs),
 }

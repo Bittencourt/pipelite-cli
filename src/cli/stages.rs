@@ -62,7 +62,7 @@ pub enum StagesCommands {
 
     /// Delete a stage
     #[command(
-        after_help = "Examples:\n  pipelite stages delete stg_abc123\n  pipelite stages delete stg_1 stg_2 stg_3\n  echo '[\"stg_1\",\"stg_2\"]' | pipelite stages delete --stdin"
+        after_help = "Examples:\n  pipelite stages delete stg_abc123\n  pipelite stages delete stg_1 stg_2 stg_3\n  echo '[\"stg_1\",\"stg_2\"]' | pipelite stages delete --stdin --force"
     )]
     Delete(StagesDeleteArgs),
 }

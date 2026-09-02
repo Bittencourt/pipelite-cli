@@ -77,7 +77,7 @@ pub enum DealsCommands {
 
     /// Delete a deal
     #[command(
-        after_help = "Examples:\n  pipelite deals delete deal_abc123\n  pipelite deals delete deal_1 deal_2 deal_3\n  echo '[\"deal_1\",\"deal_2\"]' | pipelite deals delete --stdin"
+        after_help = "Examples:\n  pipelite deals delete deal_abc123\n  pipelite deals delete deal_1 deal_2 deal_3\n  echo '[\"deal_1\",\"deal_2\"]' | pipelite deals delete --stdin --force"
     )]
     Delete(DealsDeleteArgs),
 }
