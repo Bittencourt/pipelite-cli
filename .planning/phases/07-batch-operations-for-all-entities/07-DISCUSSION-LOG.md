@@ -4,7 +4,7 @@
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
 
 **Date:** 2026-03-29
-**Phase:** 01-batch-operations-for-all-entities
+**Phase:** 07-batch-operations-for-all-entities
 **Areas discussed:** Input formats, Batch update design, Batch delete design, Error handling
 
 ---

@@ -38,9 +38,9 @@ created: 2026-03-29
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 1 | batch-update | unit | `cargo test batch_update` | ❌ W0 | ⬜ pending |
-| 01-01-02 | 01 | 1 | batch-delete | unit | `cargo test batch_delete` | ❌ W0 | ⬜ pending |
-| 01-02-01 | 02 | 1 | error-handling | unit | `cargo test batch_error` | ❌ W0 | ⬜ pending |
+| 07-01-01 | 01 | 1 | batch-update | unit | `cargo test batch_update` | ❌ W0 | ⬜ pending |
+| 07-01-02 | 01 | 1 | batch-delete | unit | `cargo test batch_delete` | ❌ W0 | ⬜ pending |
+| 07-02-01 | 02 | 1 | error-handling | unit | `cargo test batch_error` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

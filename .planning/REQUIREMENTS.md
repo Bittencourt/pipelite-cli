@@ -101,7 +101,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(filled by roadmap)* | | |
+| BATCH-01 | Phase 7 | Pending |
+| BATCH-02 | Phase 7 | Pending |
+| BATCH-03 | Phase 7 | Pending |
+| BATCH-04 | Phase 7 | Pending |
+| FIX-01 | Phase 8 | Pending |
+| FIX-02 | Phase 8 | Pending |
+| FIX-03 | Phase 8 | Pending |
+| FIX-04 | Phase 8 | Pending |
+| FIX-05 | Phase 8 | Pending |
+| FIX-06 | Phase 8 | Pending |
+| WRUN-01 | Phase 9 | Pending |
+| WRUN-02 | Phase 9 | Pending |
+| WRUN-03 | Phase 9 | Pending |
+| TPL-01 | Phase 9 | Pending |
+| DOCS-01 | Phase 9 | Pending |
+| NOTE-01 | Phase 10 | Pending |
+| NOTE-02 | Phase 10 | Pending |
+| NOTE-03 | Phase 10 | Pending |
+| NOTE-04 | Phase 10 | Pending |
+| WHOK-01 | Phase 11 | Pending |
+| WHOK-02 | Phase 11 | Pending |
+| WHOK-03 | Phase 11 | Pending |
+| TRSH-01 | Phase 11 | Pending |
+| TRSH-02 | Phase 11 | Pending |
+| TRSH-03 | Phase 11 | Pending |
+| AUDT-01 | Phase 11 | Pending |
+| AUDT-02 | Phase 11 | Pending |
+| CFLD-01 | Phase 12 | Pending |
+| CFLD-02 | Phase 12 | Pending |
+| CFLD-03 | Phase 12 | Pending |
+
+Phase 13 (Integration Hardening & Docs) carries no exclusive requirements — it cross-verifies all 30 above end-to-end.
 
 ---
 *Requirement quality: specific, testable, user-centric, atomic, independent.*

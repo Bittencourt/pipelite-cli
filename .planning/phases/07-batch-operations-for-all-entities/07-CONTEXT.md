@@ -94,5 +94,5 @@ None — discussion stayed within phase scope
 
 ---
 
-*Phase: 01-batch-operations-for-all-entities*
+*Phase: 07-batch-operations-for-all-entities*
 *Context gathered: 2026-03-29*
