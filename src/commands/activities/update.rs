@@ -220,6 +220,8 @@ fn render_result(
 ///
 /// Each JSON object must contain an "id" field plus update fields.
 /// Processes all items with continue-on-error semantics (per D-06).
+/// Items with `"completed_at": null` clear the completed timestamp via the
+/// raw update endpoint (CR-02), matching single-mode `--mark-undone`.
 /// The shared flow lives in [`crate::batch::run_batch_update`].
 async fn batch_update(ctx: &AppContext) -> Result<()> {
     batch::run_batch_update::<ActivityUpdate, _>(
@@ -230,10 +232,59 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
         KEY_ACTIVITIES,
         None,
         &activities_table_config().default_columns,
-        async |id: String, data: ActivityUpdate, _raw: &serde_json::Value| {
+        async |id: String, data: ActivityUpdate, raw: &serde_json::Value| {
+            // CR-02: "completed_at": null deserializes to None and is then
+            // dropped by skip_serializing_if, so the plain PUT would never
+            // clear the field while reporting success. Mirror single mode's
+            // update_with_null_completed: send a raw payload that includes
+            // completed_at: null explicitly.
+            let clears_completed_at = raw.get("completed_at").is_some_and(|v| v.is_null());
+            if clears_completed_at {
+                let payload = build_null_completed_payload(&data)?;
+                let activity = ctx.client.update_activity_raw(&id, &payload).await?;
+                return Ok(serde_json::to_value(activity)?);
+            }
+
             let activity = ctx.client.update_activity(&id, &data).await?;
             Ok(serde_json::to_value(activity)?)
         },
     )
     .await
+}
+
+/// Build a raw JSON payload that explicitly clears `completed_at`.
+///
+/// `ActivityUpdate` cannot express "send null" (`skip_serializing_if` drops
+/// None fields), so we serialize the recognized update fields and then insert
+/// `completed_at: null`, mirroring single-mode `--mark-undone`.
+fn build_null_completed_payload(data: &ActivityUpdate) -> Result<serde_json::Value> {
+    let mut payload = serde_json::to_value(data)?;
+    if let Some(map) = payload.as_object_mut() {
+        map.insert("completed_at".to_string(), serde_json::Value::Null);
+    }
+    Ok(payload)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn null_completed_payload_includes_null_and_recognized_fields() {
+        let data = ActivityUpdate {
+            title: Some("Renamed".to_string()),
+            type_id: None,
+            deal_id: None,
+            owner_id: None,
+            due_at: None,
+            completed_at: None,
+            notes: None,
+            custom_fields: None,
+        };
+        let payload = build_null_completed_payload(&data).expect("payload builds");
+        let map = payload.as_object().expect("payload is an object");
+        assert_eq!(map.get("completed_at"), Some(&serde_json::Value::Null));
+        assert_eq!(map.get("title").and_then(|v| v.as_str()), Some("Renamed"));
+        assert!(!map.contains_key("id"), "id must not be sent as a payload field");
+    }
 }

@@ -1,7 +1,6 @@
 use std::io::{self, IsTerminal, Read};
 
 use anyhow::Result;
-use serde::Deserialize;
 
 use crate::context::AppContext;
 use crate::dry_run;
