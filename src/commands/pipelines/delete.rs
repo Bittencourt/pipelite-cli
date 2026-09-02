@@ -8,15 +8,19 @@ use crate::dry_run;
 
 /// Delete one or more pipelines.
 ///
-/// Single ID executes the original delete flow (v1.0 behavior). Multiple IDs
-/// (or --stdin with a JSON array of string IDs) run a batch delete with
-/// confirmation prompt, continue-on-error semantics, and a summary report.
-/// Non-interactive runs (e.g. piped --stdin) must pass --force: stdin cannot
-/// carry both the IDs and a confirmation prompt.
+/// A single positional ID executes the original delete flow (v1.0 behavior).
+/// Multiple IDs — or --stdin with a JSON array of string IDs, even a 1-ID
+/// list — run a batch delete with confirmation prompt, continue-on-error
+/// semantics, and a summary report. Non-interactive runs (e.g. piped --stdin)
+/// must pass --force: stdin cannot carry both the IDs and a confirmation
+/// prompt.
 pub async fn run(ctx: &AppContext, args: &PipelinesDeleteArgs) -> Result<()> {
     let ids = batch::collect_delete_ids("pipelines", args.stdin, &args.ids, r#"["pl_1","pl_2"]"#)?;
 
-    if ids.len() == 1 {
+    // WR-06: piped --stdin input always takes the batch path (with its
+    // --force gate) regardless of item count; only a single positional ID
+    // keeps the v1.0 gate-free flow.
+    if ids.len() == 1 && !args.stdin {
         return single_delete(ctx, &ids[0]).await;
     }
 
