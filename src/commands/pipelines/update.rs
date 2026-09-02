@@ -111,13 +111,14 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
     batch::run_batch_update::<PipelineUpdate, _>(
         ctx,
         "pipeline",
+        "pipelines",
         r#"[{"id":"pl_1","name":"New"}]"#,
         "pipelines",
         KEY_PIPELINES,
         Some("stages_"),
         &pipelines_table_config().default_columns,
         async |id: String, data: PipelineUpdate, _raw: &serde_json::Value| {
-            batch::ensure_update_fields(&data, "pipeline")?;
+            batch::ensure_update_fields(&data, "pipelines")?;
             let pipeline = ctx.client.update_pipeline(&id, &data).await?;
             Ok(serde_json::to_value(pipeline)?)
         },

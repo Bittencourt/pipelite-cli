@@ -227,6 +227,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
     batch::run_batch_update::<ActivityUpdate, _>(
         ctx,
         "activity",
+        "activities",
         r#"[{"id":"act_1","title":"New"}]"#,
         "activities",
         KEY_ACTIVITIES,
@@ -248,7 +249,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
             // WR-03: only reach the no-op guard when the item does not clear
             // completed_at — `{"id": ..., "completed_at": null}` alone is a
             // meaningful clear operation, not a no-op.
-            batch::ensure_update_fields(&data, "activity")?;
+            batch::ensure_update_fields(&data, "activities")?;
             let activity = ctx.client.update_activity(&id, &data).await?;
             Ok(serde_json::to_value(activity)?)
         },

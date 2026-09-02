@@ -125,6 +125,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
     batch::run_batch_update::<StageUpdate, _>(
         ctx,
         "stage",
+        "stages",
         r#"[{"id":"stg_1","name":"New"}]"#,
         "stages",
         KEY_STAGES,
@@ -133,7 +134,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
         Some("stages_"),
         &stages_table_config().default_columns,
         async |id: String, data: StageUpdate, _raw: &serde_json::Value| {
-            batch::ensure_update_fields(&data, "stage")?;
+            batch::ensure_update_fields(&data, "stages")?;
             let stage = ctx.client.update_stage(&id, &data).await?;
             Ok(serde_json::to_value(stage)?)
         },

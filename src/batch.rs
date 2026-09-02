@@ -224,10 +224,14 @@ where
 /// item with no fields besides "id") deserializes to an all-`None` struct that
 /// would PUT an empty `{}` body and report success while changing nothing.
 /// Returns a per-item error so the batch loop records it as a failure.
-pub fn ensure_update_fields<T: Default + PartialEq>(data: &T, entity: &str) -> Result<()> {
+///
+/// `cli_entity` is the CLI subcommand name (e.g. "deals", "orgs") used in the
+/// help hint — display names like "organization" are not runnable
+/// subcommands (WR-08).
+pub fn ensure_update_fields<T: Default + PartialEq>(data: &T, cli_entity: &str) -> Result<()> {
     if *data == T::default() {
         anyhow::bail!(
-            "no recognizable update fields (unknown or misspelled fields are ignored; check `pipelite {entity} update --help`)"
+            "no recognizable update fields (unknown or misspelled fields are ignored; check `pipelite {cli_entity} update --help`)"
         );
     }
     Ok(())
@@ -240,12 +244,19 @@ pub fn ensure_update_fields<T: Default + PartialEq>(data: &T, entity: &str) -> R
 /// an "id" field plus update fields; unknown fields are ignored by the
 /// underlying Update model.
 ///
+/// `entity` is the display name used in the summary (e.g. "deal"),
+/// `cli_entity` is the CLI subcommand name used in hints (e.g. "deals",
+/// "orgs" — it must be the runnable subcommand, not the REST `api_path`,
+/// which may differ as "organizations"; WR-08), and `api_path` is the REST
+/// path segment (e.g. "deals" or "organizations").
+///
 /// `update_one` receives the extracted id, the deserialized update payload,
 /// and the raw JSON item, performs the API update, and returns the updated
 /// entity as JSON for success rendering.
 pub async fn run_batch_update<T, F>(
     ctx: &AppContext,
     entity: &str,
+    cli_entity: &str,
     example: &str,
     api_path: &str,
     cache_key: &str,
@@ -261,7 +272,7 @@ where
         return Err(CliError::Validation {
             detail: "No data on stdin".to_string(),
             hint: format!(
-                "Pipe JSON data: echo '{example}' | pipelite {api_path} update --stdin"
+                "Pipe JSON data: echo '{example}' | pipelite {cli_entity} update --stdin"
             ),
         }
         .into());

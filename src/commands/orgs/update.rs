@@ -129,13 +129,14 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
     batch::run_batch_update::<OrganizationUpdate, _>(
         ctx,
         "organization",
+        "orgs",
         r#"[{"id":"org_1","name":"New"}]"#,
         "organizations",
         KEY_ORGS,
         None,
         &orgs_table_config().default_columns,
         async |id: String, data: OrganizationUpdate, _raw: &serde_json::Value| {
-            batch::ensure_update_fields(&data, "organization")?;
+            batch::ensure_update_fields(&data, "orgs")?;
             let org = ctx.client.update_org(&id, &data).await?;
             Ok(serde_json::to_value(org)?)
         },
