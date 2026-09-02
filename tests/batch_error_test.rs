@@ -31,6 +31,32 @@ fn batch_update_unreachable_server_exits_nonzero() {
         .stderr(predicate::str::contains("failed").or(predicate::str::contains("Failed")));
 }
 
+// -- Batch update silent no-ops must fail (WR-03) --
+
+#[test]
+fn batch_update_empty_array_fails() {
+    // An empty array runs zero operations and must not exit 0 silently.
+    cmd()
+        .write_stdin("[]")
+        .args(["deals", "update", "--stdin"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Empty update list"));
+}
+
+#[test]
+fn batch_update_noop_item_fails() {
+    // "titel" is not a known field; the Update model ignores it, so the item
+    // would PUT an empty {} body and report success. WR-03: report failure.
+    let input = r#"[{"id":"deal_1","titel":"New"}]"#;
+    cmd()
+        .write_stdin(input)
+        .args(["deals", "update", "--stdin"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("no recognizable update fields"));
+}
+
 // -- Batch delete against unreachable server -> all fail, non-zero exit (D-06, D-07) --
 
 #[test]

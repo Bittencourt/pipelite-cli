@@ -218,6 +218,21 @@ where
     outcome.finalize(entity, "delete")
 }
 
+/// Reject an item whose deserialized update payload is entirely empty (WR-03).
+///
+/// The Update models ignore unknown keys, so a misspelled field name (or an
+/// item with no fields besides "id") deserializes to an all-`None` struct that
+/// would PUT an empty `{}` body and report success while changing nothing.
+/// Returns a per-item error so the batch loop records it as a failure.
+pub fn ensure_update_fields<T: Default + PartialEq>(data: &T, entity: &str) -> Result<()> {
+    if *data == T::default() {
+        anyhow::bail!(
+            "no recognizable update fields (unknown or misspelled fields are ignored; check `pipelite {entity} update --help`)"
+        );
+    }
+    Ok(())
+}
+
 /// Shared batch update flow for `--stdin` JSON-array updates (per D-02, D-03).
 ///
 /// Reads objects from stdin, previews via `--dry-run`, then updates each item
@@ -253,6 +268,17 @@ where
     }
 
     let items: Vec<serde_json::Value> = read_stdin_json("update")?;
+
+    // WR-03: an empty array would run zero operations and exit 0 with no
+    // output — fail loudly instead, consistent with batch delete's
+    // "Empty ID list" behavior.
+    if items.is_empty() {
+        return Err(CliError::Validation {
+            detail: "Empty update list".to_string(),
+            hint: "Stdin must contain at least one object with an 'id' field.".to_string(),
+        }
+        .into());
+    }
 
     if ctx.dry_run {
         for item in &items {

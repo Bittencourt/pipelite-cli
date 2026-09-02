@@ -162,6 +162,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
         None,
         &deals_table_config().default_columns,
         async |id: String, data: DealUpdate, _raw: &serde_json::Value| {
+            batch::ensure_update_fields(&data, "deal")?;
             let deal = ctx.client.update_deal(&id, &data).await?;
             Ok(serde_json::to_value(deal)?)
         },

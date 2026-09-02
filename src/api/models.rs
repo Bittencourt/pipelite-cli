@@ -65,7 +65,7 @@ pub struct DealCreate {
 }
 
 /// Payload for updating an existing deal. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DealUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -126,7 +126,7 @@ pub struct OrganizationCreate {
 }
 
 /// Payload for updating an existing organization. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct OrganizationUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -182,7 +182,7 @@ pub struct PersonCreate {
 }
 
 /// Payload for updating an existing person. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PersonUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
@@ -246,7 +246,7 @@ pub struct ActivityCreate {
 }
 
 /// Payload for updating an existing activity. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ActivityUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -295,7 +295,7 @@ pub struct PipelineCreate {
 }
 
 /// Payload for updating an existing pipeline. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PipelineUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -343,7 +343,7 @@ pub struct StageCreate {
 }
 
 /// Payload for updating an existing stage. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct StageUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -397,7 +397,7 @@ pub struct WorkflowCreate {
 }
 
 /// Payload for updating an existing workflow. All fields optional.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct WorkflowUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

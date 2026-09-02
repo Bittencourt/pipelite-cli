@@ -153,6 +153,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
         None,
         &people_table_config().default_columns,
         async |id: String, data: PersonUpdate, _raw: &serde_json::Value| {
+            batch::ensure_update_fields(&data, "person")?;
             let person = ctx.client.update_person(&id, &data).await?;
             Ok(serde_json::to_value(person)?)
         },

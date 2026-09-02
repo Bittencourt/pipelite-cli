@@ -117,6 +117,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
         Some("stages_"),
         &pipelines_table_config().default_columns,
         async |id: String, data: PipelineUpdate, _raw: &serde_json::Value| {
+            batch::ensure_update_fields(&data, "pipeline")?;
             let pipeline = ctx.client.update_pipeline(&id, &data).await?;
             Ok(serde_json::to_value(pipeline)?)
         },

@@ -138,6 +138,7 @@ async fn batch_update(ctx: &AppContext) -> Result<()> {
         None,
         &workflows_table_config().default_columns,
         async |id: String, data: WorkflowUpdate, _raw: &serde_json::Value| {
+            batch::ensure_update_fields(&data, "workflow")?;
             let workflow = ctx.client.update_workflow(&id, &data).await?;
             Ok(serde_json::to_value(workflow)?)
         },
