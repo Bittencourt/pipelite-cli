@@ -56,13 +56,13 @@ pub enum PeopleCommands {
 
     /// Update an existing person
     #[command(
-        after_help = "Examples:\n  pipelite people update per_abc123 --first-name Jane\n  pipelite people update per_abc123 --email new@acme.com --phone +1234567890\n  pipelite people update per_abc123 --custom-field role=CEO"
+        after_help = "Examples:\n  pipelite people update per_abc123 --first-name Jane\n  pipelite people update per_abc123 --email new@acme.com --phone +1234567890\n  pipelite people update per_abc123 --custom-field role=CEO\n  echo '[{\"id\":\"per_1\",\"first_name\":\"Jane\"}]' | pipelite people update --stdin"
     )]
     Update(PeopleUpdateArgs),
 
     /// Delete a person
     #[command(
-        after_help = "Examples:\n  pipelite people delete per_abc123"
+        after_help = "Examples:\n  pipelite people delete per_abc123\n  pipelite people delete per_1 per_2 per_3\n  echo '[\"per_1\",\"per_2\"]' | pipelite people delete --stdin"
     )]
     Delete(PeopleDeleteArgs),
 }
@@ -150,9 +150,13 @@ pub struct PeopleCreateArgs {
 
 #[derive(Args)]
 pub struct PeopleUpdateArgs {
-    /// Person ID
-    #[arg(add = ArgValueCandidates::new(person_id_candidates))]
-    pub id: String,
+    /// Person ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(person_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// First name
     #[arg(long)]
@@ -185,7 +189,11 @@ pub struct PeopleUpdateArgs {
 
 #[derive(Args)]
 pub struct PeopleDeleteArgs {
-    /// Person ID
-    #[arg(add = ArgValueCandidates::new(person_id_candidates))]
-    pub id: String,
+    /// Person ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(person_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 }

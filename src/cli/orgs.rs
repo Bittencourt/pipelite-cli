@@ -41,13 +41,13 @@ pub enum OrgsCommands {
 
     /// Update an existing organization
     #[command(
-        after_help = "Examples:\n  pipelite orgs update org_abc123 --name \"New Name\"\n  pipelite orgs update org_abc123 --website https://new.com --industry SaaS\n  pipelite orgs update org_abc123 --custom-field region=APAC"
+        after_help = "Examples:\n  pipelite orgs update org_abc123 --name \"New Name\"\n  pipelite orgs update org_abc123 --website https://new.com --industry SaaS\n  pipelite orgs update org_abc123 --custom-field region=APAC\n  echo '[{\"id\":\"org_1\",\"name\":\"New\"}]' | pipelite orgs update --stdin"
     )]
     Update(OrgsUpdateArgs),
 
     /// Delete an organization
     #[command(
-        after_help = "Examples:\n  pipelite orgs delete org_abc123"
+        after_help = "Examples:\n  pipelite orgs delete org_abc123\n  pipelite orgs delete org_1 org_2 org_3\n  echo '[\"org_1\",\"org_2\"]' | pipelite orgs delete --stdin"
     )]
     Delete(OrgsDeleteArgs),
 }
@@ -123,9 +123,13 @@ pub struct OrgsCreateArgs {
 
 #[derive(Args)]
 pub struct OrgsUpdateArgs {
-    /// Organization ID
-    #[arg(add = ArgValueCandidates::new(org_id_candidates))]
-    pub id: String,
+    /// Organization ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(org_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Organization name
     #[arg(long)]
@@ -150,7 +154,11 @@ pub struct OrgsUpdateArgs {
 
 #[derive(Args)]
 pub struct OrgsDeleteArgs {
-    /// Organization ID
-    #[arg(add = ArgValueCandidates::new(org_id_candidates))]
-    pub id: String,
+    /// Organization ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(org_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 }
