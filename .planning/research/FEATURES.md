@@ -1,137 +1,208 @@
-# Feature Landscape
+# Feature Research
 
-**Domain:** CRM CLI Tool (Rust, REST API client)
-**Researched:** 2026-03-23
+**Domain:** Rust CRM CLI (`pipelite`) — v1.1 "Server v2 Parity" milestone: new command surfaces (notes, workflow runs, webhooks, trash, custom fields, templates, audit, docs) + batch operations
+**Researched:** 2026-09-02
+**Confidence:** HIGH (core UX patterns verified against live official docs of gh CLI, Stripe CLI, Helm, kubectl; API surface taken as fact from `.planning/research/SERVER-API-DIFF.md`)
 
-## Table Stakes
+---
 
-Features users expect from a CRM CLI tool modeled after gh/kubectl/stripe. Missing any of these and the tool feels broken or incomplete.
+## Research Question
+
+How do mature CLIs (gh, stripe-cli, sentry-cli, slack-cli, kubectl) handle: notes sub-resource UX, workflow run inspection, webhook secret show-once, trash/soft-delete confirmations, typed custom-field input, batch continue-on-error output, and audit log filtering? What is table stakes vs differentiator for pipelite v1.1?
+
+## Verified Precedents (what mature CLIs actually do)
+
+| Pattern | Precedent (verified) | Implication for pipelite |
+|---------|---------------------|--------------------------|
+| Sub-resource comments | `gh issue comment 12 --body "..."` — nested under parent entity, positional parent ID first, `--body` flag or `--body-file -` for stdin, **interactive prompt when no body given** (HIGH — cli.github.com/manual/gh_issue_comment) | Notes: parent-scoped list/add; content via flag, `@file`, stdin, or interactive prompt (dialoguer already in stack) |
+| Run inspection | `gh run list --status=X`, `gh run view <id>` (summary + steps), `gh run watch --compact --interval 3 --exit-status` — non-zero exit if run fails (HIGH — cli.github.com/manual/gh_run_watch) | `workflows runs` list/detail table stakes; `--watch` + `--exit-status` is the differentiator pattern |
+| Secret show-once | `stripe listen` prints `> Ready! Your webhook signing secret is whsec_abcdefg1234567` once, prominently; `--print-secret` flag for scriptability ("only print the webhook signing secret and exit") (HIGH — docs.stripe.com/cli/listen) | `webhooks create` renders the one-time secret with a warning block; JSON output carries it for scripts; never cached locally |
+| Destructive delete | `gh repo delete` — prompts by default, `--yes` skips the prompt, and `--yes` is **ignored** in the maximum-danger case (no explicit target → always prompt) (HIGH — cli.github.com/manual/gh_repo_delete) | `trash purge` (permanent, admin-only): confirm prompt + `--yes` for scripts; `--no-input` without `--yes` must refuse, not silently proceed |
+| Typed key=value input | Helm `--set a=b` (type-inferred), `--set-string` (force string), `--set-json '{"k":[1,2]}'` (escape hatch), `--set-file` — documented as the answer to "deeply nested data is hard on the command line" (HIGH — helm.sh/docs/intro/using_helm) | `--custom-field key=value` gains type inference from cached definitions; add `--custom-field-string` and `--custom-field-json` escape hatches |
+| Batch error handling | `kubectl apply` processes each item independently, prints one result line per item, continues past individual failures, exits non-zero at the end (MEDIUM — kubectl reference partially retrieved; behavior well-established in widespread use) | Batch: per-item status lines + final `N ok, M failed` summary + aggregate exit code |
+| Audit filtering | GitHub audit log API: composable query filters (action, actor, date); Slack audit API similar (action/actor/target/before-after) (MEDIUM — docs pages partially loaded; pipelite server filter shape verified in API diff) | `audit list` with enum-validated filter flags mirroring server params exactly — never client-side-only filters (v1.0's dead-flag lesson) |
+| Documented exit codes | `gh help exit-codes` is a first-class help topic (HIGH — present in gh manual nav) | Document batch/watch exit codes in help text |
+
+---
+
+## Feature Landscape
+
+### Table Stakes (Users Expect These)
+
+Missing any of these makes the CLI feel incomplete against the server's own capabilities. All inherit existing v1.0 conventions (4 output formats, `--fields`, `--dry-run`, `--no-input`, `--quiet`, `--no-color`, hint-bearing errors) — for THIS project, honoring those flags on every new command is itself table stakes.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **API key authentication** | Every CLI tool that talks to a service needs auth. Users expect `pipelite auth login` or `pipelite init` flow similar to `gh auth login` or `hs init`. | Low | Store in `~/.pipelite/config.toml`. Never accept keys as flags (leaks to `ps` and shell history). Support `PIPELITE_API_KEY` env var for CI. |
-| **Full CRUD on all entities** | The entire point of the tool. `pipelite deals list`, `pipelite deals create`, `pipelite deals get <id>`, `pipelite deals update <id>`, `pipelite deals delete <id>`. Same for orgs, people, activities, pipelines, stages. | High | Largest surface area. Each entity needs list/get/create/update/delete subcommands. This is the bulk of the work. |
-| **JSON output (`--json`)** | Every modern CLI (gh, aws, az, stripe, kubectl) supports JSON output. Required for scripting, piping to `jq`, and agent consumption. | Low | Should be the default when stdout is not a TTY (piped). Stable contract -- human output can change, JSON must not. |
-| **Table output (default for TTY)** | Humans expect readable tabular output when running commands interactively. gh, kubectl, aws all do this. | Medium | Auto-detect TTY vs pipe. Use column-aligned tables. Truncate long fields with `...`. |
-| **`--help` on every command** | Universal CLI expectation. Three tiers: no-args shows brief usage, `--help` shows full details, `pipelite help <command>` works too. | Low | Use clap's built-in derive macros for help generation. Lead with examples in help text. |
-| **`--version` flag** | Standard. Every CLI has it. | Low | `pipelite --version` returns `pipelite 0.1.0`. |
-| **Non-zero exit codes on failure** | Scripts need to detect failures. 0 = success, 1 = runtime error, 2 = user misuse. | Low | Map API errors (401, 404, 500) to meaningful exit codes. |
-| **Actionable error messages** | "Connection refused" is useless. "Cannot connect to server at https://crm.example.com -- check your server URL with `pipelite config show`" is useful. clig.dev emphasizes this as critical. | Medium | Catch known error classes (auth failure, network error, not found, validation error) and provide specific guidance with suggested next commands. |
-| **Configuration file** | Users need persistent config: server URL, API key, default output format, default pipeline. `~/.pipelite/config.toml`. | Low | Precedence: flags > env vars > project config > user config. Support `pipelite config set/get/show` subcommands. |
-| **Connection test / health check** | Users need to verify their setup works before doing anything else. `pipelite ping` or `pipelite status`. | Low | First thing users run after `pipelite init`. Shows server version, authenticated user, connection latency. |
-| **Listing with filtering** | `pipelite deals list --stage="Negotiation" --owner="me"` -- users expect to filter lists, not fetch everything and grep. | Medium | Map common CRM filters to flags. Support `--limit` and `--offset` for pagination. |
-| **CSV output (`--csv`)** | CRM users live in spreadsheets. CSV export from CLI is table stakes for data that feeds into Excel, Google Sheets, or other tools. | Low | Simple format, easy to implement alongside JSON and table. |
-| **Quiet mode (`-q`)** | Scripts need to suppress non-essential output. Standard flag in every well-designed CLI. | Low | Suppress status messages, only output data or errors. |
+| Notes: parent-scoped list/add (deals/orgs/people/activities) | Every mature CRM CLI exposes comments/notes on records; API supports it natively | LOW | `GET/POST /{entity}/{id}/notes`. CRUD-pattern replication. Content via `--content`, `--file`/`@path`, stdin, or interactive prompt |
+| Notes: edit/delete by note ID | Server exposes global `PATCH/DELETE /notes/{noteId}`; asymmetric API needs asymmetric commands | LOW | No GET-single endpoint — edit/delete confirmations must show content from list context. Surface author-or-admin 403 with hint |
+| Workflow runs list with `--status`/`--dry-run` filters | `gh run list --status=` is the mental model; server supports both filters | LOW | `dry_run` runs hidden by default — `--dry-run` flag opts in (document this; it will surprise users otherwise). Client-side enum validation for status (server doesn't validate — CLI should, per v1.0 dead-flag lesson) |
+| Workflow run detail with steps | gh `run view` shows jobs/steps; debugging failed automations requires step-level `error` visibility | LOW-MEDIUM | `GET .../runs/{runId}` adds `steps[]`. Table: node_id, status, started/completed, error. `input`/`output` are arbitrary JSON → show in `--json` fully; truncated in table; `--step <nodeId>` drill-down optional |
+| Webhooks CRUD with validation | Standard integration-management surface; server accepts ANY event name → client-side validation is the CLI's job | LOW-MEDIUM | 13-event enum validated in clap (arg_enum) → good clap errors for typos. `url` must be https (pre-validate). Update uses **PUT** not PATCH (full object required — differs from every other entity in the CLI; document in help) |
+| Webhook secret shown once with warning | Stripe pattern (verified); users who miss the secret are locked out of signature verification forever | LOW | Warning block on create: "Store this secret now — it cannot be retrieved again." JSON format includes it for headless use; list/get never shows it (server excludes it) |
+| Trash: list + restore | Soft-delete visibility is expected hygiene once the server has a trash tab | LOW-MEDIUM | `trash list [--type deals\|people\|organizations\|activities]`; rows show `name`, `deleted_at`, `deleted_by`, `linked_parents[]`. Plural-type positional matches server routes (`/trash/{type}/{id}`); restore = owner-or-admin (403 → hint) |
+| Trash: purge with confirmation | Permanent, admin-only destruction — the `gh repo delete` case | LOW | Confirm prompt default; `--yes` skips; **`--no-input` without `--yes` = refuse with hint** (never default-confirm in headless mode). Non-admin 403 → "requires an admin API key" hint |
+| Custom field definitions CRUD | Can't write typed values reliably without knowing field IDs/types; definitions are the schema | LOW | list (`--entity-type` filter) / get / create / delete. PUT semantics: `entity_type`+`type` immutable (client-side hint if user tries). Soft-delete → 404 on re-delete (hint: "already deleted"). `position` is server-assigned float — don't accept it on create |
+| Type-aware `--custom-field` writing | Current CLI stores `"4"` not `4` — silently wrong data for number/boolean/date fields | MEDIUM | Coerce per definition type: number→f64, boolean→bool, date→string, single_select→string, multi_select→array. Definitions fetched via existing TTL cache (no extra HTTP per update). Unknown field ID → error listing valid IDs for that entity |
+| `--custom-field-json` escape hatch | Helm `--set-json` pattern; multi_select/lookup/formula configs don't fit key=value | LOW | Raw JSON merged into the blob. Independent of definitions lookup — can ship before type inference |
+| Batch update/delete with continue-on-error | v1.0 has batch create via `--stdin` on 3 entities; users expect update/delete parity with the same input model | MEDIUM | Per-item result lines (`<id> ok` / `<id> FAILED: <msg>`), final summary (`N succeeded, M failed`), exit 0 all-ok / 1 any-failed. Failed IDs printed last in a copy-pasteable block (json format: structured results array) |
+| Audit log list with filters | GitHub audit log model; admin keys need change history from the terminal | LOW-MEDIUM | Flags mirror server exactly: `--entity-type --entity-id --actor-kind --workflow-run-id` + offset/limit. All enums client-validated. **403 must render the admin-key hint prominently** — this is the primary non-obvious failure mode |
+| Workflow templates list/get/create/delete | CRUD parity expectation; no update endpoint exists (server) → don't invent one | LOW | Create reuses v1.0 patterns: `--trigger @file`/`--nodes @file` with `serde_json::Value` (established Key Decision). Name 1–200, description ≤2000, category ≤100 — pre-validate with good errors |
+| `pipelite docs` | Self-documentation against the live server version; trivial to build | LOW | `GET /api/v1/docs` (no auth) → stdout as JSON (pipeable to jq), `--output <file>` optional. Not table stakes vs competitors (no major CLI has this) but effectively free |
+| All new commands respect v1.0 global flags | Project's own bar: `--dry-run` (no HTTP), `--no-input`, `--quiet`, `--no-color`, 4 formats | LOW | Cross-cutting; fold into each feature, not a separate phase |
 
-## Differentiators
-
-Features that set pipelite CLI apart. Not expected, but create real value -- especially for the scripting/agent use case.
+### Differentiators (Competitive Advantage)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Interactive prompts for create/update** | Running `pipelite deals create` with no flags opens an interactive wizard that walks through required fields with validation. Massively lowers the barrier for humans. Similar to `gh pr create` interactive flow. | Medium | Use `dialoguer` or `inquire` crate. Only activate when stdin is a TTY. Skip entirely in headless mode (`--no-input`). Present dropdowns for stages/pipelines from cached data. |
-| **Headless mode (`--no-input`)** | Explicit flag that guarantees no prompts, making the tool safe for CI/CD pipelines and AI agent workflows. All input via flags or stdin. Fails with clear error if required input is missing. | Low | Essential for the "agent-friendly" positioning. Many CLIs detect TTY implicitly but an explicit flag is clearer for automation. |
-| **Stdin piping for bulk operations** | `cat deals.json \| pipelite deals create --stdin` or `pipelite deals list --json \| jq '.[] \| select(.value > 10000)' \| pipelite deals update --stdin --stage="Won"`. Unix composability is a killer feature for power users. | Medium | Accept JSON or JSONL from stdin. Process line-by-line for JSONL. This enables batch operations without a dedicated batch API. |
-| **Shell completions (bash, zsh, fish)** | Tab-completion of commands, flags, and even entity IDs/names. `pipelite deals get <TAB>` showing recent deal names. gh and kubectl both provide this and it dramatically improves discoverability. | Medium | Use `clap_complete` for static completions. Dynamic completions (entity names) are harder -- requires local cache. |
-| **Local caching for lookups** | Cache pipeline names, stage names, user names, and recently accessed entity IDs locally. Makes interactive prompts fast (dropdown of stages without API call) and enables dynamic shell completions. | Medium | Cache in `~/.pipelite/cache/`. TTL-based invalidation (e.g., 5 minutes for pipelines, 1 hour for users). `pipelite cache clear` to force refresh. |
-| **Pipeline dashboard (`pipelite dashboard`)** | ASCII-rendered overview of deals by pipeline stage with counts and total values. A quick "how's my pipeline doing?" view without leaving the terminal. | Medium | Not a TUI -- just a well-formatted ASCII output. Show stage names as columns, deal counts and total values per stage. Color-code stages. |
-| **Multiple output formats (`--format`)** | Support `--format=table,json,csv,plain,jsonl` via a single unified flag. `plain` outputs values only (no headers), useful for `xargs`. JSONL outputs one JSON object per line for streaming. | Low | `--json` as shorthand for `--format=json`. Plain format enables: `pipelite deals list --format=plain --fields=id \| xargs -I{} pipelite deals delete {}`. |
-| **Field selection (`--fields`)** | `pipelite deals list --fields=id,title,value,stage` -- output only specific fields. Reduces noise and makes piping cleaner. gh does this well with `--json id,title`. | Low | Works with all output formats. In table mode, controls which columns appear. In JSON mode, filters the output object. |
-| **ASCII splash screen** | Branded startup experience when running `pipelite` with no arguments. Shows logo, version, and quick-start hints. | Low | Fun, memorable, costs nothing in complexity. Only show on interactive TTY with no subcommand. |
-| **`--dry-run` for mutations** | `pipelite deals create --title="Big Deal" --value=50000 --dry-run` shows what would be sent to the API without actually creating anything. Safety net for scripted operations. | Low | Print the request body that would be sent. No API call. Invaluable for debugging scripts. |
-| **Colored output with `NO_COLOR` support** | Color-coded output: green for success, red for errors, yellow for warnings, cyan for IDs/links. Respect `NO_COLOR` env var and `--no-color` flag per the standard. | Low | Use `owo-colors` or `colored` crate. Auto-disable when not TTY. |
-| **Config profiles for multiple servers** | `pipelite --profile=staging deals list` -- switch between CRM instances (dev, staging, production). Similar to AWS CLI profiles. | Low | Store in config.toml as `[profiles.staging]` sections. Default profile is used when no `--profile` flag. |
-| **Activity logging shortcut** | `pipelite log --deal=123 --type=call --note="Discussed pricing"` -- quick activity logging is the most common CRM task for sales reps. Making it fast from terminal is a real workflow win. | Low | Sugar over `pipelite activities create` with sensible defaults (timestamp=now, type defaults to "note"). |
+| `workflows runs --watch` (+ `--exit-status`) | Converts v1.0's fire-and-forget trigger into observe-and-react: `pipelite workflows run X --watch && notify` — the gh run watch loop, verified pattern. HIGH value because the server has no push/websocket | MEDIUM | Poll loop, `--interval` (default 3–5s), redraw or delta-print step statuses, stop on completed/failed, `--exit-status` → non-zero if failed. Must respect `--no-input` trivially (it's read-only). Watch on a completed run = single print |
+| Batch failed-ID summary in pipeable form | Turns partial failure into a one-liner retry: `... \| pipelite deals update --stdin`. No comparable CRM CLI does this well | LOW | Almost free once batch exists: print failed IDs as the last line in plain format; include in JSON results array |
+| Audit changes diff rendering (`field: from → to`) | GitHub shows change diffs; raw `changes{field:{from,to}}` JSON is unreadable in a table | LOW-MEDIUM | Human formats render compact diffs; `--json` keeps raw shape. Truncate long values in table view |
+| Webhook event-name shell completions | 13 enum values → dynamic completion via existing clap_complete unstable-dynamic infrastructure | LOW | Same mechanism as entity-ID completion. Nice polish on an integration-critical surface |
+| `--custom-field-string` force-string flag | Helm `--set-string` analog: opt-out when inference guesses wrong | LOW | Tiny addition once inference exists; covers select fields whose values look numeric |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. These are traps that waste time or make the tool worse.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **TUI / full-screen interface** | The project scope explicitly excludes TUI. A TUI is a different product (like `lazygit` vs `git`). It adds massive complexity (ratatui, event loop, state management), kills pipeability, and requires a fundamentally different testing approach. | Keep it as a pure CLI. If users want a TUI, it can be a separate project that wraps the CLI or uses the same API client library. |
-| **Webhook management** | Server-side concern. The CLI is a client -- it should not manage server configuration. Webhooks require a running listener process, which is a fundamentally different concern. | Document how to use webhooks with the API directly. Out of scope per PROJECT.md. |
-| **User/permission management** | Admin features that few users need. Adds complexity to auth model and increases security surface. Most CRM users are not admins. | Defer to web UI for admin tasks. The CLI serves individual users managing their CRM data. |
-| **Offline mode with sync** | Conflict resolution in a multi-user CRM is extremely hard. Read-only caching is fine; bidirectional sync is a project unto itself. Would need queue management, eventual consistency, and merge conflict strategies. | Cache for read performance only. Always require network for mutations. Show clear error when offline. |
-| **Built-in email/notification sending** | CRM CLIs should read/write CRM data, not become email clients. Email sending has deliverability, template rendering, and compliance concerns (CAN-SPAM, GDPR) that belong in the CRM server. | Use activities to log communications. Let the server handle actual sending. |
-| **Custom scripting language / DSL** | Tempting to build `pipelite script run my-workflow.pipelite`. But the scripting language already exists: it is bash/sh/zsh. The CLI should be composable with shell, not replace it. | Provide excellent JSON output and stdin support so users compose workflows in their shell of choice. |
-| **Plugin/extension system** | gh has extensions because GitHub's domain is enormous. A CRM CLI has a bounded domain (6 entities). An extension system adds architecture complexity (loading, versioning, API surface) for minimal value at this stage. | Keep the command set focused. If the API surface grows, add commands directly. Revisit only if the user base explicitly demands it. |
-| **Real-time streaming / watching** | `pipelite deals watch` that streams changes. Requires websocket support, server-side events, or polling. Fundamentally different interaction model than request-response CLI. | Users can use system `watch` command: `watch -n 30 pipelite deals list`. Support `--watch` only if the server provides a changes endpoint. |
-| **Import/export wizards** | Complex multi-step import flows (mapping CSV columns to CRM fields, handling duplicates, dry-run then commit, rollback on partial failure) are better handled by the web UI or a dedicated ETL tool. | Support basic `--stdin` for bulk creates from JSON. For complex imports, recommend the web UI or a dedicated script. |
-| **Markdown/rich text rendering in terminal** | CRM notes may contain markdown or HTML. Rendering this in the terminal adds a dependency and rarely looks good. | Output raw text. Users can pipe to `glow` or `bat` if they want rendered markdown. |
-| **Auto-update mechanism** | Distribution concern, not CLI concern. Adds complexity (checking for updates, downloading binaries, permissions) and security risk (code execution from network). | Use cargo-binstall, package managers, or GitHub releases for updates. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Live-streaming run logs | `gh run view --log` familiarity | Server has NO log endpoint — only step `input`/`output`/`error` JSON snapshots. Anything "streaming" would be fake polling theater | Poll-based `--watch` on run/step status (honest, matches API) |
+| Local storage/retrieval of webhook secrets ("show it again later") | Users lose the secret | Server never returns it again — caching it in `~/.pipelite/` (0600 or not) creates a secret-hoarding footgun the project never audited | Show-once warning + `--print-secret`-style quiet path at create time; document rotation-by-recreate |
+| Full-replacement custom-fields blob write (`/api/custom-fields/save` model) | Seems simpler than merge | Session-only route (unusable with API keys) AND full-replace semantics silently drop fields you didn't send | Merge via normal entity update (server already merges `{...existing, ...updates}`) |
+| Trash pagination beyond offset 10,000 | "I want everything" | Server hard-caps offset ≤10,000 — paginating past it returns errors | `--type` filter narrows results; document that huge trashes should be purged by type |
+| Client-side-only filters that look server-side (`audit --action`, date ranges) | Feature completeness | This is exactly how v1.0 got dead flags (`people --org`, `workflows --active`) — filters that silently do nothing | Only ship filters the API diff verifies; note `created_at` ranges as a future server request |
+| Deleting custom-field keys via update flags | Blob merge "can't delete" feels limiting | Server has no key deletion on v1 entity updates; faking it (sending null) depends on server coercion behavior — unverified | Set the key to a deliberate empty value; file a server request for key deletion |
+| Interactive TUI for run steps / audit browsing | Visual appeal | PROJECT.md explicitly excludes TUI frameworks | Rich table + `--json` output; editors/jq handle the rest |
 
 ## Feature Dependencies
 
 ```
-Authentication (init/login) --> ALL other features
-  |
-  v
-Config file management --> Profiles, cached data
-  |
-  v
-HTTP client + API layer --> CRUD operations on all entities
-  |
-  v
-Entity CRUD (deals, orgs, people, activities, pipelines, stages)
-  |                |                    |
-  v                v                    v
-Output formatting  Interactive prompts  Filtering/pagination
-(json/csv/table)   (create/update)     (--stage, --limit)
-  |
-  v
-Shell completions (depends on cached entity data)
-  |
-Pipeline dashboard (depends on deals + pipelines CRUD)
-  |
-Stdin piping (depends on output format + create/update commands)
+[Custom field definitions CRUD]
+    └──requires──> (nothing new; TTL cache, CRUD pattern)
+    └──enables──> [Type-aware --custom-field writing]   (coercion needs definitions)
+                      └──enhanced by──> [--custom-field-string] (needs inference to opt out of)
+
+[Workflow runs list + detail]
+    └──requires──> (nothing new)
+    └──enables──> [--watch + --exit-status]              (polls list/detail endpoints)
+
+[Batch shared utility]
+    └──requires──> existing --stdin plumbing (v1.0)
+    └──enables──> [failed-ID pipeable summary]           (rendering on top of results)
+
+[Webhooks CRUD]
+    └──enhanced by──> [event-name completions]           (needs the enum to exist first)
+
+[All new surfaces]
+    └──requires──> AppContext / CliError hint convention / output renderers (v1.0, exist)
+
+[Notes edit/delete] ──conflicts-with──> interactive assumptions:
+    no GET-single endpoint → cannot show content before confirm; must state that in prompt text
+
+[Type-aware writing] ──conflicts-with──> [batch --stdin] (resolved):
+    batch payloads embed custom_fields as raw JSON → JSON path bypasses inference inside batch (document)
 ```
 
-**Critical path:** Auth -> Config -> HTTP Client -> Entity CRUD -> Output Formats
+### Dependency Notes
 
-Everything else layers on incrementally after CRUD works with at least JSON output.
+- **Typed writing requires definitions CRUD:** coercion maps field-ID → type; without the definitions list endpoint shipped first there is nothing to coerce against. Phase order: definitions before typed writing. `--custom-field-json` is deliberately independent and can land either side.
+- **Watch requires runs list/detail:** trivial dependency but real — build runs first, watch as a follow-up command in the same group.
+- **Completions require the webhook enum:** the 13-event validation enum is the single source of truth; completion derives from it.
+- **Notes edit/delete conflict with confirm UX:** no GET-single note route means a delete confirmation cannot display current content — the prompt should say so explicitly (mature CLIs show what they're about to destroy; when they can't, they say why).
 
-## MVP Recommendation
+## MVP Definition
 
-**Phase 1 -- Foundation (must ship first):**
-1. Authentication (`pipelite init`, API key storage in config, env var support)
-2. Configuration file (`~/.pipelite/config.toml`, `pipelite config set/get/show`)
-3. Connection test (`pipelite ping`)
-4. Core HTTP client with structured error handling
+### Launch With (v1.1 — this milestone)
 
-**Phase 2 -- CRUD + Output (the product becomes useful):**
-1. Full CRUD on all 6 entities (deals, orgs, people, activities, pipelines, stages)
-2. JSON, table, and CSV output formats with TTY auto-detection
-3. List filtering (`--stage`, `--owner`, `--limit`)
-4. Field selection (`--fields`)
-5. Non-zero exit codes, actionable error messages
-6. Colored output with `NO_COLOR` support
+All of it is already milestone-scoped in PROJECT.md; this ordering minimizes risk:
 
-**Phase 3 -- Developer Experience (the product becomes pleasant):**
-1. Interactive prompts for create/update
-2. Headless mode (`--no-input`)
-3. Shell completions (bash, zsh, fish)
-4. `--dry-run` for mutations
-5. ASCII splash screen
-6. Quiet mode (`-q`)
+- [ ] Notes group (list/add/edit/delete) — highest-use surface, pure CRUD-pattern replication, fast win
+- [ ] Workflow runs list + detail-with-steps — closes the observability gap left by fire-and-forget trigger
+- [ ] Webhooks CRUD (event validation, https check, PUT semantics, show-once secret) — integration-critical
+- [ ] Trash list/restore/purge (confirm + `--yes`, admin-403 hints) — safety-critical, needs careful confirm gating
+- [ ] Custom field definitions CRUD + `--custom-field-json` — unblocks typed writing
+- [ ] Type-aware `--custom-field` writing — depends on definitions + cache
+- [ ] Batch update/delete via shared utility, continue-on-error, per-item + summary output, aggregate exit codes — 4 drafted plans already exist
+- [ ] Workflow templates (list/get/create/delete via @file) — small CRUD surface
+- [ ] Audit list with enum-validated filters + prominent admin-403 hint
+- [ ] `pipelite docs` — near-zero cost
+- [ ] §D fixes (dead filters, --expand passthrough, position float, stages all-mode) — trust repair; dead flags actively lie to users and are cheaper to fix than to document around
 
-**Phase 4 -- Power User Features (the product becomes loved):**
-1. Local caching for lookups
-2. Stdin piping for bulk operations
-3. Pipeline dashboard
-4. Config profiles for multiple servers
-5. Activity logging shortcut
-6. Plain and JSONL output formats
+### Add After Validation (v1.1.x / follow-up)
 
-**Defer indefinitely:** TUI, webhooks, admin features, offline sync, plugin system, DSL, auto-update.
+- [ ] `workflows runs --watch --exit-status` — trigger after runs list/detail ships; poll loop needs terminal-behavior testing across TTY/non-TTY
+- [ ] Webhook event-name completions — after enum exists; low-risk polish
+- [ ] Audit changes diff rendering (`from → to`) — after audit list proves useful; pure rendering
+- [ ] `--custom-field-string` — after inference ships and misfires are observed
+- [ ] Batch `--delay`/throttle flag — only if real users hit the 500 req/60s rate limit on large batches
+
+### Future Consideration (v2+, needs server work first)
+
+- [ ] Global search via API key — server route is session-only (API diff §B); blocked server-side
+- [ ] File upload/download via API key — session-only today; blocked server-side
+- [ ] Sort/date-range/custom-field filters on lists — no server support (API diff §E); request upstream before building any client-side facade
+- [ ] Docs-driven dynamic completions (parse the OpenAPI spec to generate flag completions) — clever but fragile; only if server spec drift becomes a real pain
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Notes CRUD | HIGH | LOW | P1 |
+| Workflow runs list + detail | HIGH | LOW-MEDIUM | P1 |
+| Webhooks CRUD + show-once secret | HIGH | LOW-MEDIUM | P1 |
+| Trash list/restore/purge | HIGH | MEDIUM | P1 |
+| Batch update/delete + summary/exit codes | HIGH | MEDIUM | P1 |
+| Custom field definitions CRUD | MEDIUM-HIGH | LOW | P1 |
+| Type-aware `--custom-field` + `--custom-field-json` | MEDIUM-HIGH | MEDIUM | P1 |
+| §D dead-flag fixes | HIGH (trust) | MEDIUM | P1 |
+| Audit list + 403 hint | MEDIUM | LOW-MEDIUM | P2 |
+| Workflow templates CRUD | MEDIUM | LOW | P2 |
+| `pipelite docs` | LOW-MEDIUM | LOW | P2 |
+| Runs `--watch` + `--exit-status` | HIGH | MEDIUM | P2 |
+| Event-name completions | MEDIUM | LOW | P3 |
+| Audit diff rendering | MEDIUM | LOW-MEDIUM | P3 |
+| `--custom-field-string` | LOW-MEDIUM | LOW | P3 |
+| Batch retry/`--delay` tooling | LOW-MEDIUM | LOW | P3 |
+
+**Priority key:** P1 = must land this milestone · P2 = should land, natural follow-up in same milestone if capacity · P3 = polish, deferrable
+
+## Competitor Feature Analysis
+
+| Feature | gh CLI | stripe-cli | kubectl / helm | pipelite Approach |
+|---------|--------|------------|----------------|-------------------|
+| Sub-resource notes/comments | Nested under entity: `gh issue comment <n>`; prompt when body omitted; `--body-file -` for stdin | (n/a) | (n/a) | Top-level `notes` group with type positional (`notes list deals <id>`) — notes have global noteId ops + 4 parent types; one clap definition instead of 4 duplicated groups. Content via flag/`@file`/stdin/prompt |
+| Run inspection | `run list --status`, `run view` (+steps), `run watch --interval --compact --exit-status` | (n/a) | `kubectl get --watch` | `workflows runs <wf>` + `workflows runs <wf> <run>`; watch pattern adopted for follow-up; no fake streaming |
+| Secret show-once | `gh secret set` (write-only; values never echoed back) | `stripe listen` prints secret once + `--print-secret` (verified) | k8s secrets via files | Stripe pattern: prominent one-time display + JSON-for-scripts; never cached, never in list output |
+| Destructive confirm | `gh repo delete` prompts; `--yes` skips; `--yes` ignored in max-danger case (verified) | prompts for destructive ops | `kubectl delete` prompts; `--force` | `trash purge` + `webhooks delete` confirm by default; `--yes` for scripts; `--no-input` without `--yes` refuses with hint |
+| Typed CLI input | (flag-typed) | (flag-typed) | Helm `--set` / `--set-string` / `--set-json` (verified) | Inference from cached definitions + string-force + JSON escape hatch |
+| Batch errors | `gh api` is single-call; `gh pr list --json` for bulk reads | (n/a) | `kubectl apply`: per-item lines, continue past failures, non-zero exit (MEDIUM conf.) | Per-item lines + final summary + aggregate exit code + pipeable failed-ID list |
+| Audit/filter UX | `gh api` audit-log w/ composed query filters | (n/a) | (n/a) | Flags mirror server params 1:1, client-validated enums, admin-403 as first-class hint |
+| Self-docs | `gh help exit-codes`, extensive manual | `stripe openapi` (spec push/pull — MEDIUM confidence, current docs stub didn't confirm) | `kubectl explain` | `pipelite docs` fetches live OpenAPI 3.1 — differentiator for an API-first tool |
+
+## Confidence Assessment
+
+| Area | Confidence | Basis |
+|------|------------|-------|
+| Notes / runs / watch / secret / confirm / `--set` patterns | HIGH | Fetched from cli.github.com, docs.stripe.com, helm.sh on 2026-09-02 |
+| kubectl batch continue-on-error | MEDIUM | Reference page partially retrieved (nav-heavy); behavior is well-established in widespread use but not verified verbatim in fetched text |
+| Audit filter conventions (GitHub/Slack) | MEDIUM | Slack docs page redirected; GitHub audit-log shape inferred from API diff + training data — pipelite's server params are the ground truth anyway |
+| `stripe openapi` command existing | MEDIUM | Training data; Stripe docs returned a stub page |
+| API shapes, limits, permissions | HIGH | Taken as given from SERVER-API-DIFF.md (researched directly against server code) |
+
+## Gaps / Open Questions
+
+- `notes edit` UX without GET-single: consider having `notes list --json` be the documented "get the note first" path
+- Does `webhooks update` (PUT) require sending the full object (url+events+active) or does the server treat omitted keys as no-op? PUT semantics suggest full-object — needs one-phase verification against server code before planning
+- Batch + custom fields interaction: confirm batch `--stdin` payloads accept raw `custom_fields` JSON and document that inference is bypassed there
+- Rate limiting on batch (500 req/60s): sequential per-item calls at >400 items will 429; decide whether v1.1 honors Retry-After automatically in batch mode or errors per-item
 
 ## Sources
 
-- [Command Line Interface Guidelines (clig.dev)](https://clig.dev/) -- Comprehensive CLI design principles covering output, errors, flags, interactivity, configuration. HIGH confidence.
-- [The 12 Rules of Great CLI UX](https://dev.to/chengyixu/the-12-rules-of-great-cli-ux-lessons-from-building-30-developer-tools-39o6) -- Practical rules from building 30+ developer tools. MEDIUM confidence.
-- [GitHub CLI Manual](https://cli.github.com/manual/) -- Reference implementation for modern CLI design (aliases, extensions, JSON output, interactive flows). HIGH confidence.
-- [Stripe CLI Documentation](https://docs.stripe.com/stripe-cli) -- Patterns for API-client CLIs (resource commands, webhook forwarding, log tailing). HIGH confidence.
-- [kubectl Command Reference](https://kubernetes.io/docs/reference/kubectl/) -- CRUD-on-resources CLI patterns (`verb type name` structure). HIGH confidence.
-- [HubSpot CLI](https://developers.hubspot.com/docs/developer-tooling/local-development/hubspot-cli/install-the-cli) -- CRM-adjacent CLI (auth init, file management, config). MEDIUM confidence.
-- [AWS CLI Output Formats](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-output-format.html) -- Multi-format output patterns (json, table, text, yaml). HIGH confidence.
-- [gh alias documentation](https://cli.github.com/manual/gh_alias) -- Extension and alias patterns for CLI customization. HIGH confidence.
+- gh CLI manual — gh_run_watch, gh_issue_comment, gh_repo_delete (cli.github.com) — fetched 2026-09-02 — HIGH
+- Stripe CLI — `stripe listen` reference (docs.stripe.com/cli/listen) — fetched 2026-09-02 — HIGH
+- Helm — "Using Helm" (`--set` format and limitations; `--set-string`/`--set-json`/`--set-file`) (helm.sh/docs/intro/using_helm) — fetched 2026-09-02 — HIGH
+- kubectl apply reference (kubernetes.io) — partially retrieved — MEDIUM
+- Slack developer docs / audit API — redirected to docs home, not usable — attempt logged
+- `.planning/research/SERVER-API-DIFF.md` — pipelite server API surface, permissions, limits — HIGH (project-internal, code-verified)
+
+---
+*Feature research for: pipelite CLI v1.1 Server v2 Parity milestone*
+*Researched: 2026-09-02*
