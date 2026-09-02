@@ -3,6 +3,7 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{PersonCreate, people_table_config};
+use crate::batch;
 use crate::cache::KEY_PEOPLE;
 use crate::cli::people::PeopleCreateArgs;
 use crate::context::AppContext;
@@ -87,7 +88,7 @@ async fn single_create(ctx: &AppContext, args: &PeopleCreateArgs) -> Result<()> 
 
     let notes = prompt::optional_text(&args.notes, "Notes", ctx.no_input)?;
 
-    let custom_fields = parse_custom_fields(&args.custom_field)?;
+    let custom_fields = batch::parse_custom_fields(&args.custom_field)?;
 
     let data = PersonCreate {
         first_name,
@@ -205,22 +206,4 @@ async fn batch_create(ctx: &AppContext) -> Result<()> {
         ctx.color,
         None,
     )
-}
-
-/// Parse --custom-field key=value pairs into a serde_json::Value object.
-fn parse_custom_fields(pairs: &[String]) -> Result<Option<serde_json::Value>> {
-    if pairs.is_empty() {
-        return Ok(None);
-    }
-
-    let mut map = serde_json::Map::new();
-    for pair in pairs {
-        let (key, value) = pair.split_once('=').ok_or_else(|| CliError::Validation {
-            detail: format!("Invalid custom field format: '{}'", pair),
-            hint: "Use key=value format: --custom-field role=CTO".to_string(),
-        })?;
-        map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
-    }
-
-    Ok(Some(serde_json::Value::Object(map)))
 }
