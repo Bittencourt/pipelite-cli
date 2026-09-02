@@ -50,7 +50,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 Plans:
 - [x] 07-01: (drafted as 01-01) Batch utility module + deals reference implementation
-- [ ] 07-02: (drafted as 01-02) Batch ops for orgs, people, activities
+- [x] 07-02: (drafted as 01-02) Batch ops for orgs, people, activities
 - [ ] 07-03: (drafted as 01-03) Batch ops for pipelines, stages, workflows
 - [ ] 07-04: (drafted as 01-04) Integration tests for all batch operations
 
@@ -141,7 +141,7 @@ Plans:
 | 4. Developer Experience | v1.0 | 3/3 | Complete | 2026-03-25 |
 | 5. Power Features | v1.0 | 5/5 | Complete | 2026-03-28 |
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
-| 7. Batch Operations | v1.1 | 1/4 | In Progress|  |
+| 7. Batch Operations | v1.1 | 2/4 | In Progress|  |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 0/TBD | Not started | - |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 0/TBD | Not started | - |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
