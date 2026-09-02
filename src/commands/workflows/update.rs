@@ -81,7 +81,11 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsUpdateArgs) -> Result<()> {
             .with_prompt("Set workflow active?")
             .default(false)
             .interact()?;
-        Some(confirmed)
+        // "No" (or Enter on the default) means "leave active unchanged" —
+        // sending active: false would silently deactivate the workflow
+        // (WR-02, mirrors pipelines/update.rs). Use --active <bool> to
+        // deactivate explicitly.
+        if confirmed { Some(true) } else { None }
     } else {
         None
     };
