@@ -164,15 +164,30 @@ where
         return Ok(());
     }
 
-    // SECOND: Confirmation prompt (per D-05) — only shown for actual deletions,
-    // when stdin is TTY and --no-input is not set.
-    if !force && !(ctx.no_input || !io::stdin().is_terminal()) {
-        let confirm = dialoguer::Confirm::new()
-            .with_prompt(format!("Delete {} {}?", total, plural))
-            .default(false)
-            .interact()?;
-        if !confirm {
-            return Ok(());
+    // SECOND: Confirmation (CR-01) — prompt on an interactive terminal; REFUSE
+    // in non-interactive mode unless --force was given. Stdin cannot serve as
+    // both the ID source (--stdin) and the confirmation prompt, so piped batch
+    // deletes require explicit --force, matching the workflows single-delete
+    // precedent. Note ctx.no_input is auto-derived from TTY-ness, so only the
+    // explicit --force flag counts as opt-out here.
+    if !force {
+        if io::stdin().is_terminal() && !ctx.no_input {
+            let confirm = dialoguer::Confirm::new()
+                .with_prompt(format!("Delete {} {}?", total, plural))
+                .default(false)
+                .interact()?;
+            if !confirm {
+                return Ok(());
+            }
+        } else {
+            return Err(CliError::Validation {
+                detail:
+                    "Refusing to batch-delete without confirmation in non-interactive mode."
+                        .to_string(),
+                hint: "Re-run with --force to skip the confirmation prompt (intended for scripts)."
+                    .to_string(),
+            }
+            .into());
         }
     }
 

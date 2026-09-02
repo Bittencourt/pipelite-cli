@@ -35,13 +35,14 @@ fn batch_update_unreachable_server_exits_nonzero() {
 
 #[test]
 fn batch_delete_unreachable_server_exits_nonzero() {
-    // write_stdin("") creates a piped (non-TTY) stdin, which means the
-    // confirmation prompt is skipped (is_terminal() is false). The empty
-    // content is not read because positional IDs are provided (--stdin is
-    // not set). Both deletes fail against the unreachable server.
+    // write_stdin("") creates a piped (non-TTY) stdin, which makes this a
+    // non-interactive run: CR-01 requires --force for batch deletes when the
+    // prompt cannot be shown. The empty content is not read because positional
+    // IDs are provided (--stdin is not set). Both deletes fail against the
+    // unreachable server.
     cmd()
         .write_stdin("")
-        .args(["deals", "delete", "deal_1", "deal_2"])
+        .args(["deals", "delete", "deal_1", "deal_2", "--force"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("failed").or(predicate::str::contains("Failed")));

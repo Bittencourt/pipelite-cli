@@ -161,4 +161,8 @@ pub struct OrgsDeleteArgs {
     /// Read JSON array of IDs from stdin for batch delete
     #[arg(long)]
     pub stdin: bool,
+
+    /// Skip batch delete confirmation prompt (required in non-interactive mode)
+    #[arg(long)]
+    pub force: bool,
 }

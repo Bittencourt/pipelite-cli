@@ -111,6 +111,46 @@ fn deals_batch_delete_dry_run_stdin() {
         .stdout(predicate::str::contains("deal_2"));
 }
 
+// -- Non-interactive batch deletes require --force (CR-01) --
+
+#[test]
+fn deals_batch_delete_stdin_without_force_refuses() {
+    // Piped stdin cannot serve as both the ID source and the confirmation
+    // prompt, so the batch delete must refuse without --force (CR-01).
+    let input = r#"["deal_1","deal_2"]"#;
+    cmd()
+        .write_stdin(input)
+        .args(["deals", "delete", "--stdin"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Refusing to batch-delete"))
+        .stderr(predicate::str::contains("--force"));
+}
+
+#[test]
+fn deals_batch_delete_stdin_with_force_proceeds() {
+    // With --force the gate is skipped and the deletes are attempted (they
+    // fail against the unreachable server, but NOT with the refusal error).
+    let input = r#"["deal_1","deal_2"]"#;
+    cmd()
+        .write_stdin(input)
+        .args(["deals", "delete", "--stdin", "--force"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Failed").or(predicate::str::contains("failed")));
+}
+
+#[test]
+fn deals_batch_delete_positional_without_force_refuses() {
+    // Multi-ID positional deletes on a piped (non-TTY) stdin are also gated.
+    cmd()
+        .write_stdin("")
+        .args(["deals", "delete", "deal_1", "deal_2"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Refusing to batch-delete"));
+}
+
 // -- Invalid --stdin input --
 
 #[test]

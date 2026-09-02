@@ -14,7 +14,9 @@ use crate::error::CliError;
 /// Single ID executes the original delete flow (--force skips confirmation).
 /// Multiple IDs (or --stdin with a JSON array of string IDs) run a batch
 /// delete with confirmation prompt, continue-on-error semantics, and a
-/// summary report. --force skips the batch confirmation too.
+/// summary report. --force skips the batch confirmation too, and is required
+/// for non-interactive runs (e.g. piped --stdin), making the 1-ID and
+/// multi-ID boundaries consistent.
 pub async fn run(ctx: &AppContext, args: &WorkflowsDeleteArgs) -> Result<()> {
     let ids = batch::collect_delete_ids("workflows", args.stdin, &args.ids, r#"["wf_1","wf_2"]"#)?;
 

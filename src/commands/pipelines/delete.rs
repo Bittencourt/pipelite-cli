@@ -11,6 +11,8 @@ use crate::dry_run;
 /// Single ID executes the original delete flow (v1.0 behavior). Multiple IDs
 /// (or --stdin with a JSON array of string IDs) run a batch delete with
 /// confirmation prompt, continue-on-error semantics, and a summary report.
+/// Non-interactive runs (e.g. piped --stdin) must pass --force: stdin cannot
+/// carry both the IDs and a confirmation prompt.
 pub async fn run(ctx: &AppContext, args: &PipelinesDeleteArgs) -> Result<()> {
     let ids = batch::collect_delete_ids("pipelines", args.stdin, &args.ids, r#"["pl_1","pl_2"]"#)?;
 
@@ -22,8 +24,7 @@ pub async fn run(ctx: &AppContext, args: &PipelinesDeleteArgs) -> Result<()> {
         ctx,
         "pipeline",
         "pipeline(s)",
-        // TODO(07): wire to a --force flag in the CR-01 fix commit.
-        false,
+        args.force,
         &ids,
         "pipelines",
         KEY_PIPELINES,
