@@ -25,7 +25,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Milestone Goal:** Bring the CLI to full parity with the upgraded Pipelite CRM server — batch operations, 8 new API surfaces (notes, workflow runs, webhooks, trash, custom fields, templates, audit, docs), and fixes for every dead flag and model mismatch — without breaking the v1.0 conventions (4 output formats, `--dry-run` = zero HTTP, hint-bearing errors, `--no-input`/`--quiet`/`--no-color`).
 
-- [ ] **Phase 7: Batch Operations** - Batch update/delete across all 7 entities with a script-friendly exit-code/summary contract
+- [x] **Phase 7: Batch Operations** - Batch update/delete across all 7 entities with a script-friendly exit-code/summary contract (completed 2026-09-02)
 - [ ] **Phase 8: Foundations** - Error layer (403/409/RFC 7807), model + pagination fixes, dead-flag removal — shared infrastructure every later phase consumes
 - [ ] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch
 - [ ] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities
@@ -52,7 +52,7 @@ Plans:
 - [x] 07-01: (drafted as 01-01) Batch utility module + deals reference implementation
 - [x] 07-02: (drafted as 01-02) Batch ops for orgs, people, activities
 - [x] 07-03: (drafted as 01-03) Batch ops for pipelines, stages, workflows
-- [ ] 07-04: (drafted as 01-04) Integration tests for all batch operations
+- [x] 07-04: (drafted as 01-04) Integration tests for all batch operations
 
 ### Phase 8: Foundations — Error Layer, Models & Pagination
 **Goal**: The CLI tells the truth — errors carry the server's real reason with actionable hints, permission tiers are distinguishable, models match server output, and no list truncates silently
@@ -141,7 +141,7 @@ Plans:
 | 4. Developer Experience | v1.0 | 3/3 | Complete | 2026-03-25 |
 | 5. Power Features | v1.0 | 5/5 | Complete | 2026-03-28 |
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
-| 7. Batch Operations | v1.1 | 3/4 | In Progress|  |
+| 7. Batch Operations | v1.1 | 4/4 | Complete   | 2026-09-02 |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 0/TBD | Not started | - |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 0/TBD | Not started | - |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
