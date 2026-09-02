@@ -27,7 +27,17 @@ Users can manage their entire Pipelite CRM from the terminal — fast, scriptabl
 
 ### Active
 
-(None — next milestone requirements to be defined via `/gsd:new-milestone`)
+**Milestone v1.1 — Server v2 Parity:**
+- Batch operations for all entities (batch update/delete via --stdin, multi-ID, continue-on-error)
+- Notes CRUD on deals/orgs/people/activities
+- Workflow runs (list with status/dry-run filters, detail with steps)
+- Webhooks CRUD (13 event names validated client-side, show-once secret)
+- Trash (list/restore/purge with admin + confirmation warnings)
+- Custom field definitions CRUD + type-aware `--custom-field` writing
+- Workflow templates (list/get/create/delete)
+- Audit log viewer (admin keys, clear 403 handling)
+- `pipelite docs` (fetch public OpenAPI spec)
+- Fixes: dead filters (people --org/--owner, workflows --active), --expand passthrough, Deal.position float, stages all-mode
 
 ### Out of Scope
 
@@ -66,4 +76,39 @@ Config: ~/.pipelite/config.toml. Cache: ~/.pipelite/cache/ (JSON files with TTL)
 | Fire-and-forget workflow trigger | No polling needed, matches async workflow execution model | ✓ Good |
 
 ---
-*Last updated: 2026-03-29 after v1.0 milestone*
+
+## Current Milestone: v1.1 Server v2 Parity
+
+**Goal:** Bring the CLI to full parity with the upgraded Pipelite CRM server — batch operations, new entity surfaces (notes, workflow runs, webhooks, trash, custom fields, templates, audit, docs), and fixes for all dead flags and model mismatches.
+
+**Target features:**
+- Batch operations (4 drafted plans: shared batch utility, per-entity coverage, integration tests)
+- Notes CRUD on deals/orgs/people/activities
+- Workflow runs (list + detail with steps)
+- Webhooks CRUD (event-name validation, show-once secret)
+- Trash (list/restore/purge)
+- Custom field definitions CRUD + type-aware --custom-field writing
+- Workflow templates (list/get/create/delete)
+- Audit log viewer
+- `pipelite docs` (OpenAPI fetch)
+- Existing-CLI fixes: dead filters, --expand passthrough, position float, stages all-mode
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-09-02 at v1.1 milestone start*
