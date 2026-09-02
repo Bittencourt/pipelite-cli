@@ -56,13 +56,13 @@ pub enum StagesCommands {
 
     /// Update an existing stage
     #[command(
-        after_help = "Examples:\n  pipelite stages update stg_abc123 --name \"New Name\"\n  pipelite stages update stg_abc123 --color \"#ff0000\" --type won"
+        after_help = "Examples:\n  pipelite stages update stg_abc123 --name \"New Name\"\n  pipelite stages update stg_abc123 --color \"#ff0000\" --type won\n  echo '[{\"id\":\"stg_1\",\"name\":\"New\"}]' | pipelite stages update --stdin"
     )]
     Update(StagesUpdateArgs),
 
     /// Delete a stage
     #[command(
-        after_help = "Examples:\n  pipelite stages delete stg_abc123"
+        after_help = "Examples:\n  pipelite stages delete stg_abc123\n  pipelite stages delete stg_1 stg_2 stg_3\n  echo '[\"stg_1\",\"stg_2\"]' | pipelite stages delete --stdin"
     )]
     Delete(StagesDeleteArgs),
 }
@@ -142,9 +142,13 @@ pub struct StagesCreateArgs {
 
 #[derive(Args)]
 pub struct StagesUpdateArgs {
-    /// Stage ID
-    #[arg(add = ArgValueCandidates::new(stage_id_candidates))]
-    pub id: String,
+    /// Stage ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(stage_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Stage name
     #[arg(long)]
@@ -165,7 +169,11 @@ pub struct StagesUpdateArgs {
 
 #[derive(Args)]
 pub struct StagesDeleteArgs {
-    /// Stage ID
-    #[arg(add = ArgValueCandidates::new(stage_id_candidates))]
-    pub id: String,
+    /// Stage ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(stage_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 }

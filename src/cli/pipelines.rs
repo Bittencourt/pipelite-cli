@@ -41,13 +41,13 @@ pub enum PipelinesCommands {
 
     /// Update an existing pipeline
     #[command(
-        after_help = "Examples:\n  pipelite pipelines update pl_abc123 --name \"New Name\"\n  pipelite pipelines update pl_abc123 --default"
+        after_help = "Examples:\n  pipelite pipelines update pl_abc123 --name \"New Name\"\n  pipelite pipelines update pl_abc123 --default\n  echo '[{\"id\":\"pl_1\",\"name\":\"New\"}]' | pipelite pipelines update --stdin"
     )]
     Update(PipelinesUpdateArgs),
 
     /// Delete a pipeline
     #[command(
-        after_help = "Examples:\n  pipelite pipelines delete pl_abc123"
+        after_help = "Examples:\n  pipelite pipelines delete pl_abc123\n  pipelite pipelines delete pl_1 pl_2 pl_3\n  echo '[\"pl_1\",\"pl_2\"]' | pipelite pipelines delete --stdin"
     )]
     Delete(PipelinesDeleteArgs),
 }
@@ -111,9 +111,13 @@ pub struct PipelinesCreateArgs {
 
 #[derive(Args)]
 pub struct PipelinesUpdateArgs {
-    /// Pipeline ID
-    #[arg(add = ArgValueCandidates::new(pipeline_id_candidates))]
-    pub id: String,
+    /// Pipeline ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(pipeline_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Pipeline name
     #[arg(long)]
@@ -126,7 +130,11 @@ pub struct PipelinesUpdateArgs {
 
 #[derive(Args)]
 pub struct PipelinesDeleteArgs {
-    /// Pipeline ID
-    #[arg(add = ArgValueCandidates::new(pipeline_id_candidates))]
-    pub id: String,
+    /// Pipeline ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(pipeline_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 }
