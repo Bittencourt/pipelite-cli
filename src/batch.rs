@@ -322,7 +322,9 @@ where
         }
     }
 
-    // Invalidate cache and render successes to stdout (per D-07)
+    // Invalidate cache when anything succeeded; render successes to stdout
+    // (per D-07) unless --quiet (WR-04). The finalize() summary on stderr
+    // still reports "N ok, M failed" so scripted quiet runs stay informed.
     if !succeeded.is_empty() {
         if let Some(ref cache) = ctx.cache {
             cache.invalidate(cache_key);
@@ -330,15 +332,17 @@ where
                 cache.invalidate_prefix(prefix);
             }
         }
-        let columns: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
-        output::render_list(
-            &succeeded,
-            &ctx.output_format,
-            &columns,
-            &None,
-            ctx.color,
-            None,
-        )?;
+        if !ctx.quiet {
+            let columns: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
+            output::render_list(
+                &succeeded,
+                &ctx.output_format,
+                &columns,
+                &None,
+                ctx.color,
+                None,
+            )?;
+        }
     }
 
     outcome.finalize(entity, "update")
