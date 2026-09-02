@@ -1,8 +1,9 @@
 ---
 phase: 07-batch-operations-for-all-entities
-reviewed: 2026-09-02T00:00:00Z
+reviewed: 2026-09-02T13:22:45Z
 depth: standard
-files_reviewed: 28
+iteration: re-review-2
+files_reviewed: 26
 files_reviewed_list:
   - src/batch.rs
   - src/cli/activities.rs
@@ -12,12 +13,16 @@ files_reviewed_list:
   - src/cli/pipelines.rs
   - src/cli/stages.rs
   - src/cli/workflows.rs
+  - src/commands/activities/create.rs
   - src/commands/activities/delete.rs
   - src/commands/activities/update.rs
+  - src/commands/deals/create.rs
   - src/commands/deals/delete.rs
   - src/commands/deals/update.rs
+  - src/commands/orgs/create.rs
   - src/commands/orgs/delete.rs
   - src/commands/orgs/update.rs
+  - src/commands/people/create.rs
   - src/commands/people/delete.rs
   - src/commands/people/update.rs
   - src/commands/pipelines/delete.rs
@@ -26,214 +31,79 @@ files_reviewed_list:
   - src/commands/stages/update.rs
   - src/commands/workflows/delete.rs
   - src/commands/workflows/update.rs
-  - src/main.rs
-  - tests/batch_cli_stub_test.rs
-  - tests/batch_delete_test.rs
-  - tests/batch_error_test.rs
-  - tests/batch_update_test.rs
 findings:
-  critical: 2
-  warning: 5
-  info: 4
-  total: 11
-status: issues_found
+  critical: 0
+  warning: 0
+  info: 2
+  total: 2
+status: clean
 ---
 
-# Phase 07: Code Review Report
+# Phase 07: Code Review Report (Re-review, Fix Loop Iteration 2 — Final Verification)
 
-**Reviewed:** 2026-09-02T00:00:00Z
+**Reviewed:** 2026-09-02T13:22:45Z
 **Depth:** standard
-**Files Reviewed:** 28
-**Status:** issues_found
+**Files Reviewed:** 26
+**Status:** clean (0 Critical / 0 Warning / 2 Info — Info items are pre-existing, out of fix scope, and do not block)
 
 ## Summary
 
-Phase 07 adds batch update (`--stdin` JSON array) and batch delete (multi-ID + `--stdin` JSON array of IDs) across all 7 entities, plus a shared `BatchOutcome` helper. The core mechanics are solid: continue-on-error semantics work, `--dry-run` is (mostly) honored before prompts, cache invalidation is conditional on success, IDs are extracted without `unwrap()`, and batch deserialization against the Update models works (no `deny_unknown_fields`, so the extra `"id"` key is ignored).
+Final verification pass over the 4 fix commits (`45c1cc9`..`4942a81`) resolving WR-06..WR-09. All four are **resolved correctly**, verified three ways: full reads of every changed file, `git show` inspection of each fix commit's diff, and live behavioral probes against the built binary (fake server `http://127.0.0.1:1`, per project test convention — 12 probes total).
 
-The two serious problems are both in the destructive/consistency domain: (1) the batch-delete confirmation prompt is **unreachable in the `--stdin` flow by construction** — `collect_ids` requires stdin to be a pipe, while the prompt requires stdin to be a TTY — so piping IDs deletes everything immediately with zero friction, directly contradicting the doc comments and the safer pattern the workflows single-delete path itself implements; and (2) activities batch update silently drops `"completed_at": null` (serde maps it to `None`, which is skipped), reporting success while never marking the activity undone.
+No new Critical or Warning issues were introduced. `cargo check --all-targets` produces only the 4 pre-existing dead-code warnings in files untouched by this phase (`workflows/list.rs`, `api/models.rs`, `cache.rs`, `prompt.rs`) — notably, no unused-import residue from the WR-09 deletions. All batch test binaries pass (15 + 5 + 11 + 4 new unit tests in `batch.rs` covered by the 104-test bin target). The only 2 `cargo test` failures remain the pre-existing `tests/cli_skeleton.rs` environment-coupling cases documented last round (they assume no `~/.pipelite/config.toml` exists); that file is untouched by phase 07.
 
-Cross-file verification performed against `src/api/models.rs` (serde attrs), `src/output/mod.rs` (render signatures), `src/api/mod.rs` (client methods), and `src/config.rs` (env vars). All referenced functions exist; no broken call chains found.
+Key verifications:
 
-## Critical Issues
+- **WR-06**: the gate condition is now `ids.len() == 1 && !args.stdin` in all 6 non-workflow delete handlers, so piped `--stdin` input always reaches the batch `--force` gate regardless of item count, while the v1.0 gate-free positional single delete is deliberately preserved. Live probes: `echo '["deal_1"]' | pipelite deals delete --stdin` → refusal + exit 1 before any HTTP; same command with `--force` → attempts HTTP; `pipelite deals delete deal_1` positional → gate-free HTTP attempt; piped 1-ID `--dry-run` → previews without prompting (dry-run intercept precedes the gate).
+- **WR-07**: all 7 delete `after_help` texts now advertise `--stdin --force` (grep count = 1 in each of deals/orgs/people/activities/pipelines/stages/workflows). The advertised commands now match actual behavior.
+- **WR-08**: `run_batch_update` and `ensure_update_fields` take a dedicated `cli_entity` parameter; all 7 call sites pass runnable plural subcommand names (orgs correctly passes `"orgs"`, not its `"organizations"` REST path). Live probes: noop-item hint reads `check \`pipelite orgs update --help\`` (was singular `deal`); orgs "No data on stdin" hint (via pty) reads `echo '…' | pipelite orgs update --stdin` (was `organizations`). Both hints now name commands that exist.
+- **WR-09**: the four private `parse_custom_fields` copies are deleted; all 8 call sites in `src/commands/` now invoke `batch::parse_custom_fields` (grep confirms zero remaining `fn parse_custom_fields` outside `batch.rs`). Behavior preserved: invalid pair still errors with the same detail + hint; valid pair still renders `custom_fields` in the dry-run body.
 
-### CR-01: Batch delete via `--stdin` never prompts for confirmation (all 7 entities)
+## Prior Findings — Resolution Verdicts
 
-**File:** `src/commands/deals/delete.rs:94` (same pattern in `orgs/delete.rs:100`, `people/delete.rs:94`, `activities/delete.rs:94`, `pipelines/delete.rs:101`, `stages/delete.rs:101`, `workflows/delete.rs:124`)
+| ID | Verdict | Evidence |
+|----|---------|----------|
+| WR-06 | **Resolved** | `ids.len() == 1 && !args.stdin` at `src/commands/deals/delete.rs:23`, and identically in `orgs/delete.rs:23`, `people/delete.rs:23`, `activities/delete.rs:23`, `pipelines/delete.rs:23`, `stages/delete.rs:23`. Doc comments rewritten to match ("even a 1-ID list … must pass --force"; "only a single positional ID keeps the v1.0 gate-free flow") — the doc/behavior contradiction is gone. Workflows unchanged (its `single_delete` already gates: `workflows/delete.rs:57-76`). Probes: piped 1-ID without `--force` refuses pre-HTTP (deals + orgs); with `--force` proceeds; positional single stays gate-free; piped 1-ID dry-run previews without prompting. |
+| WR-07 | **Resolved** | `src/cli/deals.rs:80`, `orgs.rs:50`, `people.rs:65`, `activities.rs:65`, `pipelines.rs:50`, `stages.rs:65` — each delete `after_help` now ends `echo '[…]' \| pipelite <entity> delete --stdin --force`; `workflows.rs:50` already had it. Live grep over `--help` output: 1 match per entity, 7/7. |
+| WR-08 | **Resolved** | `run_batch_update` gained `cli_entity: &str` (`src/batch.rs:259`), used in the stdin hint (`batch.rs:275`); `ensure_update_fields` gained `cli_entity` (`batch.rs:231`) used in the help hint (`batch.rs:234`); both documented (batch.rs:228-230, 248-251). Call sites: orgs `("organization", "orgs", …, "organizations")` at `orgs/update.rs:129-134`; deals/people/activities/workflows/pipelines/stages pass their plural names at the matching positions — all verified by reading each call site. Probes: `pipelite orgs update --help` and `pipelite orgs update --stdin` hints confirmed live; `pipelite deals update --help` hint confirmed live. |
+| WR-09 | **Resolved** | Commit `4942a81` deletes the 19-line private copy from each of `deals/create.rs`, `orgs/create.rs`, `people/create.rs`, `activities/create.rs` (diff-verified: only `+use crate::batch;`, call-site swap, and the deleted fn). `grep 'parse_custom_fields' src/commands/` → 8 call sites, all `batch::parse_custom_fields`; zero private definitions remain. Behavior probes: `--custom-field oops` → same "Invalid custom field format" error + hint, exit 1; `--custom-field industry=Tech --dry-run` → `"custom_fields":{"industry":"Tech"}` in body, exit 0. |
+| CR-01..CR-02, WR-01..WR-05 | **Still resolved** | Untouched by this iteration's diffs (commit inspection: the 4 fix commits do not regress the earlier fixes). The WR-06 gate change composes correctly with CR-01's batch gate — probe 1 exercises both (stdin source → batch path → refusal). |
+| IN-03 | **Still open** (Info, out of scope) | Dry-run still renders the raw stdin item incl. `"id"` (`src/batch.rs:294-300`). Unchanged this iteration; non-blocking. |
+| IN-04 | **Still open** (Info, out of scope) | `tests/batch_cli_stub_test.rs` dead `PIPELITE_URL` + duplicated `--help` coverage; `batch_error_test.rs` weak predicate. Unchanged this iteration; non-blocking. |
 
-**Issue:** The confirmation prompt gate is `!ctx.no_input && io::stdin().is_terminal()`, but `collect_ids` (lines 28–56) requires stdin to be **non-terminal** whenever `--stdin` is used. The two conditions are mutually exclusive, so the confirmation prompt is dead code for the entire `--stdin` flow: `echo '["deal_1","deal_2"]' | pipelite deals delete --stdin` deletes every record immediately, with no prompt, no `--force`, exit 0. This contradicts:
+## Regression Scan (new issues introduced by the 4 fix commits)
 
-- The doc comment on `run()` (lines 12–16): "run a batch delete with confirmation prompt" — false for half the advertised surface (the `after_help` in `src/cli/deals.rs:80` actively promotes the `--stdin` flow).
-- The codebase's own safety intent: `workflows/delete.rs:72-80` (single delete) *refuses* to delete in non-interactive mode without `--force`. Yet workflows batch delete produces an absurd boundary: `echo '["wf_1"]' | pipelite workflows delete --stdin` fails (1 ID → `single_delete` → requires `--force`), while `echo '["wf_1","wf_2"]' | pipelite workflows delete --stdin` proceeds silently (2 IDs → `batch_delete` → prompt skipped). Adding more IDs makes deletion *easier*, not harder.
-- CLAUDE.md's data-safety posture: this is an irrecoverable destructive operation gated on nothing.
+None found. Specifics checked:
 
-This is a data-loss risk: one mis-piped file (e.g., a full `deals list --format json` instead of an ID array, or a list with hundreds of stale IDs) deletes production CRM records with zero confirmation.
-
-**Fix:** Require explicit opt-out for non-interactive batch deletes, matching the workflows single-delete pattern. For all 7 `batch_delete` functions:
-
-```rust
-// SECOND: Confirmation — prompt on TTY; refuse in non-interactive mode
-// unless --force (or --no-input) was given.
-if io::stdin().is_terminal() && !ctx.no_input {
-    let confirm = dialoguer::Confirm::new()
-        .with_prompt(format!("Delete {} deal(s)?", total))
-        .default(false)
-        .interact()?;
-    if !confirm {
-        return Ok(());
-    }
-} else if !(args.force || ctx.no_input) {
-    return Err(CliError::Validation {
-        detail: "Refusing to batch-delete without confirmation in non-interactive mode.".to_string(),
-        hint: "Re-run with --force to skip confirmation, or use --no-input for scripted runs.".to_string(),
-    }.into());
-}
-```
-
-This requires adding a `--force` flag to the delete args of the 6 non-workflow entities (`src/cli/{deals,orgs,people,activities,pipelines,stages}.rs`) and makes the workflows 1-ID vs 2-ID boundary consistent. Also correct the `run()` doc comments.
-
-### CR-02: Activities batch update silently drops `"completed_at": null` — reports success without marking undone
-
-**File:** `src/commands/activities/update.rs:263-269` (with `src/api/models.rs:250-267`)
-
-**Issue:** Single-mode `--mark-undone` exists specifically because `ActivityUpdate` cannot express "send null" (`skip_serializing_if = "Option::is_none"`, see `update_with_null_completed`, lines 146–200). Batch mode has no equivalent: `serde_json::from_value::<ActivityUpdate>(item)` maps `"completed_at": null` to `None`, the field is then skipped during serialization, and the API request never clears `completed_at`. The command then reports success (D-07 rendering + exit code). So:
-
-```bash
-echo '[{"id":"act_1","completed_at":null}]' | pipelite activities update --stdin
-# → "success", but the activity is still marked done
-```
-
-A requested mutation is silently not performed while the tool claims it was — the worst failure mode for a batch tool, since the user proceeds believing the state changed.
-
-**Fix:** Either support it via the raw endpoint (mirror single mode), or explicitly reject it. Minimal safe fix — detect and fail the item:
-
-```rust
-let clears_completed_at = item.get("completed_at").map_or(false, |v| v.is_null());
-let data: ActivityUpdate = match serde_json::from_value(item) { /* ... */ };
-if clears_completed_at {
-    match ctx.client.update_activity_raw(&id, &serde_json::json!({"completed_at": null})).await {
-        // ... or merge with other fields into a raw payload
-    }
-}
-```
-
-At minimum, reject with a per-item failure: `outcome.record_failure(i, &id, &"\"completed_at\": null is not supported in batch mode; use --mark-undone per item")`.
-
-## Warnings
-
-### WR-01: Workflows single delete prompts for confirmation *before* dry-run
-
-**File:** `src/commands/workflows/delete.rs:60-93`
-
-**Issue:** In `single_delete`, the confirmation prompt (lines 62–81) runs before the `ctx.dry_run` intercept (lines 84–93). `pipelite workflows delete wf_1 --dry-run` on a TTY first asks "Delete workflow wf_1?" — answering "No" aborts without ever showing the preview. CLAUDE.md requires respecting `--dry-run` (pure preview, no side effects, no prompts), and `batch_delete` in the *same file* (lines 112–120) correctly checks dry-run first with a comment stating "This MUST come before the confirmation prompt so --dry-run never prompts." The single path violates its own file's invariant. All 6 other entities order this correctly.
-
-**Fix:** Move the `ctx.dry_run` block above the confirmation block in `single_delete`, matching `batch_delete`:
-
-```rust
-async fn single_delete(ctx: &AppContext, args: &WorkflowsDeleteArgs, id: &str) -> Result<()> {
-    // Dry-run intercept FIRST — never prompt for a preview.
-    if ctx.dry_run { /* render and return */ }
-    // THEN confirmation...
-}
-```
-
-### WR-02: Workflows update interactive prompt can deactivate a workflow by pressing Enter
-
-**File:** `src/commands/workflows/update.rs:77-87`
-
-**Issue:** When updating interactively without flags, the "Set workflow active?" prompt uses `.default(false)` and maps the answer directly: `Some(confirmed)`. Pressing Enter (accepting the default "No") or answering "No" sends `active: false` to the API — **deactivating the workflow** — when the user plausibly meant "leave it alone". This turns a routine rename into a silent production-automation outage. The pipelines handler in this same phase gets it right (`src/commands/pipelines/update.rs:62-72`): `if confirm { Some(true) } else { None }` — "No" means don't touch the field.
-
-**Fix:**
-
-```rust
-let confirmed = dialoguer::Confirm::new()
-    .with_prompt("Set workflow active?")
-    .default(false)
-    .interact()?;
-// "No"/Enter → leave `active` unchanged, mirroring pipelines/update.rs
-let active = if confirmed { Some(true) } else { None };
-```
-
-(If deliberately deactivating interactively is desired, ask "Set workflow active? (No = leave unchanged)" and provide `--active <bool>` as the explicit path.)
-
-### WR-03: Batch update silently no-ops: empty arrays and items with no known fields both "succeed"
-
-**File:** `src/commands/deals/update.rs:166-180` (same in all 7 `batch_update` functions: `orgs/update.rs:139-153`, `people/update.rs:157-171`, `activities/update.rs:235-249`, `pipelines/update.rs:121-135`, `stages/update.rs:135-149`, `workflows/update.rs:142-156`)
-
-**Issue:** Two related validation gaps, both silent successes:
-
-1. `echo '[]' | pipelite deals update --stdin` parses fine, the loop never runs, `finalize` sees zero failures → exit 0, no output at all. Compare the delete path, which explicitly rejects empty input ("Empty ID list" + hint, `deals/delete.rs:46-52`), and single update, which errors headless with "No fields to update" (`deals/update.rs:61-67`).
-2. The Update models lack `deny_unknown_fields`, so a misspelled field is silently discarded: `[{"id":"deal_1","titel":"New"}]` deserializes to an all-`None` `DealUpdate`, serializes to an empty `{}` PUT body, gets a success response, and is reported as updated — nothing changed. Same for an item that is only `{"id":"deal_1"}`.
-
-A batch tool should never claim success while doing nothing.
-
-**Fix:** After parsing, validate both conditions per entity:
-
-```rust
-if items.is_empty() {
-    return Err(CliError::Validation {
-        detail: "Empty update list".to_string(),
-        hint: "Stdin must contain at least one object with an 'id' field.".to_string(),
-    }.into());
-}
-// Per item, before the API call:
-if data == DealUpdate::default() {  // derive PartialEq + Default
-    outcome.record_failure(i, &id, &"no recognizable update fields");
-    continue;
-}
-```
-
-### WR-04: Batch update ignores `--quiet`
-
-**File:** `src/commands/deals/update.rs:213-237` (same in all 7 `batch_update` functions)
-
-**Issue:** Batch delete carefully gates its per-item `println!` on `!ctx.quiet` (e.g., `deals/delete.rs:110-112`), but batch update unconditionally renders the full success list via `output::render_list` (which has no quiet awareness — `src/output/mod.rs:44-62` takes only format/columns/color). `pipelite deals update --stdin --quiet < input.json` prints the entire success table, violating the CLAUDE.md convention "Respect ... `--quiet`". Inconsistent within the same phase.
-
-**Fix:** Gate the success rendering: `if !succeeded.is_empty() && !ctx.quiet { ... }` (or short-circuit earlier). Keep failures on stderr, which is reasonable to always show.
-
-### WR-05: ~800 lines of copy-pasted batch scaffolding across 7 entities, with divergence already occurring
-
-**File:** `src/commands/{deals,orgs,people,activities,pipelines,stages,workflows}/{update,delete}.rs`
-
-**Issue:** `collect_ids`, `batch_update` (stdin check → read → parse → dry-run loop → process loop → render → finalize), `batch_delete` (dry-run → prompt → loop → invalidate → finalize), and `parse_custom_fields` are duplicated near-verbatim 7 times. The duplication has already produced the behavioral drift found in this review: workflows' delete/prompt logic differs from the other six (WR-01, CR-01's inconsistent `--force` boundary), and `parse_custom_fields` exists in 4 copies with only the hint example differing. The next entity added will copy whichever variant is at hand. `src/batch.rs` exists precisely to centralize this but only owns `BatchOutcome` and `read_stdin_json`.
-
-**Fix:** Extract the shared flow into `src/batch.rs` as generic helpers, e.g. `batch::run_json_updates<T: DeserializeOwned, F: AsyncFn>(&Ctx, entity: &str, url_for: fn(&str) -> String, update_fn: F)` and `batch::collect_ids(entity: &str, stdin: bool, raw: &[String], example: &str)`, leaving only the per-entity model type and client call in each command file. This makes fixes for CR-01/WR-03/WR-04 one-line changes instead of seven.
+- **WR-06 control flow on destructive ops**: gate placement is after `collect_delete_ids` (so mutual-exclusivity and empty-list validation still run first) and before `run_batch_delete` (whose own dry-run intercept precedes the `--force` refusal, so piped single-ID dry-runs still preview — probed). No path reaches `single_delete` with stdin-sourced IDs anymore. The 6 edits are byte-identical in structure (diff-verified), and workflows' different (correct) structure was left alone.
+- **WR-08 signature change**: compiler-enforced — all 7 `run_batch_update` call sites and all 7 `ensure_update_fields` call sites updated; `cargo check --all-targets` clean. Argument order (`entity`, `cli_entity`, `example`, `api_path`, …) matches the definition at every site; `api_path` is no longer interpolated into any hint.
+- **WR-09 mechanical refactor**: no leftover `CliError` unused imports (each create file still uses `CliError` for its own validation errors); removed fns were verbatim copies, so no hint-text drift (the shared `batch.rs:375` hint matches the deleted copies' text).
+- **Test suite**: 104 bin/unit + 8 + 2 + 15 + 5 + 11 + 4 pass; 2 `cli_skeleton.rs` failures are the documented pre-existing environment coupling, unchanged from the prior review.
 
 ## Info
 
-### IN-01: Batch failure/summary output is not gated on `--quiet`
+### IN-03: Batch update dry-run still shows `"id"` (and unknown keys) that the real request omits — OPEN (carried, out of fix scope)
 
-**File:** `src/batch.rs:31-34, 41-45`
+**File:** `src/batch.rs:294-300`
 
-**Issue:** `record_failure` and `finalize` unconditionally `eprintln!`. Errors on stderr surviving `--quiet` is defensible (and probably desirable), but the behavior is undocumented and inconsistent with the strictly-gated delete `println!`s. Suggest documenting in the `BatchOutcome` doc comment that failure output intentionally bypasses `--quiet`, or gating only the summary line.
+**Issue:** Unchanged: the dry-run loop renders the raw stdin item while the executed request deserializes into the Update model and strips unknown keys. Non-blocking preview fidelity gap; explicitly not part of the WR-06..WR-09 fix scope.
 
-### IN-02: Stdin read errors propagate without hint text
+**Fix:** In the dry-run loop, deserialize into `T` first, run `ensure_update_fields`, and render `serde_json::to_value(&data)?`.
 
-**File:** `src/batch.rs:65`; also `src/commands/deals/update.rs:163-164` and the 6 sibling `batch_update` functions
+### IN-04: Test suite nits — OPEN (carried, out of fix scope)
 
-**Issue:** `io::stdin().read_to_string(&mut input)?` surfaces I/O failures (e.g., invalid UTF-8: "stream did not contain valid UTF-8") as bare `anyhow` errors with no `hint`, violating the CLAUDE.md convention "All errors must include actionable hint text". Parse errors right below are handled correctly.
+**File:** `tests/batch_cli_stub_test.rs:5-10, 12-28`; `tests/batch_error_test.rs:64`
 
-**Fix:** Wrap: `.map_err(|e| CliError::Validation { detail: format!("Could not read stdin: {e}"), hint: "Ensure input is piped as UTF-8 text.".to_string() })?` — ideally inside `batch::read_stdin_json` and reuse it from all 7 update paths (it already exists; the update handlers just don't use it).
+**Issue:** Unchanged: `batch_cli_stub_test.rs` duplicates `--help` coverage and sets the dead `PIPELITE_URL` env var (app reads `PIPELITE_SERVER_URL`); the `batch_error_test.rs:64` assertion `contains("missing") || contains("id")` is nearly vacuous. Hygiene only; all batch tests pass.
 
-### IN-03: Batch update dry-run shows `"id"` in the PUT body, which the real request omits
-
-**File:** `src/commands/deals/update.rs:173-179` (same in all 7 `batch_update` dry-run loops)
-
-**Issue:** The dry-run renders the raw stdin item (`dry_run::render_dry_run("PUT", &url, item, ...)`), including the `"id"` key, but the executed request deserializes into the Update model and strips unknown keys. The preview slightly misrepresents the payload.
-
-**Fix:** In the dry-run loop, deserialize into the Update type first and render `serde_json::to_value(&data)?`, so preview and reality match (and WR-03's no-op detection could share this step).
-
-### IN-04: Test suite: duplicated coverage, dead env var, near-tautological assertions
-
-**File:** `tests/batch_cli_stub_test.rs:12-28`; `tests/batch_delete_test.rs:12`, `tests/batch_update_test.rs:12`, `tests/batch_error_test.rs:64`
-
-**Issue:** (a) `batch_cli_stub_test.rs` re-tests the two deals `--help` cases already covered by `batch_update_test.rs:21-27` and `batch_delete_test.rs:21-27`. (b) All `cmd()` helpers set `PIPELITE_URL`, which the app never reads — the comments admit `PIPELITE_SERVER_URL` is the real variable; the dead line misleads future readers. (c) `batch_error_test.rs:64` asserts stderr contains `"missing"` **or** `"id"` — `"id"` matches almost any output, making the content assertion nearly vacuous (the `.failure()` check carries the test).
-
-**Fix:** Delete the stub file; drop `PIPELITE_URL` from all helpers (or fix the comment); tighten the predicate to `contains("missing 'id' field")`.
+**Fix:** Delete the stub file; drop `PIPELITE_URL` from `cmd()` helpers; tighten the predicate to `contains("missing 'id' field")`.
 
 ---
 
-_Not flagged, verified fine:_ ID extraction avoids `unwrap()` per project convention (`unwrap_or`/`ok_or_else` only); `--stdin` + positional/mutual-exclusivity checks present in all 14 handlers; clap `required_unless_present = "stdin"` correctly enforces ID presence; cache invalidation correctly conditional on success and includes `stages_` prefix invalidation for pipeline/stage mutations; `main.rs` unchanged behavior is sound; unit tests for `BatchOutcome` cover both finalize paths.
+_Not flagged, verified fine:_ all 7 delete arg structs keep the `--force` flag with consistent help text ("required in non-interactive mode"); `collect_delete_ids` still enforces `--stdin`/positional exclusivity and empty-list rejection before the WR-06 branch; cache invalidation (`KEY_*` + `stages_` prefixes) identical pre/post refactor in both `single_delete` and batch paths; pipelines/stages batch deletes preserve `Some("stages_")` prefix invalidation; CR-02's `completed_at: null` routing and its ordering vs the no-op guard untouched; workflows delete/update paths untouched this iteration.
 
-_Reviewed: 2026-09-02T00:00:00Z_
+_Out of scope but observed (unchanged from prior review):_ 2 pre-existing `tests/cli_skeleton.rs` failures from `~/.pipelite/config.toml` environment coupling; 4 pre-existing dead-code warnings in files outside phase 07 scope.
+
+_Reviewed: 2026-09-02T13:22:45Z_
 _Reviewer: the agent (gsd-code-reviewer)_
-_Depth: standard_
+_Depth: standard (re-review, fix loop iteration 2 — final verification)_
