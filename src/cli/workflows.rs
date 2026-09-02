@@ -41,13 +41,13 @@ pub enum WorkflowsCommands {
 
     /// Update an existing workflow
     #[command(
-        after_help = "Examples:\n  pipelite workflows update wf_abc123 --name \"Updated Name\"\n  pipelite workflows update wf_abc123 --active false\n  pipelite workflows update wf_abc123 --triggers '[{\"type\":\"schedule\"}]'"
+        after_help = "Examples:\n  pipelite workflows update wf_abc123 --name \"Updated Name\"\n  pipelite workflows update wf_abc123 --active false\n  pipelite workflows update wf_abc123 --triggers '[{\"type\":\"schedule\"}]'\n  echo '[{\"id\":\"wf_1\",\"name\":\"New\"}]' | pipelite workflows update --stdin"
     )]
     Update(WorkflowsUpdateArgs),
 
     /// Delete a workflow
     #[command(
-        after_help = "Examples:\n  pipelite workflows delete wf_abc123\n  pipelite workflows delete wf_abc123 --force"
+        after_help = "Examples:\n  pipelite workflows delete wf_abc123\n  pipelite workflows delete wf_abc123 --force\n  pipelite workflows delete wf_1 wf_2 --force\n  echo '[\"wf_1\",\"wf_2\"]' | pipelite workflows delete --stdin --force"
     )]
     Delete(WorkflowsDeleteArgs),
 
@@ -129,9 +129,13 @@ pub struct WorkflowsCreateArgs {
 
 #[derive(Args)]
 pub struct WorkflowsUpdateArgs {
-    /// Workflow ID
-    #[arg(add = ArgValueCandidates::new(workflow_id_candidates))]
-    pub id: String,
+    /// Workflow ID (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(workflow_id_candidates))]
+    pub id: Option<String>,
+
+    /// Read JSON array from stdin for batch update
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Workflow name
     #[arg(long)]
@@ -156,9 +160,13 @@ pub struct WorkflowsUpdateArgs {
 
 #[derive(Args)]
 pub struct WorkflowsDeleteArgs {
-    /// Workflow ID
-    #[arg(add = ArgValueCandidates::new(workflow_id_candidates))]
-    pub id: String,
+    /// Workflow ID(s) (required unless --stdin)
+    #[arg(required_unless_present = "stdin", add = ArgValueCandidates::new(workflow_id_candidates))]
+    pub ids: Vec<String>,
+
+    /// Read JSON array of IDs from stdin for batch delete
+    #[arg(long)]
+    pub stdin: bool,
 
     /// Skip confirmation prompt (required in non-interactive mode)
     #[arg(long)]
