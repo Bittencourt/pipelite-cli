@@ -1,4 +1,4 @@
-use std::io::{self, IsTerminal, Read};
+use std::io::IsTerminal;
 
 use anyhow::Result;
 
@@ -120,92 +120,22 @@ pub async fn run(ctx: &AppContext, args: &StagesUpdateArgs) -> Result<()> {
 ///
 /// Each JSON object must contain an "id" field plus update fields.
 /// Processes all items with continue-on-error semantics (per D-06).
+/// The shared flow lives in [`crate::batch::run_batch_update`].
 async fn batch_update(ctx: &AppContext) -> Result<()> {
-    if io::stdin().is_terminal() {
-        return Err(CliError::Validation {
-            detail: "No data on stdin".to_string(),
-            hint: "Pipe JSON data: echo '[{\"id\":\"stg_1\",\"name\":\"New\"}]' | pipelite stages update --stdin".to_string(),
-        }
-        .into());
-    }
-
-    let mut input = String::new();
-    io::stdin().read_to_string(&mut input)?;
-
-    let items: Vec<serde_json::Value> =
-        serde_json::from_str(&input).map_err(|e| CliError::Validation {
-            detail: format!("Invalid JSON input: {}", e),
-            hint: "Stdin must contain a JSON array of objects with 'id' field plus update fields."
-                .to_string(),
-        })?;
-
-    if ctx.dry_run {
-        for item in &items {
-            let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
-            let url = format!("{}/api/v1/stages/{}", ctx.client.base_url(), id);
-            dry_run::render_dry_run("PUT", &url, item, &ctx.output_format, ctx.color)?;
-        }
-        return Ok(());
-    }
-
-    let mut outcome = batch::BatchOutcome::new(items.len());
-    let mut succeeded = Vec::new();
-
-    for (i, item) in items.into_iter().enumerate() {
-        let id = match item.get("id").and_then(|v| v.as_str()) {
-            Some(id) => id.to_string(),
-            None => {
-                outcome.record_failure(i, "unknown", &"missing 'id' field");
-                continue;
-            }
-        };
-
-        let data: StageUpdate = match serde_json::from_value(item) {
-            Ok(d) => d,
-            Err(e) => {
-                outcome.record_failure(i, &id, &e);
-                continue;
-            }
-        };
-
-        match ctx.client.update_stage(&id, &data).await {
-            Ok(stage) => {
-                outcome.record_success();
-                succeeded.push(stage);
-            }
-            Err(e) => {
-                outcome.record_failure(i, &id, &e);
-            }
-        }
-    }
-
-    // Render successes to stdout (per D-07). Batch updates may touch stages in
-    // multiple pipelines, so invalidate every per-pipeline stages cache entry.
-    if !succeeded.is_empty() {
-        if let Some(ref cache) = ctx.cache {
-            cache.invalidate(KEY_STAGES);
-            cache.invalidate_prefix("stages_");
-        }
-        let items_json: Vec<serde_json::Value> = succeeded
-            .iter()
-            .map(|d| serde_json::to_value(d).map_err(Into::into))
-            .collect::<Result<Vec<_>>>()?;
-
-        let config = stages_table_config();
-        let columns: Vec<String> = config
-            .default_columns
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        output::render_list(
-            &items_json,
-            &ctx.output_format,
-            &columns,
-            &None,
-            ctx.color,
-            None,
-        )?;
-    }
-
-    outcome.finalize("stage", "update")
+    batch::run_batch_update::<StageUpdate, _>(
+        ctx,
+        "stage",
+        r#"[{"id":"stg_1","name":"New"}]"#,
+        "stages",
+        KEY_STAGES,
+        // Batch updates may touch stages in multiple pipelines, so invalidate
+        // every per-pipeline stages cache entry too.
+        Some("stages_"),
+        &stages_table_config().default_columns,
+        async |id: String, data: StageUpdate, _raw: &serde_json::Value| {
+            let stage = ctx.client.update_stage(&id, &data).await?;
+            Ok(serde_json::to_value(stage)?)
+        },
+    )
+    .await
 }

@@ -1,5 +1,3 @@
-use std::io::{self, IsTerminal};
-
 use anyhow::Result;
 
 use crate::batch;
@@ -7,52 +5,32 @@ use crate::cache::KEY_PIPELINES;
 use crate::cli::pipelines::PipelinesDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
-use crate::error::CliError;
 
 /// Delete one or more pipelines.
 ///
-/// Single ID executes the original delete flow. Multiple IDs (or --stdin with
-/// a JSON array of string IDs) run a batch delete with confirmation prompt,
-/// continue-on-error semantics, and a summary report.
+/// Single ID executes the original delete flow (v1.0 behavior). Multiple IDs
+/// (or --stdin with a JSON array of string IDs) run a batch delete with
+/// confirmation prompt, continue-on-error semantics, and a summary report.
 pub async fn run(ctx: &AppContext, args: &PipelinesDeleteArgs) -> Result<()> {
-    let ids = collect_ids(args)?;
+    let ids = batch::collect_delete_ids("pipelines", args.stdin, &args.ids, r#"["pl_1","pl_2"]"#)?;
 
     if ids.len() == 1 {
         return single_delete(ctx, &ids[0]).await;
     }
 
-    batch_delete(ctx, &ids).await
-}
-
-/// Collect IDs from positional args or --stdin (mutually exclusive per D-04).
-fn collect_ids(args: &PipelinesDeleteArgs) -> Result<Vec<String>> {
-    if args.stdin {
-        if !args.ids.is_empty() {
-            return Err(CliError::Validation {
-                detail: "--stdin and positional IDs are mutually exclusive".to_string(),
-                hint: "Use either positional IDs or --stdin, not both.".to_string(),
-            }
-            .into());
-        }
-        if io::stdin().is_terminal() {
-            return Err(CliError::Validation {
-                detail: "No data on stdin".to_string(),
-                hint: "Pipe JSON data: echo '[\"pl_1\",\"pl_2\"]' | pipelite pipelines delete --stdin"
-                    .to_string(),
-            }
-            .into());
-        }
-        let ids: Vec<String> = batch::read_stdin_json("string IDs")?;
-        if ids.is_empty() {
-            return Err(CliError::Validation {
-                detail: "Empty ID list".to_string(),
-                hint: "Provide at least one ID to delete.".to_string(),
-            }
-            .into());
-        }
-        return Ok(ids);
-    }
-    Ok(args.ids.clone())
+    batch::run_batch_delete(
+        ctx,
+        "pipeline",
+        "pipeline(s)",
+        // TODO(07): wire to a --force flag in the CR-01 fix commit.
+        false,
+        &ids,
+        "pipelines",
+        KEY_PIPELINES,
+        Some("stages_"),
+        async |id: &str| ctx.client.delete_pipeline(id).await,
+    )
+    .await
 }
 
 /// Delete a single pipeline (original behavior).
@@ -80,56 +58,4 @@ async fn single_delete(ctx: &AppContext, id: &str) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Batch delete pipelines with confirmation prompt (per D-04, D-05, D-06).
-async fn batch_delete(ctx: &AppContext, ids: &[String]) -> Result<()> {
-    let total = ids.len();
-
-    // FIRST: Dry-run check (per D-05) — show what would be deleted, no prompt needed.
-    // This MUST come before the confirmation prompt so --dry-run never prompts.
-    if ctx.dry_run {
-        for id in ids {
-            let url = format!("{}/api/v1/pipelines/{}", ctx.client.base_url(), id);
-            dry_run::render_dry_run_delete("pipeline", id, &url, &ctx.output_format, ctx.color)?;
-        }
-        return Ok(());
-    }
-
-    // SECOND: Confirmation prompt (per D-05) — only shown for actual deletions,
-    // when stdin is TTY and --no-input is not set.
-    if !ctx.no_input && io::stdin().is_terminal() {
-        let confirm = dialoguer::Confirm::new()
-            .with_prompt(format!("Delete {} pipeline(s)?", total))
-            .default(false)
-            .interact()?;
-        if !confirm {
-            return Ok(());
-        }
-    }
-
-    let mut outcome = batch::BatchOutcome::new(total);
-
-    for (i, id) in ids.iter().enumerate() {
-        match ctx.client.delete_pipeline(id).await {
-            Ok(()) => {
-                outcome.record_success();
-                if !ctx.quiet {
-                    println!("Deleted pipeline {}", id);
-                }
-            }
-            Err(e) => {
-                outcome.record_failure(i, id, &e);
-            }
-        }
-    }
-
-    if outcome.succeeded > 0 {
-        if let Some(ref cache) = ctx.cache {
-            cache.invalidate(KEY_PIPELINES);
-            cache.invalidate_prefix("stages_");
-        }
-    }
-
-    outcome.finalize("pipeline", "delete")
 }

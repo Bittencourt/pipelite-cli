@@ -1,11 +1,21 @@
-use anyhow::Result;
+use std::io::{self, IsTerminal, Read};
 
+use anyhow::Result;
+use serde::Deserialize;
+
+use crate::context::AppContext;
+use crate::dry_run;
 use crate::error::CliError;
+use crate::output;
 
 /// Tracks the outcome of a batch operation for summary reporting.
 ///
 /// Used by batch update, batch delete, and (retroactively) batch create
 /// handlers to collect successes/failures and produce a uniform summary.
+///
+/// Note: failure lines and the final summary are written to stderr and
+/// intentionally bypass `--quiet`, so scripted runs always learn how many
+/// operations failed. Per-item success output on stdout is quiet-aware.
 pub struct BatchOutcome {
     pub total: usize,
     pub succeeded: usize,
@@ -60,9 +70,13 @@ impl BatchOutcome {
 ///
 /// Caller must verify stdin is not a terminal before calling this.
 pub fn read_stdin_json<T: serde::de::DeserializeOwned>(entity_hint: &str) -> Result<Vec<T>> {
-    use std::io::Read;
     let mut input = String::new();
-    std::io::stdin().read_to_string(&mut input)?;
+    io::stdin().read_to_string(&mut input).map_err(|e| {
+        CliError::Validation {
+            detail: format!("Could not read stdin: {}", e),
+            hint: "Ensure input is piped as UTF-8 text.".to_string(),
+        }
+    })?;
 
     serde_json::from_str(&input).map_err(|e| {
         CliError::Validation {
@@ -74,6 +88,241 @@ pub fn read_stdin_json<T: serde::de::DeserializeOwned>(entity_hint: &str) -> Res
         }
         .into()
     })
+}
+
+/// Collect delete IDs from positional args or `--stdin` (mutually exclusive, per D-04).
+///
+/// `cli_entity` is the CLI subcommand name used in hints (e.g. "deals");
+/// `example` is the JSON example shown when stdin has no data piped in.
+pub fn collect_delete_ids(
+    cli_entity: &str,
+    stdin: bool,
+    raw_ids: &[String],
+    example: &str,
+) -> Result<Vec<String>> {
+    if stdin {
+        if !raw_ids.is_empty() {
+            return Err(CliError::Validation {
+                detail: "--stdin and positional IDs are mutually exclusive".to_string(),
+                hint: "Use either positional IDs or --stdin, not both.".to_string(),
+            }
+            .into());
+        }
+        if io::stdin().is_terminal() {
+            return Err(CliError::Validation {
+                detail: "No data on stdin".to_string(),
+                hint: format!(
+                    "Pipe JSON data: echo '{example}' | pipelite {cli_entity} delete --stdin"
+                ),
+            }
+            .into());
+        }
+        let ids: Vec<String> = read_stdin_json("string IDs")?;
+        if ids.is_empty() {
+            return Err(CliError::Validation {
+                detail: "Empty ID list".to_string(),
+                hint: "Provide at least one ID to delete.".to_string(),
+            }
+            .into());
+        }
+        return Ok(ids);
+    }
+    Ok(raw_ids.to_vec())
+}
+
+/// Shared batch delete flow: dry-run preview, confirmation gate, per-item
+/// deletes with continue-on-error, conditional cache invalidation, summary.
+///
+/// `entity` is the display name used in prompts/output (e.g. "deal"),
+/// `plural` is the prompt label (e.g. "deal(s)"), and `api_path` is the
+/// REST path segment (e.g. "deals" or "organizations").
+///
+/// `delete_one` performs the per-ID delete (e.g. `client.delete_deal`).
+pub async fn run_batch_delete<F>(
+    ctx: &AppContext,
+    entity: &str,
+    plural: &str,
+    force: bool,
+    ids: &[String],
+    api_path: &str,
+    cache_key: &str,
+    cache_prefix: Option<&str>,
+    delete_one: F,
+) -> Result<()>
+where
+    F: AsyncFn(&str) -> Result<()>,
+{
+    let total = ids.len();
+
+    // FIRST: Dry-run check (per D-05) — show what would be deleted, no prompt needed.
+    // This MUST come before the confirmation prompt so --dry-run never prompts.
+    if ctx.dry_run {
+        for id in ids {
+            let url = format!("{}/api/v1/{}/{}", ctx.client.base_url(), api_path, id);
+            dry_run::render_dry_run_delete(entity, id, &url, &ctx.output_format, ctx.color)?;
+        }
+        return Ok(());
+    }
+
+    // SECOND: Confirmation prompt (per D-05) — only shown for actual deletions,
+    // when stdin is TTY and --no-input is not set.
+    if !force && !(ctx.no_input || !io::stdin().is_terminal()) {
+        let confirm = dialoguer::Confirm::new()
+            .with_prompt(format!("Delete {} {}?", total, plural))
+            .default(false)
+            .interact()?;
+        if !confirm {
+            return Ok(());
+        }
+    }
+
+    let mut outcome = BatchOutcome::new(total);
+
+    for (i, id) in ids.iter().enumerate() {
+        match delete_one(id).await {
+            Ok(()) => {
+                outcome.record_success();
+                if !ctx.quiet {
+                    println!("Deleted {} {}", entity, id);
+                }
+            }
+            Err(e) => {
+                outcome.record_failure(i, id, &e);
+            }
+        }
+    }
+
+    if outcome.succeeded > 0 {
+        if let Some(ref cache) = ctx.cache {
+            cache.invalidate(cache_key);
+            if let Some(prefix) = cache_prefix {
+                cache.invalidate_prefix(prefix);
+            }
+        }
+    }
+
+    outcome.finalize(entity, "delete")
+}
+
+/// Shared batch update flow for `--stdin` JSON-array updates (per D-02, D-03).
+///
+/// Reads objects from stdin, previews via `--dry-run`, then updates each item
+/// with continue-on-error semantics (per D-06). Each JSON object must contain
+/// an "id" field plus update fields; unknown fields are ignored by the
+/// underlying Update model.
+///
+/// `update_one` receives the extracted id, the deserialized update payload,
+/// and the raw JSON item, performs the API update, and returns the updated
+/// entity as JSON for success rendering.
+pub async fn run_batch_update<T, F>(
+    ctx: &AppContext,
+    entity: &str,
+    example: &str,
+    api_path: &str,
+    cache_key: &str,
+    cache_prefix: Option<&str>,
+    default_columns: &[&str],
+    update_one: F,
+) -> Result<()>
+where
+    T: serde::de::DeserializeOwned,
+    F: AsyncFn(String, T, &serde_json::Value) -> Result<serde_json::Value>,
+{
+    if io::stdin().is_terminal() {
+        return Err(CliError::Validation {
+            detail: "No data on stdin".to_string(),
+            hint: format!(
+                "Pipe JSON data: echo '{example}' | pipelite {api_path} update --stdin"
+            ),
+        }
+        .into());
+    }
+
+    let items: Vec<serde_json::Value> = read_stdin_json("update")?;
+
+    if ctx.dry_run {
+        for item in &items {
+            let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let url = format!("{}/api/v1/{}/{}", ctx.client.base_url(), api_path, id);
+            dry_run::render_dry_run("PUT", &url, item, &ctx.output_format, ctx.color)?;
+        }
+        return Ok(());
+    }
+
+    let mut outcome = BatchOutcome::new(items.len());
+    let mut succeeded = Vec::new();
+
+    for (i, item) in items.into_iter().enumerate() {
+        let id = match item.get("id").and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                outcome.record_failure(i, "unknown", &"missing 'id' field");
+                continue;
+            }
+        };
+
+        // Deserialize via the borrowed Value so the raw item stays available
+        // for `update_one` (unknown keys — including "id" — are ignored).
+        let data: T = match T::deserialize(&item) {
+            Ok(d) => d,
+            Err(e) => {
+                outcome.record_failure(i, &id, &e);
+                continue;
+            }
+        };
+
+        match update_one(id.clone(), data, &item).await {
+            Ok(updated) => {
+                outcome.record_success();
+                succeeded.push(updated);
+            }
+            Err(e) => {
+                outcome.record_failure(i, &id, &e);
+            }
+        }
+    }
+
+    // Invalidate cache and render successes to stdout (per D-07)
+    if !succeeded.is_empty() {
+        if let Some(ref cache) = ctx.cache {
+            cache.invalidate(cache_key);
+            if let Some(prefix) = cache_prefix {
+                cache.invalidate_prefix(prefix);
+            }
+        }
+        let columns: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
+        output::render_list(
+            &succeeded,
+            &ctx.output_format,
+            &columns,
+            &None,
+            ctx.color,
+            None,
+        )?;
+    }
+
+    outcome.finalize(entity, "update")
+}
+
+/// Parse --custom-field key=value pairs into a serde_json::Value object.
+///
+/// Shared by the entities that support custom fields; previously duplicated
+/// per entity with only the hint example differing.
+pub fn parse_custom_fields(pairs: &[String]) -> Result<Option<serde_json::Value>> {
+    if pairs.is_empty() {
+        return Ok(None);
+    }
+
+    let mut map = serde_json::Map::new();
+    for pair in pairs {
+        let (key, value) = pair.split_once('=').ok_or_else(|| CliError::Validation {
+            detail: format!("Invalid custom field format: '{}'", pair),
+            hint: "Use key=value format: --custom-field industry=Tech".to_string(),
+        })?;
+        map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
+    }
+
+    Ok(Some(serde_json::Value::Object(map)))
 }
 
 #[cfg(test)]
@@ -112,5 +361,25 @@ mod tests {
             }
             other => panic!("expected Validation variant, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn parse_custom_fields_rejects_missing_equals() {
+        let err = parse_custom_fields(&["oops".to_string()]);
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn parse_custom_fields_builds_object() {
+        let fields =
+            parse_custom_fields(&["industry=Tech".to_string(), "size=500".to_string()])
+                .expect("valid pairs");
+        let fields = fields.expect("expected Some object for non-empty pairs");
+        let map = fields.as_object().expect("expected JSON object");
+        assert_eq!(
+            map.get("industry").and_then(|v| v.as_str()),
+            Some("Tech")
+        );
+        assert_eq!(map.get("size").and_then(|v| v.as_str()), Some("500"));
     }
 }

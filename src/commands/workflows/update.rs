@@ -1,4 +1,4 @@
-use std::io::{self, IsTerminal, Read};
+use std::io::IsTerminal;
 
 use anyhow::Result;
 
@@ -127,92 +127,22 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsUpdateArgs) -> Result<()> {
 ///
 /// Each JSON object must contain an "id" field plus update fields.
 /// Processes all items with continue-on-error semantics (per D-06).
+/// The shared flow lives in [`crate::batch::run_batch_update`].
 async fn batch_update(ctx: &AppContext) -> Result<()> {
-    if io::stdin().is_terminal() {
-        return Err(CliError::Validation {
-            detail: "No data on stdin".to_string(),
-            hint: "Pipe JSON data: echo '[{\"id\":\"wf_1\",\"name\":\"New\"}]' | pipelite workflows update --stdin".to_string(),
-        }
-        .into());
-    }
-
-    let mut input = String::new();
-    io::stdin().read_to_string(&mut input)?;
-
-    let items: Vec<serde_json::Value> =
-        serde_json::from_str(&input).map_err(|e| CliError::Validation {
-            detail: format!("Invalid JSON input: {}", e),
-            hint: "Stdin must contain a JSON array of objects with 'id' field plus update fields."
-                .to_string(),
-        })?;
-
-    if ctx.dry_run {
-        for item in &items {
-            let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
-            let url = format!("{}/api/v1/workflows/{}", ctx.client.base_url(), id);
-            dry_run::render_dry_run("PUT", &url, item, &ctx.output_format, ctx.color)?;
-        }
-        return Ok(());
-    }
-
-    let mut outcome = batch::BatchOutcome::new(items.len());
-    let mut succeeded = Vec::new();
-
-    for (i, item) in items.into_iter().enumerate() {
-        let id = match item.get("id").and_then(|v| v.as_str()) {
-            Some(id) => id.to_string(),
-            None => {
-                outcome.record_failure(i, "unknown", &"missing 'id' field");
-                continue;
-            }
-        };
-
-        let data: WorkflowUpdate = match serde_json::from_value(item) {
-            Ok(d) => d,
-            Err(e) => {
-                outcome.record_failure(i, &id, &e);
-                continue;
-            }
-        };
-
-        match ctx.client.update_workflow(&id, &data).await {
-            Ok(workflow) => {
-                outcome.record_success();
-                succeeded.push(workflow);
-            }
-            Err(e) => {
-                outcome.record_failure(i, &id, &e);
-            }
-        }
-    }
-
-    // Render successes to stdout (per D-07)
-    if !succeeded.is_empty() {
-        if let Some(ref cache) = ctx.cache {
-            cache.invalidate(KEY_WORKFLOWS);
-        }
-        let items_json: Vec<serde_json::Value> = succeeded
-            .iter()
-            .map(|d| serde_json::to_value(d).map_err(Into::into))
-            .collect::<Result<Vec<_>>>()?;
-
-        let config = workflows_table_config();
-        let columns: Vec<String> = config
-            .default_columns
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        output::render_list(
-            &items_json,
-            &ctx.output_format,
-            &columns,
-            &None,
-            ctx.color,
-            None,
-        )?;
-    }
-
-    outcome.finalize("workflow", "update")
+    batch::run_batch_update::<WorkflowUpdate, _>(
+        ctx,
+        "workflow",
+        r#"[{"id":"wf_1","name":"New"}]"#,
+        "workflows",
+        KEY_WORKFLOWS,
+        None,
+        &workflows_table_config().default_columns,
+        async |id: String, data: WorkflowUpdate, _raw: &serde_json::Value| {
+            let workflow = ctx.client.update_workflow(&id, &data).await?;
+            Ok(serde_json::to_value(workflow)?)
+        },
+    )
+    .await
 }
 
 /// Parse a JSON array flag value into a Vec of serde_json::Value.
