@@ -40,6 +40,19 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsDeleteArgs) -> Result<()> {
 
 /// Delete a single workflow (original behavior, --force skips confirmation).
 async fn single_delete(ctx: &AppContext, args: &WorkflowsDeleteArgs, id: &str) -> Result<()> {
+    // Dry-run intercept FIRST — this MUST come before the confirmation prompt
+    // so --dry-run never prompts (WR-01, matching batch_delete below).
+    if ctx.dry_run {
+        let url = format!("{}/api/v1/workflows/{}", ctx.client.base_url(), id);
+        return dry_run::render_dry_run_delete(
+            "workflow",
+            id,
+            &url,
+            &ctx.output_format,
+            ctx.color,
+        );
+    }
+
     // TTY confirmation check
     if !args.force {
         if std::io::stdin().is_terminal() && !ctx.no_input {
@@ -60,18 +73,6 @@ async fn single_delete(ctx: &AppContext, args: &WorkflowsDeleteArgs, id: &str) -
             }
             .into());
         }
-    }
-
-    // Dry-run intercept
-    if ctx.dry_run {
-        let url = format!("{}/api/v1/workflows/{}", ctx.client.base_url(), id);
-        return dry_run::render_dry_run_delete(
-            "workflow",
-            id,
-            &url,
-            &ctx.output_format,
-            ctx.color,
-        );
     }
 
     ctx.client.delete_workflow(id).await?;
