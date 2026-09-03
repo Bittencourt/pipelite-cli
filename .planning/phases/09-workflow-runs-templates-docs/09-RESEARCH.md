@@ -480,16 +480,10 @@ let body = WorkflowTemplateCreate {
 | A3 | `meta.total` from a `dry_run=true` probe reliably reports hidden test-run count | WRUN-01 hint | Low: total is computed with the same WHERE clause server-side [VERIFIED: runs route.ts:80-82] |
 | A4 | Templates list TTL of ~1h (mirroring `TTL_WORKFLOWS`) is acceptable for completions | Cache guidance | Low: stale completion candidates degrade gracefully (they are only suggestions) |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Detail/watch invocation shape (needs planner confirmation against CONTEXT wording)**
-   - What we know: The locked wording says "detail via `pipelite workflows runs <id>`" but the server path needs the workflow id too, and no run→workflow resolution exists.
-   - What's unclear: Whether `<id>` was meant as run id (with `--workflow` flag) or the wording simply elided the second id.
-   - Recommendation: `pipelite workflows runs <run_id> --workflow <wf_id> [--watch] [--exit-status]` — required `--workflow` flag, consistent with list's flag name. Low-cost to change later if discuss-phase overrides.
-
-2. **Should the hidden-runs hint probe carry the user's `--status` filter?**
-   - What we know: Probing without the status could report hidden test runs that the filtered view would never show, making the hint misleading.
-   - Recommendation: Probe with the same `status` param; hint says "N test run(s) hidden — pass --include-dry-run".
+1. **Detail/watch invocation shape — RESOLVED:** required `--workflow` flag on both detail and watch, planned in 09-01 (the server path needs both ids and no run→workflow lookup exists).
+2. **Should the hidden-runs hint probe carry the user's `--status` filter? — RESOLVED:** yes, the probe includes the same `--status` param, planned in 09-01 Task 2.
 
 ## Environment Availability
 
