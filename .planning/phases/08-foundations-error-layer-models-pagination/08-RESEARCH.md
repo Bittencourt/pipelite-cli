@@ -418,14 +418,17 @@ fn deal_position_deserializes_fractional_float() {
 
 ## Open Questions
 
-1. **Should `orgs list --owner` join the removal list?**
+1. **Should `orgs list --owner` join the removal list?** (RESOLVED — out of Phase 8 scope; CHANGELOG carries a known-limitations note)
    - What we know: SERVER-API-DIFF §D-2 says server ignores it; FIX-01 names only `people list --org/--owner`.
    - Recommendation: leave out of Phase 8 scope (not in locked decisions); note in CHANGELOG under "known limitations" or defer to Phase 13 docs pass.
-2. **Does the ceiling warning need to replace or supplement the existing "Showing 1000 of N" line?**
+   - Resolution: locked as recommended — `orgs list --owner` is out of scope (08-02 "Do NOT touch" list); the CHANGELOG "Known limitations" note is in 08-02 Task 3 step 7.
+2. **Does the ceiling warning need to replace or supplement the existing "Showing 1000 of N" line?** (RESOLVED — replace, inside the kept guard)
    - What we know: both convey the cap; CONTEXT locks the exact warning text.
    - Recommendation: replace the old line with the locked warning in all 7 files — one consistent voice; the `meta` footer ("Showing 1-1000 of 1243") already carries counts.
-3. **`errors[]` join format** (`"{field}: {message} ({code})"` proposed) is unspecified by CONTEXT.
+   - Resolution: locked as recommended — keep the `if total > max_records` guard, replace only the message inside it, with a negative under-ceiling test (08-02 Task 2 step 5 + behavior list).
+3. **`errors[]` join format** (`"{field}: {message} ({code})"` proposed) is unspecified by CONTEXT. (RESOLVED — format locked)
    - Recommendation: keep the proposed format; it's display-only and trivially adjustable at review.
+   - Resolution: locked as proposed — `"{field}: {message} ({code})"`, entries `"; "`-joined, `(invalid)` code default, items with missing field/message skipped (08-01 Task 1 action).
 
 ## Environment Availability
 
