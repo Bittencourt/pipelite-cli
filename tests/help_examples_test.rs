@@ -83,3 +83,26 @@ fn workflows_runs_help_has_examples() {
         .stdout(predicate::str::contains("Examples:"))
         .stdout(predicate::str::contains("--workflow"));
 }
+
+// The `templates` help page must be truthful (ROADMAP SC-4): it carries
+// examples, states that the server has no template update, and does NOT
+// advertise an update subcommand (the hidden Update variant is a
+// parse-then-error rejection, never a real command).
+#[test]
+fn templates_help_has_examples_and_no_update_advertisement() {
+    let output = Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["templates", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Examples:"), "help: {stdout}");
+    assert!(stdout.contains("no template update"), "help: {stdout}");
+    assert!(
+        stdout.lines().all(|l| !l.trim().starts_with("update")),
+        "templates --help must not advertise an update subcommand:\n{stdout}"
+    );
+}

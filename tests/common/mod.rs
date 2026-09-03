@@ -34,19 +34,29 @@ pub fn cmd() -> Command {
 
 /// Hand-rolled HTTP stub server (no new crates): serves one scripted
 /// `(status, raw body)` response per accepted connection, in order, and
-/// RECORDS each request head (request line + headers, lowercased) so tests
-/// can assert query strings on the wire and header presence/absence.
+/// RECORDS each request so tests can assert query strings on the wire,
+/// header presence/absence, and POST bodies.
 ///
-/// Returns `(base_url, request_counter, captured_heads)`.
+/// Returns `(base_url, request_counter, captured_heads, captured_bodies)`:
+/// - heads: the lowercased request line + headers of each request
+/// - bodies: each request's FULL bytes (head + `\r\n\r\n` + body) so tests
+///   can split at the first `\r\n\r\n` and inspect the raw body
 pub fn spawn_head_capturing_stub_server(
     script: &[(u16, &str)],
-) -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>) {
+) -> (
+    String,
+    Arc<AtomicUsize>,
+    Arc<Mutex<Vec<String>>>,
+    Arc<Mutex<Vec<String>>>,
+) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind stub server");
     let addr = listener.local_addr().expect("stub server address");
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_clone = Arc::clone(&counter);
     let heads: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let heads_clone = Arc::clone(&heads);
+    let bodies: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let bodies_clone = Arc::clone(&bodies);
     let script: Vec<(u16, String)> = script
         .iter()
         .map(|(status, body)| (*status, body.to_string()))
@@ -84,20 +94,37 @@ pub fn spawn_head_capturing_stub_server(
             let head = String::from_utf8_lossy(&received[..header_end]).to_lowercase();
             heads_clone.lock().expect("heads lock").push(head);
 
-            // Read exactly Content-Length body bytes, if any.
-            let headers = &heads_clone.lock().expect("heads lock")[0];
-            let content_length = headers
-                .lines()
-                .find_map(|l| l.strip_prefix("content-length:"))
-                .and_then(|v| v.trim().parse::<usize>().ok())
-                .unwrap_or(0);
+            // Read exactly Content-Length body bytes, if any. The CURRENT
+            // request's head is the LAST recorded entry — parsing the first
+            // entry would reuse an earlier request's content-length on
+            // multi-request scripts (e.g. a GET before a POST).
+            let content_length = {
+                let heads_guard = heads_clone.lock().expect("heads lock");
+                heads_guard
+                    .last()
+                    .expect("at least one head recorded")
+                    .lines()
+                    .find_map(|l| l.strip_prefix("content-length:"))
+                    .and_then(|v| v.trim().parse::<usize>().ok())
+                    .unwrap_or(0)
+            };
             let mut body_read = received.len().saturating_sub(header_end);
             while body_read < content_length {
                 match stream.read(&mut buf) {
                     Ok(0) | Err(_) => break,
-                    Ok(n) => body_read += n,
+                    Ok(n) => {
+                        received.extend_from_slice(&buf[..n]);
+                        body_read += n;
+                    }
                 }
             }
+
+            // Record the FULL request bytes (head + body) for body
+            // assertions.
+            bodies_clone
+                .lock()
+                .expect("bodies lock")
+                .push(String::from_utf8_lossy(&received).to_string());
 
             let reason = match status {
                 401 => "Unauthorized",
@@ -119,5 +146,5 @@ pub fn spawn_head_capturing_stub_server(
         }
     });
 
-    (format!("http://{addr}"), counter, heads)
+    (format!("http://{addr}"), counter, heads, bodies)
 }

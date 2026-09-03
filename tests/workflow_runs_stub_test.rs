@@ -101,7 +101,7 @@ fn detail_body() -> String {
 
 #[test]
 fn runs_list_renders_rows_and_statuses() {
-    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[(
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
         200,
         &list_envelope(vec![run_row("run_a", "completed", false), run_row("run_b", "failed", false)], 2),
     )]);
@@ -119,7 +119,7 @@ fn runs_list_renders_rows_and_statuses() {
 
 #[test]
 fn runs_list_sends_status_and_dry_run_params_on_the_wire() {
-    let (url, _counter, heads) = common::spawn_head_capturing_stub_server(&[(200, &list_envelope(vec![], 0))]);
+    let (url, _counter, heads, _bodies) = common::spawn_head_capturing_stub_server(&[(200, &list_envelope(vec![], 0))]);
     common::cmd_with_server(&url)
         .args([
             "workflows",
@@ -149,7 +149,7 @@ fn runs_list_sends_status_and_dry_run_params_on_the_wire() {
 
 #[test]
 fn runs_list_omits_dry_run_param_by_default() {
-    let (url, _counter, heads) = common::spawn_head_capturing_stub_server(&[(
+    let (url, _counter, heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
         200,
         &list_envelope(vec![run_row("run_a", "pending", false)], 1),
     )]);
@@ -168,7 +168,7 @@ fn runs_list_omits_dry_run_param_by_default() {
 
 #[test]
 fn runs_list_bogus_status_hints_valid_statuses_without_rejection() {
-    let (url, counter, _heads) =
+    let (url, counter, _heads, _bodies) =
         common::spawn_head_capturing_stub_server(&[(200, &list_envelope(vec![], 0))]);
     // Pass-through: exit 0, hint on stderr — never a client-side rejection.
     common::cmd_with_server(&url)
@@ -187,7 +187,7 @@ fn runs_list_bogus_status_hints_valid_statuses_without_rejection() {
 fn runs_list_hidden_dry_run_hint_reports_true_count_via_one_probe() {
     let empty = list_envelope(vec![], 0);
     let probe = list_envelope(vec![run_row("run_dry", "completed", true)], 2);
-    let (url, counter, heads) = common::spawn_head_capturing_stub_server(&[(200, &empty), (200, &probe)]);
+    let (url, counter, heads, _bodies) = common::spawn_head_capturing_stub_server(&[(200, &empty), (200, &probe)]);
 
     common::cmd_with_server(&url)
         .args(["workflows", "runs", "list", "--workflow", "wf_1"])
@@ -209,7 +209,7 @@ fn runs_list_hidden_dry_run_hint_reports_true_count_via_one_probe() {
 fn runs_list_quiet_suppresses_hidden_hint_but_still_probes() {
     let empty = list_envelope(vec![], 0);
     let probe = list_envelope(vec![run_row("run_dry", "completed", true)], 2);
-    let (url, counter, _heads) = common::spawn_head_capturing_stub_server(&[(200, &empty), (200, &probe)]);
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(200, &empty), (200, &probe)]);
 
     // -q is a global flag — placed before the subcommand.
     common::cmd_with_server(&url)
@@ -226,7 +226,7 @@ fn runs_list_quiet_suppresses_hidden_hint_but_still_probes() {
 fn runs_list_probe_never_fires_on_non_empty_page() {
     // Server also holds dry runs — the CLI must still send exactly one
     // request when the (server-filtered) page is non-empty.
-    let (url, counter, heads) = common::spawn_head_capturing_stub_server(&[(
+    let (url, counter, heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
         200,
         &list_envelope(vec![run_row("run_a", "pending", false)], 5),
     )]);
@@ -245,7 +245,7 @@ fn runs_list_probe_never_fires_on_non_empty_page() {
 
 #[test]
 fn runs_get_flattens_steps_to_rows_with_run_summary() {
-    let (url, _counter, _heads) =
+    let (url, _counter, _heads, _bodies) =
         common::spawn_head_capturing_stub_server(&[(200, &detail_body())]);
 
     common::cmd_with_server(&url)
@@ -283,7 +283,7 @@ fn runs_get_flattens_steps_to_rows_with_run_summary() {
 
 #[test]
 fn runs_get_json_passthrough_is_verbatim() {
-    let (url, _counter, _heads) =
+    let (url, _counter, _heads, _bodies) =
         common::spawn_head_capturing_stub_server(&[(200, &detail_body())]);
 
     let output = common::cmd_with_server(&url)
@@ -373,7 +373,7 @@ fn detail_body_status(status: &str, error: &str) -> String {
 #[test]
 fn watch_polls_until_terminal_and_renders_final_detail() {
     // Each poll consumes one scripted connection: running, running, completed.
-    let (url, counter, _heads) = common::spawn_head_capturing_stub_server(&[
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("completed", "")),
@@ -397,7 +397,7 @@ fn watch_polls_until_terminal_and_renders_final_detail() {
 
 #[test]
 fn watch_prints_exactly_one_transition_line_per_change() {
-    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("completed", "")),
@@ -431,7 +431,7 @@ fn watch_prints_exactly_one_transition_line_per_change() {
 
 #[test]
 fn watch_quiet_suppresses_transition_lines() {
-    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("completed", "")),
@@ -456,7 +456,7 @@ fn watch_quiet_suppresses_transition_lines() {
 
 #[test]
 fn watch_default_exits_zero_on_failed_run() {
-    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("failed", "boom")),
     ]);
@@ -471,7 +471,7 @@ fn watch_default_exits_zero_on_failed_run() {
 
 #[test]
 fn watch_exit_status_maps_failed_to_exit_1() {
-    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("failed", "boom")),
     ]);
@@ -495,7 +495,7 @@ fn watch_exit_status_maps_failed_to_exit_1() {
 fn watch_keeps_polling_through_waiting() {
     // waiting is NOT terminal — watch keeps polling (steps' resume_at shows
     // why it waits).
-    let (url, counter, _heads) = common::spawn_head_capturing_stub_server(&[
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
         (200, &detail_body_status("running", "")),
         (200, &detail_body_status("waiting", "")),
         (200, &detail_body_status("completed", "")),
@@ -517,7 +517,7 @@ fn watch_keeps_polling_through_waiting() {
 
 #[test]
 fn watch_on_already_terminal_run_makes_one_request() {
-    let (url, counter, _heads) =
+    let (url, counter, _heads, _bodies) =
         common::spawn_head_capturing_stub_server(&[(200, &detail_body_status("completed", ""))]);
 
     common::cmd_with_server(&url)
@@ -545,7 +545,7 @@ fn watch_sigint_terminates_the_child_with_signal_2() {
     // the signal arrives.
     let running = detail_body_status("running", "");
     let script: Vec<(u16, &str)> = vec![(200, running.as_str()); 10];
-    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&script);
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&script);
 
     let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_pipelite"))
         .args([

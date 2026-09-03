@@ -150,7 +150,7 @@ pub enum Commands {
     /// Manage workflow templates
     #[command(
         subcommand,
-        after_help = "Workflow templates snapshot a workflow's trigger and nodes for reuse — instantiating a template creates a workflow.\n\nThe server exposes no template update — delete and recreate to change a template.\nNote: templates are deployment-global (any valid API key can read or delete them)."
+        after_help = "Workflow templates snapshot a workflow's trigger and nodes for reuse — instantiating a template creates a workflow.\n\nThe server exposes no template update — delete and recreate to change a template.\nNote: templates are deployment-global (any valid API key can read or delete them).\n\nExamples:\n  pipelite templates list\n  pipelite templates create --name \"Alert\" --workflow wf_abc123\n  pipelite templates delete tpl_abc123 --force"
     )]
     Templates(TemplatesCommands),
 
