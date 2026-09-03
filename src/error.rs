@@ -215,6 +215,31 @@ mod tests {
     }
 
     #[test]
+    fn forbidden_error_exits_1_and_renders_title_detail_hint() {
+        // 403 is a runtime condition (same tier as Auth) -> exit 1, never 2.
+        let err = anyhow::Error::new(CliError::Forbidden {
+            detail: "You don't have access to this resource".to_string(),
+            hint: "Your API key doesn't have permission for this action.".to_string(),
+        });
+        assert_eq!(exit_code(&err), 1);
+
+        // Display arm renders the "Forbidden (HTTP 403)" title + detail + hint.
+        let cli_err = err.downcast_ref::<CliError>().unwrap();
+        match cli_err {
+            CliError::Forbidden { detail, hint } => {
+                let output = format_error(&cli_err.to_string(), detail, hint, false);
+                assert!(
+                    output.contains("error: Forbidden (HTTP 403)"),
+                    "expected Forbidden title, got: {output}"
+                );
+                assert!(output.contains("You don't have access to this resource"));
+                assert!(output.contains("hint: Your API key doesn't have permission for this action."));
+            }
+            _ => panic!("Expected Forbidden variant"),
+        }
+    }
+
+    #[test]
     fn exit_code_returns_2_for_structural_input_errors() {
         let invalid_input = anyhow::Error::new(CliError::InvalidInput {
             detail: "Empty update list".to_string(),

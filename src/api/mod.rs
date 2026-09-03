@@ -979,3 +979,110 @@ impl WorkflowsListParams {
         pairs
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse_rfc7807;
+
+    /// Verified server 422 body: errors[] carries the real info, detail is
+    /// the generic "Request validation failed" (RESEARCH § API Contract).
+    const BODY_422: &str = r#"{"type":"https://api.pipelite.app/errors/VALIDATION_ERROR","title":"Validation Error","status":422,"detail":"Request validation failed","errors":[{"field":"stage_id","code":"invalid","message":"Stage does not exist"}]}"#;
+
+    /// Verified server 403 body.
+    const BODY_403: &str = r#"{"type":"https://api.pipelite.app/errors/FORBIDDEN","title":"Forbidden","status":403,"detail":"You don't have access to this resource"}"#;
+
+    /// Verified server 409 inactive-trigger body (verbatim detail).
+    const BODY_409: &str = r#"{"type":"https://api.pipelite.app/errors/CONFLICT","title":"Conflict","status":409,"detail":"Workflow is not active. Activate the workflow before triggering a run."}"#;
+
+    #[test]
+    fn errors_array_joined_and_wins_over_generic_detail() {
+        // 422: errors[] is the real info; the generic detail must NOT render.
+        assert_eq!(
+            parse_rfc7807(BODY_422, 422),
+            "stage_id: Stage does not exist (invalid)"
+        );
+    }
+
+    #[test]
+    fn multiple_errors_joined_with_semicolon_space() {
+        let body = r#"{"title":"Validation Error","status":422,"detail":"Request validation failed","errors":[{"field":"title","code":"too_short","message":"Title is too short"},{"field":"stage_id","code":"invalid","message":"Stage does not exist"}]}"#;
+        assert_eq!(
+            parse_rfc7807(body, 422),
+            "title: Title is too short (too_short); stage_id: Stage does not exist (invalid)"
+        );
+    }
+
+    #[test]
+    fn empty_errors_array_falls_through_to_detail() {
+        let body = r#"{"title":"Validation Error","status":422,"detail":"Request validation failed","errors":[]}"#;
+        assert_eq!(parse_rfc7807(body, 422), "Request validation failed");
+    }
+
+    #[test]
+    fn detail_used_when_no_errors_key() {
+        assert_eq!(
+            parse_rfc7807(BODY_409, 409),
+            "Workflow is not active. Activate the workflow before triggering a run."
+        );
+    }
+
+    #[test]
+    fn title_used_when_no_detail() {
+        let body = r#"{"title":"Internal Server Error","status":500}"#;
+        assert_eq!(parse_rfc7807(body, 500), "Internal Server Error");
+    }
+
+    #[test]
+    fn legacy_error_key_used_as_fallback() {
+        let body = r#"{"error":"legacy error text"}"#;
+        assert_eq!(parse_rfc7807(body, 400), "legacy error text");
+    }
+
+    #[test]
+    fn legacy_message_key_used_after_error_key() {
+        let body = r#"{"message":"legacy message text"}"#;
+        assert_eq!(parse_rfc7807(body, 400), "legacy message text");
+    }
+
+    #[test]
+    fn degenerate_empty_object_yields_http_status() {
+        assert_eq!(parse_rfc7807("{}", 422), "HTTP 422");
+    }
+
+    #[test]
+    fn non_json_body_yields_http_status() {
+        assert_eq!(parse_rfc7807("Gateway timeout", 504), "HTTP 504");
+    }
+
+    #[test]
+    fn error_item_missing_code_defaults_to_invalid() {
+        let body = r#"{"errors":[{"field":"name","message":"Name is required"}]}"#;
+        assert_eq!(parse_rfc7807(body, 422), "name: Name is required (invalid)");
+    }
+
+    #[test]
+    fn error_items_missing_field_or_message_are_skipped_not_panic() {
+        let body = r#"{"detail":"Request validation failed","errors":[{"code":"orphan"},{"field":"ok_field","message":"Ok message"}]}"#;
+        // First item (no field/message) is skipped; second renders; the
+        // errors array is non-empty so detail still loses.
+        assert_eq!(parse_rfc7807(body, 422), "ok_field: Ok message (invalid)");
+    }
+
+    #[test]
+    fn rendered_detail_carries_no_json_quotes() {
+        // Pitfall 2: extraction via as_str(), never Value::to_string()
+        // (which would produce "\"You don't have access...\"").
+        let rendered = parse_rfc7807(BODY_403, 403);
+        assert_eq!(rendered, "You don't have access to this resource");
+        assert!(!rendered.starts_with('"'), "quoted detail: {rendered}");
+        assert!(!rendered.ends_with('"'), "quoted detail: {rendered}");
+    }
+
+    #[test]
+    fn all_items_skipped_falls_through_to_detail() {
+        // errors[] non-empty but every item invalid -> degrade to detail,
+        // never render an empty string.
+        let body = r#"{"detail":"Request validation failed","errors":[{"code":"orphan"}]}"#;
+        assert_eq!(parse_rfc7807(body, 422), "Request validation failed");
+    }
+}
