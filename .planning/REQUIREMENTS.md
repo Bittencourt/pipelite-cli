@@ -23,8 +23,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Workflow Runs
 
-- [ ] **WRUN-01**: User can list runs of a workflow with `--status` filter (pending/running/completed/failed/waiting) and `--dry-run` opt-in for test runs
-- [ ] **WRUN-02**: User can view a run's detail including its steps (node, status, input, output, error, timing) flattened to readable rows
+- [x] **WRUN-01**: User can list runs of a workflow with `--status` filter (pending/running/completed/failed/waiting) and `--dry-run` opt-in for test runs
+- [x] **WRUN-02**: User can view a run's detail including its steps (node, status, input, output, error, timing) flattened to readable rows
 - [ ] **WRUN-03**: User can watch a run until completion with `--watch [--exit-status]` via honest polling
 
 ### Webhooks
@@ -111,8 +111,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-04 | Phase 8 | Complete |
 | FIX-05 | Phase 8 | Complete |
 | FIX-06 | Phase 8 | Complete |
-| WRUN-01 | Phase 9 | Pending |
-| WRUN-02 | Phase 9 | Pending |
+| WRUN-01 | Phase 9 | Complete |
+| WRUN-02 | Phase 9 | Complete |
 | WRUN-03 | Phase 9 | Pending |
 | TPL-01 | Phase 9 | Pending |
 | DOCS-01 | Phase 9 | Pending |

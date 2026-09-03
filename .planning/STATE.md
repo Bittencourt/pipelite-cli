@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: ready_to_plan
-stopped_at: Phase 8 complete (2/2) — ready to discuss Phase 9
-last_updated: 2026-09-03T17:11:41.034Z
+status: executing
+stopped_at: Completed 09-01-PLAN.md (workflow runs read surface — models/CLI/handlers + 10 stub tests, 331 passing)
+last_updated: "2026-09-03T19:23:45.969Z"
 last_activity: 2026-09-03
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 8
   percent: 29
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-02)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal — fast, scriptable, and composable with other tools.
-**Current focus:** Phase 9 — workflow runs, templates & docs
+**Current focus:** Phase 9 — workflow-runs-templates-docs
 
 ## Current Position
 
-Phase: 9
-Plan: Not started
-Status: Ready to plan
+Phase: 9 (workflow-runs-templates-docs) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-09-03
 
-Progress: [██████████] 100%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [██████████] 100%
 | 7 | 5 | - | - |
 | Phase 8 P02 | 27 min | 3 tasks | 23 files |
 | 8 | 2 | - | - |
+| Phase 09 P01 | 13 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 8]: workflows --active is a client-side filter with one locked stderr warning and meta rebuilt from filtered rows; dead WorkflowsListParams.active removed
 - [Phase 8]: expanded Map uses flatten+default+skip_serializing_if on all 7 Base models — expand payloads render in JSON automatically, no synthetic key when empty
 - [Phase 8]: Deal/Stage position are f64 (server numeric column) — 10000.0 rendering documented in CHANGELOG; Phase 12 CFLD-01 must be f64 from birth
+- [Phase 9]: Runs list probe discipline locked by tests: exactly one limit-1 dry_run=true probe only on an empty page without the flag; statuses hint takes precedence (no probe when --status set)
+- [Phase 9]: step_duration uses to_text_en(Rough, Present): HumanTime Display renders positive deltas as 'in N minutes' (wrong tense for durations); sub-minute renders 'now'
+- [Phase 9]: runs detail requires --workflow (server path /workflows/{id}/runs/{runId}, no run-to-workflow lookup); render_detail seam exposed for 09-02 watch reuse
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-03T16:28:52.880Z
-Stopped at: Completed 07-03-PLAN.md (pipelines/stages/workflows batch ops — all 7 entities batch-capable)
+Last session: 2026-09-03T19:23:45.942Z
+Stopped at: Completed 09-01-PLAN.md (workflow runs read surface — models/CLI/handlers + 10 stub tests, 331 passing)
 Resume file: None
