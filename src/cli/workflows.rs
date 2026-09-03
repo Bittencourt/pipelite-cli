@@ -215,7 +215,7 @@ pub enum WorkflowsRunsCommands {
     /// (no run→workflow lookup exists). A run in `waiting` is mid-flight —
     /// steps' resume_at shows why it waits.
     #[command(
-        after_help = "Examples:\n  pipelite workflows runs get run_abc123 --workflow wf_abc123\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --fields id,status,error\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --format json"
+        after_help = "Examples:\n  pipelite workflows runs get run_abc123 --workflow wf_abc123\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --fields id,status,error\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --format json\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --watch --exit-status"
     )]
     Get(WorkflowsRunsGetArgs),
 }
@@ -259,6 +259,15 @@ pub struct WorkflowsRunsGetArgs {
     /// /workflows/{id}/runs/{runId} — no run→workflow lookup exists)
     #[arg(long, add = ArgValueCandidates::new(workflow_id_candidates))]
     pub workflow: String,
+
+    /// Poll every 2 seconds until the run reaches a terminal state; no
+    /// timeout — Ctrl-C stops watching (shells report exit 130)
+    #[arg(long)]
+    pub watch: bool,
+
+    /// Exit 1 if the run ends failed (with --watch), else 0
+    #[arg(long)]
+    pub exit_status: bool,
 
     /// Select specific fields (comma-separated)
     #[arg(long, value_delimiter = ',')]

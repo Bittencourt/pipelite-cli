@@ -1,7 +1,9 @@
 use anyhow::Result;
 use comfy_table::{ContentArrangement, Table};
 
-use crate::api::models::{step_duration, WorkflowRunDetail, WorkflowRunStep};
+use crate::api::models::{
+    run_status_is_terminal, step_duration, watch_exit_code, WorkflowRunDetail, WorkflowRunStep,
+};
 use crate::cli::workflows::WorkflowsRunsGetArgs;
 use crate::context::AppContext;
 use crate::output::OutputFormat;
@@ -29,9 +31,48 @@ const STEP_COLUMNS: [&str; 6] = ["node", "status", "input", "output", "error", "
 ///
 /// Both ids travel in the server path (`/workflows/{id}/runs/{runId}`) —
 /// clap enforces the required `--workflow` flag before any HTTP.
+///
+/// With `--watch`, polls the detail endpoint on a fixed 2-second interval
+/// (no flag, locked decision) until the run reaches a terminal state
+/// (completed | failed — plus a defensive unknown; `waiting` is mid-flight
+/// and keeps polling). Each state change prints one stderr line, suppressed
+/// under `--quiet`; the final state renders through the shared detail
+/// renderer. Exit is 0 on ANY terminal state by default; `--exit-status`
+/// maps failed (and unknown) to 1.
+///
+/// Ctrl-C: NO signal handler is installed — the default SIGINT disposition
+/// kills the process mid-poll and the shell reports exit 130 (128 + 2).
 pub async fn run(ctx: &AppContext, args: &WorkflowsRunsGetArgs) -> Result<()> {
-    let detail = ctx.client.get_workflow_run(&args.workflow, &args.run_id).await?;
-    render_detail(ctx, args, detail)
+    let mut detail = ctx.client.get_workflow_run(&args.workflow, &args.run_id).await?;
+
+    // Single-shot path (no --watch, or an already-terminal run under
+    // --watch): unchanged behavior, exit stays whatever main() returns.
+    if !args.watch || run_status_is_terminal(&detail.run.status) {
+        return render_detail(ctx, args, detail);
+    }
+
+    // Watch loop: prev starts empty so the first observation prints nothing.
+    let mut prev = String::new();
+    loop {
+        let status = detail.run.status;
+        let current = status.as_str();
+
+        if !prev.is_empty() && current != prev && !ctx.quiet {
+            eprintln!("run {}: {} → {}", args.run_id, prev, current);
+        }
+        prev = current.to_string();
+
+        if run_status_is_terminal(&status) {
+            render_detail(ctx, args, detail)?;
+            std::process::exit(watch_exit_code(&status, args.exit_status));
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        detail = ctx
+            .client
+            .get_workflow_run(&args.workflow, &args.run_id)
+            .await?;
+    }
 }
 
 /// Render a fetched run detail. Seam kept separate so the watch loop
