@@ -20,7 +20,6 @@
 
 mod common;
 
-use assert_cmd::Command;
 use predicates::prelude::*;
 use std::sync::atomic::Ordering;
 

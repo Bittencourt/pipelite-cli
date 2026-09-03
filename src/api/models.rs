@@ -492,8 +492,6 @@ pub enum WorkflowRunStatus {
 
 impl WorkflowRunStatus {
     /// The lowercase wire value — renderers quote strings, never re-serialize.
-    /// (Wired into user-facing rendering by the 09-02 watch loop.)
-    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Pending => "pending",
@@ -546,7 +544,6 @@ impl WorkflowRunStepStatus {
 /// mapping guarantees a future server-side terminal state can never hang a
 /// watch loop. Pending/Running/Waiting are mid-flight (Waiting polls on:
 /// steps' resume_at shows why it waits).
-#[allow(dead_code)]
 pub fn run_status_is_terminal(s: &WorkflowRunStatus) -> bool {
     matches!(
         s,
@@ -561,7 +558,6 @@ pub fn run_status_is_terminal(s: &WorkflowRunStatus) -> bool {
 /// failed so a future `cancelled`-style terminal failure cannot silently
 /// flip exit codes. Non-terminal states are unreachable in the watch loop
 /// and exit 0.
-#[allow(dead_code)]
 pub fn watch_exit_code(s: &WorkflowRunStatus, exit_status_flag: bool) -> i32 {
     match s {
         WorkflowRunStatus::Completed => 0,
