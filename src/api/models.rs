@@ -667,6 +667,59 @@ pub fn workflow_runs_table_config() -> TableConfig {
     }
 }
 
+// -- Workflow template entity (Phase 9, verified wire shapes) --
+
+/// A workflow template from the Pipelite CRM API.
+///
+/// Exactly the fields the server serializer emits (serializeWorkflowTemplate):
+/// id, name, description, category, trigger, nodes, created_at. Templates
+/// are GLOBAL (no ownership scoping) — any valid API key can read or delete
+/// them, so deletion affects other users of the deployment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowTemplate {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub category: Option<String>,
+    /// The single trigger object. Workflows store a triggers ARRAY; the
+    /// `templates create --workflow` mapping collapses triggers[0] into
+    /// this field (server create schema: trigger is one required object).
+    pub trigger: serde_json::Value,
+    /// Node list — the server defaults missing nodes to [].
+    #[serde(default)]
+    pub nodes: Vec<serde_json::Value>,
+    pub created_at: String,
+}
+
+/// Payload for creating a workflow template.
+///
+/// Server create schema (zod): name 1..200 required; description/category
+/// optional strings; trigger a REQUIRED object (no inner shape validation —
+/// bad triggers 422 server-side and flow through the Phase 8 error layer
+/// untouched); nodes an optional array (server defaults []). NO update
+/// route exists — the only mutation paths are create and hard delete.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowTemplateCreate {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    pub trigger: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nodes: Option<Vec<serde_json::Value>>,
+}
+
+/// Default table columns for template list display (trigger/nodes reachable
+/// via --fields or --format json).
+pub fn workflow_templates_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["id", "name", "category", "created_at"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1554,5 +1607,67 @@ mod tests {
         let garbage = Some("not-a-timestamp".to_string());
         assert_eq!(step_duration(&garbage, &started), "");
         assert_eq!(step_duration(&started, &garbage), "");
+    }
+
+    // -- Workflow template models --
+
+    #[test]
+    fn workflow_template_round_trips_with_nested_trigger_object() {
+        let body = json!({
+            "id": "tpl_1",
+            "name": "Deal Alert",
+            "description": "Snapshot",
+            "category": "sales",
+            "trigger": {"type": "crm_event", "entity": "deal"},
+            "nodes": [{"id": "n1"}],
+            "created_at": "2026-01-01T00:00:00Z"
+        });
+
+        let template: WorkflowTemplate = serde_json::from_value(body.clone()).unwrap();
+        assert_eq!(template.id, "tpl_1");
+        assert_eq!(template.name, "Deal Alert");
+        assert_eq!(template.description.as_deref(), Some("Snapshot"));
+        assert_eq!(template.category.as_deref(), Some("sales"));
+        assert_eq!(template.trigger["type"], "crm_event");
+        assert_eq!(template.nodes.len(), 1);
+
+        // Round-trip: serialization preserves the trigger object verbatim.
+        let serialized = serde_json::to_value(&template).unwrap();
+        assert_eq!(serialized["trigger"], body["trigger"]);
+        assert_eq!(serialized["nodes"], body["nodes"]);
+    }
+
+    #[test]
+    fn workflow_template_nodes_default_to_empty_vec_when_absent() {
+        let body = json!({
+            "id": "tpl_2",
+            "name": "No Nodes",
+            "description": null,
+            "category": null,
+            "trigger": {"type": "schedule"},
+            "created_at": "2026-01-01T00:00:00Z"
+        });
+
+        let template: WorkflowTemplate = serde_json::from_value(body).unwrap();
+        assert!(template.nodes.is_empty(), "missing nodes default to []");
+        assert!(template.description.is_none());
+        assert!(template.category.is_none());
+    }
+
+    #[test]
+    fn workflow_template_create_skips_absent_optionals() {
+        let create = WorkflowTemplateCreate {
+            name: "T".to_string(),
+            description: None,
+            category: None,
+            trigger: json!({"type": "schedule"}),
+            nodes: None,
+        };
+
+        let serialized = serde_json::to_value(&create).unwrap();
+        assert!(serialized.get("description").is_none());
+        assert!(serialized.get("category").is_none());
+        assert!(serialized.get("nodes").is_none(), "absent nodes are not sent");
+        assert_eq!(serialized["trigger"]["type"], "schedule");
     }
 }

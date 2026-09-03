@@ -14,7 +14,7 @@ use models::{
     DealUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
     PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage, StageCreate,
     StageUpdate, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse,
-    WorkflowUpdate,
+    WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -917,6 +917,89 @@ impl PipeliteClient {
         let wrapper: ApiSingleResponse<WorkflowRunDetail> =
             self.handle_response(response, "workflows").await?;
         Ok(wrapper.data)
+    }
+
+    // -- Workflow templates --
+
+    /// List workflow templates with pagination.
+    ///
+    /// GETs `/api/v1/workflow-templates?limit&offset` (created_at DESC
+    /// server-side). Templates are GLOBAL — only 404/429 are reachable as
+    /// errors (no ownership scoping, no 403).
+    pub async fn list_workflow_templates(
+        &self,
+        limit: u64,
+        offset: u64,
+    ) -> Result<ApiListResponse<WorkflowTemplate>> {
+        let url = format!("{}/api/v1/workflow-templates", self.base_url);
+        let request = self.client.get(&url).query(&[
+            ("limit", limit.to_string()),
+            ("offset", offset.to_string()),
+        ]);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "templates").await
+    }
+
+    /// Get a single workflow template by ID.
+    ///
+    /// GETs `/api/v1/workflow-templates/{id}`; 404 "Workflow template" when
+    /// missing.
+    pub async fn get_workflow_template(&self, id: &str) -> Result<WorkflowTemplate> {
+        let url = format!("{}/api/v1/workflow-templates/{}", self.base_url, id);
+        let request = self.client.get(&url);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<WorkflowTemplate> =
+            self.handle_response(response, "templates").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new workflow template from the typed payload.
+    ///
+    /// POSTs `/api/v1/workflow-templates` (201 {data}). For `--stdin` bodies
+    /// that must pass through VERBATIM, use
+    /// [`PipeliteClient::create_workflow_template_raw`] instead.
+    pub async fn create_workflow_template(
+        &self,
+        data: &WorkflowTemplateCreate,
+    ) -> Result<WorkflowTemplate> {
+        let url = format!("{}/api/v1/workflow-templates", self.base_url);
+        let request = self.client.post(&url).json(data);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<WorkflowTemplate> =
+            self.handle_response(response, "templates").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a new workflow template from a raw JSON body.
+    ///
+    /// The `--stdin` create path must pass the body through VERBATIM (full
+    /// control: unknown keys survive the trip), so this posts the Value
+    /// unchanged and parses only the response envelope. (Named `post_*` —
+    /// not `create_workflow_template_raw` — because the stdin path is the
+    /// raw twin of the typed create and this keeps the client's method
+    /// list unambiguous.)
+    pub async fn post_workflow_template_raw(
+        &self,
+        body: &serde_json::Value,
+    ) -> Result<WorkflowTemplate> {
+        let url = format!("{}/api/v1/workflow-templates", self.base_url);
+        let request = self.client.post(&url).json(body);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<WorkflowTemplate> =
+            self.handle_response(response, "templates").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a workflow template by ID (hard delete, no soft-delete marker).
+    ///
+    /// DELETEs `/api/v1/workflow-templates/{id}` (204 No Content; 404 when
+    /// missing). Templates are global: any valid API key can delete any
+    /// template — the CLI-side confirmation prompt is the only gate.
+    pub async fn delete_workflow_template(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/workflow-templates/{}", self.base_url, id);
+        let request = self.client.delete(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_delete_response(response, "templates").await
     }
 
     /// Map a reqwest request error to a CliError.

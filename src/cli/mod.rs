@@ -9,6 +9,7 @@ pub mod orgs;
 pub mod people;
 pub mod pipelines;
 pub mod stages;
+pub mod templates;
 pub mod workflows;
 
 use clap::{Parser, Subcommand};
@@ -25,6 +26,7 @@ use orgs::OrgsCommands;
 use people::PeopleCommands;
 use pipelines::PipelinesCommands;
 use stages::StagesCommands;
+use templates::TemplatesCommands;
 use workflows::WorkflowsCommands;
 
 /// Build a rich version string with rustc version and platform info.
@@ -144,6 +146,13 @@ pub enum Commands {
         after_help = "Examples:\n  pipelite workflows list\n  pipelite workflows get wf_abc123\n  pipelite workflows trigger wf_abc123"
     )]
     Workflows(WorkflowsCommands),
+
+    /// Manage workflow templates
+    #[command(
+        subcommand,
+        after_help = "Workflow templates snapshot a workflow's trigger and nodes for reuse — instantiating a template creates a workflow.\n\nThe server exposes no template update — delete and recreate to change a template.\nNote: templates are deployment-global (any valid API key can read or delete them)."
+    )]
+    Templates(TemplatesCommands),
 
     /// Manage local cache
     #[command(

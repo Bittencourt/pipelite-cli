@@ -28,6 +28,11 @@ pub const KEY_ACTIVITIES: &str = "activities";
 pub const KEY_WORKFLOWS: &str = "workflows";
 /// Workflows change rarely -- 1 hour cache.
 pub const TTL_WORKFLOWS: u64 = 3600;
+/// Workflow templates cache (id, name) pairs -- completion candidates for
+/// templates get/delete and create --workflow. Templates change rarely.
+pub const KEY_TEMPLATES: &str = "templates";
+/// Templates change rarely -- 1 hour cache (mirrors TTL_WORKFLOWS).
+pub const TTL_TEMPLATES: u64 = 3600;
 
 /// A cached entry with embedded timestamp and TTL for expiry checks.
 #[derive(Debug, Serialize, Deserialize)]

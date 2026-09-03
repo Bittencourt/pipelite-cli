@@ -95,6 +95,10 @@ async fn run(cli: Cli) -> Result<()> {
             let ctx = AppContext::build(&cli)?;
             commands::workflows::run(&ctx, cmd).await
         }
+        Commands::Templates(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::templates::run(&ctx, cmd).await
+        }
         Commands::Cache(ref cmd) => {
             let ctx = AppContext::build(&cli)?;
             commands::cache::run(&ctx, cmd).await
