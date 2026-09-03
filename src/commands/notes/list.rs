@@ -69,14 +69,14 @@ fn notes_to_values(notes: &[Note], truncate: bool) -> Result<Vec<serde_json::Val
         .iter()
         .map(|n| {
             let mut value = serde_json::to_value(n)?;
-            if truncate {
-                if let serde_json::Value::Object(ref mut map) = value {
-                    let flattened: String = n.content.replace(['\n', '\r'], " ");
-                    map.insert(
-                        "content".to_string(),
-                        serde_json::Value::String(truncate_with_ellipsis(&flattened, 80)),
-                    );
-                }
+            if truncate
+                && let serde_json::Value::Object(ref mut map) = value
+            {
+                let flattened: String = n.content.replace(['\n', '\r'], " ");
+                map.insert(
+                    "content".to_string(),
+                    serde_json::Value::String(truncate_with_ellipsis(&flattened, 80)),
+                );
             }
             Ok(value)
         })

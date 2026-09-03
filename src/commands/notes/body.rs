@@ -72,13 +72,14 @@ pub fn resolve_body(
     }
 
     // 4. Prompt fallback (TTY only) or MissingInput.
-    if !no_input && std::io::stdin().is_terminal() {
-        if let Some((action, label)) = prompt_context {
-            let input: String = dialoguer::Input::new()
-                .with_prompt(format!("{action}: {label}"))
-                .interact_text()?;
-            return Ok(input);
-        }
+    if !no_input
+        && std::io::stdin().is_terminal()
+        && let Some((action, label)) = prompt_context
+    {
+        let input: String = dialoguer::Input::new()
+            .with_prompt(format!("{action}: {label}"))
+            .interact_text()?;
+        return Ok(input);
     }
 
     Err(CliError::MissingInput {
