@@ -86,7 +86,7 @@ async fn fetch_all_stages(
 
     loop {
         let params = StagesListParams {
-            pipeline_id: pipeline_id.to_string(),
+            pipeline_id: Some(pipeline_id.to_string()),
             limit,
             offset,
             expand: None,
@@ -136,7 +136,6 @@ async fn fetch_all_workflows(ctx: &AppContext) -> Result<Vec<crate::api::models:
 
     loop {
         let params = WorkflowsListParams {
-            active: None,
             limit,
             offset,
             expand: None,

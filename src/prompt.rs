@@ -231,7 +231,7 @@ pub async fn get_stages_cached(
     loop {
         let resp = client
             .list_stages(&StagesListParams {
-                pipeline_id: pipeline_id.to_string(),
+                pipeline_id: Some(pipeline_id.to_string()),
                 limit,
                 offset,
                 expand: None,
@@ -333,8 +333,7 @@ pub async fn get_workflows_cached(
 
     loop {
         let resp = client
-            .list_workflows(&WorkflowsListParams {
-                active: None,
+.list_workflows(&WorkflowsListParams {
                 limit,
                 offset,
                 expand: None,

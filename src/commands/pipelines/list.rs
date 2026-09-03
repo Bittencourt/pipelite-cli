@@ -73,10 +73,7 @@ async fn fetch_all(ctx: &AppContext, args: &PipelinesListArgs, columns: &[String
     }
 
     if total > max_records {
-        eprintln!(
-            "Showing {} of {}. Use --limit/--offset for more.",
-            max_records, total
-        );
+        eprintln!("warning: --all stopped at 1000 records (server ceiling); results may be incomplete");
     }
 
     let items = pipelines_to_values(&all_pipelines)?;

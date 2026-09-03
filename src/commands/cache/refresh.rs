@@ -112,7 +112,7 @@ async fn fetch_all_stages(ctx: &AppContext, pipeline_id: &str) -> Result<Vec<(St
 
     loop {
         let params = StagesListParams {
-            pipeline_id: pipeline_id.to_string(),
+            pipeline_id: Some(pipeline_id.to_string()),
             limit,
             offset,
             expand: None,

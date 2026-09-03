@@ -79,10 +79,7 @@ async fn fetch_all(ctx: &AppContext, args: &ActivitiesListArgs, columns: &[Strin
     }
 
     if total > max_records {
-        eprintln!(
-            "Showing {} of {}. Use --limit/--offset for more.",
-            max_records, total
-        );
+        eprintln!("warning: --all stopped at 1000 records (server ceiling); results may be incomplete");
     }
 
     let items = filter_done(activities_to_values(&all_activities)?, args.done);

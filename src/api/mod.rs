@@ -744,7 +744,7 @@ impl PipeliteClient {
 
     // ── Stages ────────────────────────────────────────────────────
 
-    /// List stages with required pipeline_id filter and pagination.
+    /// List stages, optionally filtered by pipeline_id, with pagination.
     pub async fn list_stages(
         &self,
         params: &StagesListParams,
@@ -1047,9 +1047,10 @@ impl PipelinesListParams {
     }
 }
 
-/// Parameters for listing stages with required pipeline_id filter.
+/// Parameters for listing stages with an optional pipeline_id filter.
+/// `None` lists ALL stages across pipelines in a single unfiltered call (FIX-04).
 pub struct StagesListParams {
-    pub pipeline_id: String,
+    pub pipeline_id: Option<String>,
     pub limit: u64,
     pub offset: u64,
     pub expand: Option<Vec<String>>,
@@ -1060,7 +1061,9 @@ impl StagesListParams {
     pub fn to_query_pairs(&self) -> Vec<(String, String)> {
         let mut pairs = Vec::new();
 
-        pairs.push(("pipeline_id".to_string(), self.pipeline_id.clone()));
+        if let Some(ref pipeline_id) = self.pipeline_id {
+            pairs.push(("pipeline_id".to_string(), pipeline_id.clone()));
+        }
         pairs.push(("limit".to_string(), self.limit.to_string()));
         pairs.push(("offset".to_string(), self.offset.to_string()));
 
@@ -1072,9 +1075,12 @@ impl StagesListParams {
     }
 }
 
-/// Parameters for listing workflows with filtering and pagination.
+/// Parameters for listing workflows with pagination.
+///
+/// No `active` field: the server ignores the `active` query param, so sending
+/// it lied about filtering. `workflows list --active` now filters client-side
+/// in the command handler instead (FIX-01).
 pub struct WorkflowsListParams {
-    pub active: Option<bool>,
     pub limit: u64,
     pub offset: u64,
     pub expand: Option<Vec<String>>,
@@ -1085,9 +1091,6 @@ impl WorkflowsListParams {
     pub fn to_query_pairs(&self) -> Vec<(String, String)> {
         let mut pairs = Vec::new();
 
-        if let Some(active) = self.active {
-            pairs.push(("active".to_string(), active.to_string()));
-        }
         pairs.push(("limit".to_string(), self.limit.to_string()));
         pairs.push(("offset".to_string(), self.offset.to_string()));
 

@@ -36,9 +36,9 @@ fn pipeline_id_candidates() -> Vec<CompletionCandidate> {
 /// Manage stages in a pipeline.
 #[derive(Subcommand)]
 pub enum StagesCommands {
-    /// List stages for a pipeline
+    /// List stages, optionally filtered by pipeline
     #[command(
-        after_help = "Examples:\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages list --pipeline pl_abc123 --limit 10\n  pipelite stages list --pipeline pl_abc123 --all --format json"
+        after_help = "Examples:\n  pipelite stages list\n  pipelite stages list --pipeline pl_abc123\n  pipelite stages list --pipeline pl_abc123 --limit 10\n  pipelite stages list --all --format json"
     )]
     List(StagesListArgs),
 
@@ -69,7 +69,7 @@ pub enum StagesCommands {
 
 #[derive(Args)]
 pub struct StagesListArgs {
-    /// Pipeline ID (required)
+    /// Pipeline ID (optional: omit to list all stages across pipelines)
     #[arg(long, add = ArgValueCandidates::new(pipeline_id_candidates))]
     pub pipeline: Option<String>,
 

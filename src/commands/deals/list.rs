@@ -81,10 +81,7 @@ async fn fetch_all(ctx: &AppContext, args: &DealsListArgs, columns: &[String]) -
 
     // Warn if there are more results beyond the cap
     if total > max_records {
-        eprintln!(
-            "Showing {} of {}. Use --limit/--offset for more.",
-            max_records, total
-        );
+        eprintln!("warning: --all stopped at 1000 records (server ceiling); results may be incomplete");
     }
 
     let items = deals_to_values(&all_deals)?;

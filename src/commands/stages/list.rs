@@ -4,19 +4,14 @@ use crate::api::StagesListParams;
 use crate::api::models::{PaginationMeta, Stage, stages_table_config};
 use crate::cli::stages::StagesListArgs;
 use crate::context::AppContext;
-use crate::error::CliError;
 use crate::output;
 
-/// List stages for a pipeline.
+/// List stages, optionally filtered by pipeline.
 ///
-/// Validates that --pipeline is provided before making any API calls.
+/// Without --pipeline, makes a single unfiltered call and lists all stages
+/// across pipelines (rows are distinguishable via the pipeline_id column).
 /// When --all is set, auto-paginates in batches of 100 up to 1000 records.
 pub async fn run(ctx: &AppContext, args: &StagesListArgs) -> Result<()> {
-    let pipeline_id = args.pipeline.as_ref().ok_or_else(|| CliError::Validation {
-        detail: "Missing required flag: --pipeline".to_string(),
-        hint: "Usage: pipelite stages list --pipeline <pipeline_id>".to_string(),
-    })?;
-
     let config = stages_table_config();
     let columns: Vec<String> = config
         .default_columns
@@ -25,21 +20,16 @@ pub async fn run(ctx: &AppContext, args: &StagesListArgs) -> Result<()> {
         .collect();
 
     if args.all {
-        fetch_all(ctx, args, pipeline_id, &columns).await
+        fetch_all(ctx, args, &columns).await
     } else {
-        fetch_page(ctx, args, pipeline_id, &columns).await
+        fetch_page(ctx, args, &columns).await
     }
 }
 
 /// Fetch a single page of stages.
-async fn fetch_page(
-    ctx: &AppContext,
-    args: &StagesListArgs,
-    pipeline_id: &str,
-    columns: &[String],
-) -> Result<()> {
+async fn fetch_page(ctx: &AppContext, args: &StagesListArgs, columns: &[String]) -> Result<()> {
     let params = StagesListParams {
-        pipeline_id: pipeline_id.to_string(),
+        pipeline_id: args.pipeline.clone(),
         limit: args.limit,
         offset: args.offset,
         expand: args.expand.clone(),
@@ -59,12 +49,7 @@ async fn fetch_page(
 }
 
 /// Auto-paginate to fetch all stages, up to 1000 records.
-async fn fetch_all(
-    ctx: &AppContext,
-    args: &StagesListArgs,
-    pipeline_id: &str,
-    columns: &[String],
-) -> Result<()> {
+async fn fetch_all(ctx: &AppContext, args: &StagesListArgs, columns: &[String]) -> Result<()> {
     let batch_size: u64 = 100;
     let max_records: u64 = 1000;
     let mut all_stages: Vec<Stage> = Vec::new();
@@ -73,7 +58,7 @@ async fn fetch_all(
 
     loop {
         let params = StagesListParams {
-            pipeline_id: pipeline_id.to_string(),
+            pipeline_id: args.pipeline.clone(),
             limit: batch_size,
             offset,
             expand: args.expand.clone(),
@@ -91,10 +76,7 @@ async fn fetch_all(
     }
 
     if total > max_records {
-        eprintln!(
-            "Showing {} of {}. Use --limit/--offset for more.",
-            max_records, total
-        );
+        eprintln!("warning: --all stopped at 1000 records (server ceiling); results may be incomplete");
     }
 
     let items = stages_to_values(&all_stages)?;
