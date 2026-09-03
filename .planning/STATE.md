@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
 status: executing
-stopped_at: Completed 09-01-PLAN.md (workflow runs read surface — models/CLI/handlers + 10 stub tests, 331 passing)
-last_updated: "2026-09-03T19:23:45.969Z"
+stopped_at: Completed 09-02-PLAN.md (watch poll loop + templates stack — 23 new tests, 358 passing)
+last_updated: "2026-09-03T19:51:57.649Z"
 last_activity: 2026-09-03
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 29
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 ## Current Position
 
 Phase: 9 (workflow-runs-templates-docs) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-09-03
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [████████░░] 80%
 | Phase 8 P02 | 27 min | 3 tasks | 23 files |
 | 8 | 2 | - | - |
 | Phase 09 P01 | 13 min | 3 tasks | 10 files |
+| Phase 09 P02 | 24 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 9]: Runs list probe discipline locked by tests: exactly one limit-1 dry_run=true probe only on an empty page without the flag; statuses hint takes precedence (no probe when --status set)
 - [Phase 9]: step_duration uses to_text_en(Rough, Present): HumanTime Display renders positive deltas as 'in N minutes' (wrong tense for durations); sub-minute renders 'now'
 - [Phase 9]: runs detail requires --workflow (server path /workflows/{id}/runs/{runId}, no run-to-workflow lookup); render_detail seam exposed for 09-02 watch reuse
+- [Phase 9]: watch is a fixed 2s poll, no timeout — default exit 0 on ANY terminal state, --exit-status maps failed/unknown to 1, waiting keeps polling, Ctrl-C = default SIGINT (shell 130)
+- [Phase 9]: templates create resolves the trigger from exactly one source pre-HTTP; --workflow maps triggers[0]->trigger with a quiet-suppressible multi-trigger warning; --stdin posts raw via post_workflow_template_raw (verbatim)
+- [Phase 9]: stub helper is a 4-tuple (heads + full bodies); content-length parses the current request's head — hidden templates update stays parse-then-error exit 2
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-03T19:23:45.942Z
-Stopped at: Completed 09-01-PLAN.md (workflow runs read surface — models/CLI/handlers + 10 stub tests, 331 passing)
+Last session: 2026-09-03T19:51:57.604Z
+Stopped at: Completed 09-02-PLAN.md (watch poll loop + templates stack — 23 new tests, 358 passing)
 Resume file: None
