@@ -413,7 +413,7 @@ Not a rename/refactor/migration phase — omitted per protocol. (Greenfield addi
 | A3 | Interactive prompt may be single-line (`dialoguer::Input`) — multi-line bodies are the `@file`/`--stdin` paths' job | NOTE-02 | Low — UX nicety; locked precedence doesn't mandate multi-line prompt |
 | A4 | `created_at`/`updated_at` modeled `Option<String>` despite practically always present | Serializer inventory | Very low — only affects hypothetical null rendering |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `notes list` print an empty-state stderr hint?**
    - What we know: runs list prints stderr hints suppressed by `--quiet`; templates list prints nothing special.
