@@ -4,6 +4,7 @@ pub mod completions;
 pub mod config;
 pub mod dashboard;
 pub mod deals;
+pub mod docs;
 pub mod init;
 pub mod orgs;
 pub mod people;

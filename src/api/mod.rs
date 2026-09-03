@@ -1002,6 +1002,33 @@ impl PipeliteClient {
         self.handle_delete_response(response, "templates").await
     }
 
+    // -- Docs --
+
+    /// Fetch the server's OpenAPI spec from the public `/api/v1/docs` route.
+    ///
+    /// Builds a LOCAL bare reqwest client on purpose: the shared
+    /// authenticated client installs the API key in `default_headers`, and
+    /// reqwest attaches those to EVERY request from that instance (there is
+    /// no per-request removal). The docs route is deliberately public, and
+    /// the locked decision is that the docs request carries NO Authorization
+    /// header — proven on the wire by the docs stub test, which inspects the
+    /// raw request head. Same 5s/30s timeouts as the shared client; 429
+    /// retry comes free via `send_with_retry` (it sends the request it is
+    /// given and never touches the authenticated instance). Errors map
+    /// through the standard Phase 8 arms with surface "docs"; the
+    /// command layer re-wraps 404/Api with the docs-specific hint.
+    pub async fn get_docs(&self) -> Result<serde_json::Value> {
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(30))
+            .build()
+            .context("Failed to build HTTP client")?;
+        let url = format!("{}/api/v1/docs", self.base_url);
+        let request = client.get(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "docs").await
+    }
+
     /// Map a reqwest request error to a CliError.
     fn map_request_error(&self, e: reqwest::Error) -> CliError {
         if e.is_timeout() {

@@ -4,6 +4,7 @@ pub mod completions;
 pub mod config;
 pub mod dashboard;
 pub mod deals;
+pub mod docs;
 pub mod init;
 pub mod orgs;
 pub mod people;
@@ -21,6 +22,7 @@ use completions::CompletionsArgs;
 use config::ConfigCommands;
 use dashboard::DashboardArgs;
 use deals::DealsCommands;
+use docs::DocsArgs;
 use init::InitArgs;
 use orgs::OrgsCommands;
 use people::PeopleCommands;
@@ -153,6 +155,12 @@ pub enum Commands {
         after_help = "Workflow templates snapshot a workflow's trigger and nodes for reuse — instantiating a template creates a workflow.\n\nThe server exposes no template update — delete and recreate to change a template.\nNote: templates are deployment-global (any valid API key can read or delete them).\n\nExamples:\n  pipelite templates list\n  pipelite templates create --name \"Alert\" --workflow wf_abc123\n  pipelite templates delete tpl_abc123 --force"
     )]
     Templates(TemplatesCommands),
+
+    /// Fetch the server's OpenAPI 3.1 spec (public route — no API key sent)
+    #[command(
+        after_help = "Examples:\n  pipelite docs\n  pipelite docs --save spec.json\n  pipelite docs --save dir/spec.json --force\n\nNote: --format is ignored — the OpenAPI spec is JSON, not tabular output."
+    )]
+    Docs(DocsArgs),
 
     /// Manage local cache
     #[command(
