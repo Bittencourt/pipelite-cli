@@ -1,112 +1,78 @@
 ---
 phase: 10-notes
-reviewed: 2026-09-03T00:00:00Z
+reviewed: 2026-09-03T23:02:29Z
 depth: standard
-files_reviewed: 16
+files_reviewed: 5
 files_reviewed_list:
-  - src/cli/notes.rs
-  - src/cli/mod.rs
-  - src/commands/mod.rs
-  - src/commands/notes/add.rs
-  - src/commands/notes/body.rs
-  - src/commands/notes/delete.rs
-  - src/commands/notes/edit.rs
   - src/commands/notes/list.rs
-  - src/commands/notes/mod.rs
-  - src/api/mod.rs
-  - src/api/models.rs
-  - src/main.rs
-  - src/output/format.rs
+  - src/commands/notes/body.rs
   - tests/notes_stub_test.rs
   - tests/help_examples_test.rs
-  - docs/api-reference.md
+  - src/api/models.rs
 findings:
   critical: 0
-  warning: 2
-  info: 4
-  total: 6
-status: issues_found
+  warning: 0
+  info: 2
+  total: 2
+status: clean
 ---
 
-# Phase 10: Code Review Report
+# Phase 10: Code Review Report — Final Verification Re-review (iteration 2)
 
-**Reviewed:** 2026-09-03
+**Reviewed:** 2026-09-03T23:02:29Z
 **Depth:** standard
-**Files Reviewed:** 16
-**Status:** issues_found
+**Files Reviewed:** 5 (fix-affected files + cross-referenced models)
+**Status:** clean
 
 ## Summary
 
-Reviewed all phase 10 (notes surface) changes at standard depth: the `Note` model, four client methods, the body resolver, four command handlers, CLI wiring, output truncation, tests, and docs.
+Re-review of the four fix commits (a2e8b8f, 6ce3214, bcc22ec, ffb9242) that resolved the iteration-1 findings. Every fix was verified against current code (not just commit diffs), and the fix surface was re-scanned for regressions.
 
-**Locked contracts — all verified in code, not just tests:**
-- **Body precedence** (`body.rs:37-65`): explicit-source XOR check runs before ANY read (`--body @-` + `--stdin` → `InvalidInput` exit 2, stdin never consumed); `--body` literal > `@file` > `@-` → `--stdin` > TTY prompt; unreadable `@file` → exit 2 with check-the-path hint. ✔
-- **Non-capable entity types** (`commands/notes/mod.rs:45-59`): `resolve_entity_type` is the first statement in all four handlers — exit 2, zero HTTP, valid-types hint. ✔
-- **Hidden `notes get`** (`commands/notes/mod.rs:25-30`): parse-then-error, exit 2 with the no-single-GET hint; `hide = true` keeps it out of help (asserted by both test files). ✔
-- **Edit** (`edit.rs:40-55`): PATCH URL carries only the note ID; no confirmation; `--dry-run` previews the exact PATCH body after body resolution (prompting suppressed under `--dry-run` via `no_input || dry_run`). ✔
-- **Delete** (`delete.rs:34-59`): dry-run intercept → TTY confirm (default false) → `--force`; non-TTY without `--force` → `CliError::Validation` (exit 1, zero HTTP). Matches `templates/delete.rs` / `workflows/delete.rs` verbatim. ✔
-- **List** (`list.rs`, `format.rs:95-108`): `--limit`/`--offset` pass through untouched (server clamps to [1,100]); table-only truncation flattens `\n`/`\r` first, then truncates to 80 chars with ASCII `...` via char-safe `truncate_with_ellipsis`; json/plain/csv keep full raw text (csv crate quotes embedded newlines — RFC-4180 safe); empty-page stderr hint is `--quiet`-suppressed, exit 0. ✔
-- **Note model** (`models.rs:726-749`): serializer-exact — singular `entity_type`, `content`, nullable/`#[serde(default)]` `author_id`, no `deleted_at`, no expand map; `NoteCreate`/`NoteUpdate` serialize to exactly one `content` key (unit-tested). ✔
+**Verification evidence:**
+- `cargo test` fully green: 149 unit tests + all integration suites, including the 4 new regression tests added by the fixes (24 notes stub tests total).
+- `cargo clippy --all-targets`: **zero warnings** in `src/commands/notes/*`. The remaining repo warnings (collapsible_if in batch/activities/docs/init/pipelines/stages/prompt/output, type_complexity in `tests/common/mod.rs:51`, etc.) are all pre-existing files outside phase-10 scope, exactly as characterized in iteration 1. The `notes_stub_test generated 1 warning (1 duplicate)` line resolves to the shared `tests/common/mod.rs` helper — untouched by the fix commits.
+- Let-chains introduced by ffb9242 are stable-Rust legal: crate is edition 2024 (`Cargo.toml:4`) on rustc 1.94.
+- No new Critical or Warning issues introduced. Fix commits touched only `list.rs`, `body.rs`, and the two test files; the body-resolution precedence (XOR source check first, literal > `@file` > `@-` > `--stdin` > prompt) is unchanged and still verified in code at `body.rs:37-72`.
 
-**Verification:** `cargo test` passes in full (149 unit + all integration suites, including the 22 new notes stub tests); no `unwrap()` in new production code; every new error carries an actionable hint; `--dry-run`/`--no-input`/`--quiet` respected throughout; `send_with_retry` only retries on 429 (never processes the first request), so the retried POST cannot duplicate a note.
+## Fix Verdicts
 
-No critical issues. Two warnings and four info items below.
+### WR-01: Empty-page hint fires when `--offset` pages past existing notes — FIXED ✔
 
-## Warnings
+**File:** `src/commands/notes/list.rs:41`
+**Verification:** The hint is now gated on `response.data.is_empty() && response.meta.total == 0 && !ctx.quiet`, exactly as prescribed. The gate is sound, not just test-passing: `ApiListResponse.meta` (`models.rs:31`) and `PaginationMeta.total` (`models.rs:37`) are both required fields with no `#[serde(default)]`, so `total == 0` is reachable **only** when the server explicitly reports an empty collection — a missing meta fails deserialization loudly instead of silently defaulting to 0. The doc comment (`list.rs:21-25`) was updated to match. `render_list` still receives `Some(&response.meta)` (`list.rs:58`), so the pagination footer still renders for paged-past-end pages.
+**Regression test:** `list_empty_page_with_total_above_zero_stays_silent` (`tests/notes_stub_test.rs:226-243`) — stub returns `{data: [], meta: {total: 5, offset: 10, limit: 50}}` with `--offset 10`; asserts exit 0 and no "No notes" on stderr. This test fails against pre-fix code (verified by reading the old condition), so it is a true regression lock.
 
-### WR-01: Empty-page hint is factually wrong when paging past the end
+### WR-02: Brittle `contains("get")` help assertions — FIXED ✔
 
-**File:** `src/commands/notes/list.rs:39-45`
-**Issue:** The hint fires on any empty `response.data` and says "No notes on {type} {id} **yet** — add one with: …". With `--offset` beyond `meta.total` (e.g., 5 notes exist, `--offset 10`), the page is empty but notes DO exist — the message tells the user the parent has no notes and nudges them to create a duplicate. `PaginationMeta.total` is already deserialized (`models.rs:36-40`) and passed to `render_list` but is not used to gate the hint.
-**Fix:** Only claim "no notes yet" when the collection is truly empty; otherwise stay silent (or emit a page-specific message):
+**Files:** `tests/help_examples_test.rs:147`, `tests/notes_stub_test.rs:287`
+**Verification:** Both sites now use `stdout.lines().all(|l| !l.trim().starts_with("get"))` — the exact per-line pattern prescribed (and the sibling templates test's established convention). Clap renders subcommand entries as indented `get  …` lines, which `trim().starts_with("get")` still catches, so the test retains its detection power. Residual theoretical brittleness (a wrapped prose help line beginning with the word "get") is accepted as part of the prescribed sibling pattern; not re-flagged.
 
-```rust
-if response.data.is_empty() && response.meta.total == 0 && !ctx.quiet {
-    eprintln!("No notes on {entity_type} {parent_id} yet — add one with: ...");
-}
-```
+### IN-01: Bare `--body @` yields a confusing empty-path error — FIXED ✔
 
-### WR-02: Brittle bare-substring assertion in help-truthfulness tests
+**File:** `src/commands/notes/body.rs:52-57`
+**Verification:** An explicit `Some("")` match arm now returns `InvalidInput` with detail "`--body @` has no file path" and a hint naming both remedies (`--body @note.md`, `--body @-`). Match-arm ordering is correct: `Some("-")` (stdin) → `Some("")` (bare @) → `Some(path)` (file read) → `None` (literal), so `--body @-` still reads stdin and `--body ""` still falls through to the literal path (server-side validation, per the documented contract). Rejection remains pre-HTTP, exit 2.
+**Regression test:** `add_bare_at_rejects_with_clear_hint_pre_http` (`tests/notes_stub_test.rs:362-375`) — asserts exit 2, presence of "no file path" and "@-", absence of both "Failed to read file ''" and "Connection failed" (proving zero HTTP). Correct and tight.
 
-**File:** `tests/help_examples_test.rs:146-149`, `tests/notes_stub_test.rs:266-269`
-**Issue:** Both files assert `!stdout.contains("get")` on the full `notes --help` output. Any future innocuous copy containing the substring "get" ("gets", "target", "widget", a `--budget` flag example) fails CI with a misleading "must not advertise a get subcommand" panic. The sibling templates test does this correctly with a per-line check (`help_examples_test.rs:118-121`).
-**Fix:** Match the templates-test pattern — assert no help line *starts with* the subcommand name:
+### IN-03: Two clippy `collapsible_if` in new code — FIXED ✔
 
-```rust
-assert!(
-    stdout.lines().all(|l| !l.trim().starts_with("get")),
-    "notes --help must not advertise a get subcommand:\n{stdout}"
-);
-```
+**Files:** `src/commands/notes/body.rs:75-78`, `src/commands/notes/list.rs:72-74`
+**Verification:** Both nested ifs collapsed to let-chains (`cond && let Some(x) = …`). Semantics preserved: the prompt fallback still requires all three conditions before `dialoguer` interaction, and the table-truncation path still only mutates object values. Confirmed via a clean rebuild that clippy emits **zero** warnings for `src/commands/notes/*`. The let-chain syntax requires edition 2024 — verified present (`Cargo.toml:4`) with rustc 1.94, so this is stable-toolchain-safe, not a nightly dependency.
 
-## Info
-
-### IN-01: `--body @` (bare `@`) yields a confusing empty-path error
-
-**File:** `src/commands/notes/body.rs:48-57`
-**Issue:** `"@".strip_prefix('@')` returns `Some("")`, so `read_to_string("")` fails and the user sees `Failed to read file '': …`. Correctly rejected exit 2 pre-HTTP, but the message doesn't explain the problem.
-**Fix:** Add an explicit arm for the empty path: `Some("") => Err(InvalidInput { detail: "`--body @` has no file path".into(), hint: "Use `--body @-` to read stdin or `--body @<file>`.".into() })`.
+## Remaining Info (accepted, carried forward)
 
 ### IN-02: Mutation output diverges from the entity convention
 
 **File:** `src/commands/notes/add.rs:56-72`, `src/commands/notes/edit.rs:57-68`
-**Issue:** Every other entity's create/update (`deals/create.rs:120`, `orgs/create.rs:100`, …) calls `output::render_single` unconditionally, so table/csv/plain users see the full created/updated record. Notes render entity data only for `--format json` and print a one-liner otherwise — a table-mode `notes add` never shows the stored content. This is deliberate (pinned by `notes_stub_test.rs` and the after_help), but it is a UX inconsistency across entities worth a conscious decision.
-**Fix:** Either render the note via `render_single` in non-JSON modes (matching other entities) or document the divergence in `docs/architecture.md`.
-
-### IN-03: New clippy warnings introduced in new code
-
-**File:** `src/commands/notes/body.rs:68-69`, `src/commands/notes/list.rs:70-71`
-**Issue:** Two `clippy::collapsible_if` warnings fire on phase-10 code (`if !no_input && is_terminal() { if let Some(...) }` and `if truncate { if let Object(map) }`). The repo carries pre-existing clippy noise, but new code shouldn't add to it.
-**Fix:** Collapse the conditions, e.g. `if !no_input && std::io::stdin().is_terminal() { if let Some((action, label)) = prompt_context { ... } }` → `if let (false, true, Some((action, label))) = (no_input, std::io::stdin().is_terminal(), prompt_context)` or nest-free `&&` chain with an early structure.
+**Status:** Accepted as designed — notes add/edit render entity data only for `--format json` and a one-liner otherwise, pinned by `notes_stub_test.rs` and the after_help. Divergence from other entities' unconditional `render_single` remains a documented UX decision; revisit if/when the convention is unified codebase-wide.
 
 ### IN-04: Path IDs interpolated into URLs without percent-encoding
 
-**File:** `src/api/mod.rs:1013-1016` (list_notes), `1040-1043` (create_note), `1072-1073` (update_note), `1087-1088` (delete_note)
-**Issue:** `parent_id`/`note_id` are formatted directly into URL paths; an ID containing `/`, `?`, or `#` silently produces a different request (e.g., `notes list deals "../x/notes"` normalizes elsewhere, `d1?limit=999` injects query params). This mirrors the pre-existing pattern used by every other entity, so phase 10 is consistent — but it now exists at 4 more call sites. Security impact is minimal (the user attacks only their own authenticated session); correctness impact is a wrong request with a confusing server error.
-**Fix:** In a future hardening pass, encode path segments codebase-wide, e.g. build URLs with `reqwest::Url::path_segments_mut().push(id)` or `urlencoding::encode`.
+**File:** `src/api/mod.rs` (list_notes/create_note/update_note/delete_note)
+**Status:** Accepted for now — mirrors the pre-existing pattern at every other entity's call sites; a codebase-wide hardening pass (e.g., `Url::path_segments_mut()` or `urlencoding::encode`) is the right vehicle, not a phase-10-local patch.
 
 ---
 
-_Reviewed: 2026-09-03_
+_Reviewed: 2026-09-03T23:02:29Z_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: standard_
+_Iteration: 2 (final verification) — 4/4 prior findings fixed, 0 new Critical/Warning, status clean_
