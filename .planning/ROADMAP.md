@@ -99,7 +99,10 @@ Plans:
   4. User can delete a note by ID with confirmation, bypassed by `--force`
   5. Notes on pipelines/stages/workflows parents (and a `notes get` attempt) are rejected with an actionable hint
 **Notes**: Parallelizable with Phase 9. Top-level `notes` group with entity-type positional — NOT nested ×4 under entities.
-**Plans**: TBD
+**Plans**: 1 plan — 10-01 (single plan: 16 files, under the 17-file 09-02 precedent; models + client + group wiring + list/rejections + body resolver + add/edit/delete + tests + docs)
+
+Plans:
+- [ ] 10-01-PLAN.md — Top-level `notes` group: Note model (serializer-exact), 4 client methods, list/add/edit/delete with body-source precedence (--body > @file > --stdin > prompt), pre-HTTP rejection surfaces (non-capable types, hidden get, multiple sources), templates delete contract, docs + 25 stub tests (NOTE-01, NOTE-02, NOTE-03, NOTE-04)
 
 ### Phase 11: Webhooks, Trash & Audit
 **Goal**: Users can manage automation integrations and recover from mistakes — with admin-gated and irreversible operations failing safe
