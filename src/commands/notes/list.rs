@@ -18,9 +18,11 @@ use crate::output::OutputFormat;
 /// Table mode flattens newlines in content and truncates the cell to ~80
 /// chars so multi-line bodies cannot break the row (T-10-01); json, plain,
 /// and csv keep the full raw text — plain is a machine-readable format like
-/// json. An empty page prints ONE stderr hint (exit 0, suppressed by
-/// --quiet); unlike workflow runs there are no hidden rows server-side, so
-/// no probe request is needed.
+/// json. A page is only EMPTY-COLLECTION (and prints ONE stderr hint, exit
+/// 0, suppressed by --quiet) when `meta.total == 0` — an empty page with
+/// `total > 0` means `--offset` paged past the end, and telling the user
+/// there are "no notes yet" would be false. Unlike workflow runs there are
+/// no hidden rows server-side, so no probe request is needed.
 pub async fn run(ctx: &AppContext, args: &NotesListArgs) -> Result<()> {
     let segment = resolve_entity_type(&args.entity_type)?;
 
@@ -36,7 +38,7 @@ pub async fn run(ctx: &AppContext, args: &NotesListArgs) -> Result<()> {
         .list_notes(segment, &args.parent_id, args.limit, args.offset)
         .await?;
 
-    if response.data.is_empty() && !ctx.quiet {
+    if response.data.is_empty() && response.meta.total == 0 && !ctx.quiet {
         eprintln!(
             "No notes on {entity_type} {parent_id} yet — add one with: pipelite notes add {entity_type} {parent_id} --body \"<text>\"",
             entity_type = args.entity_type,

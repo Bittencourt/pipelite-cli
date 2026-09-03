@@ -222,6 +222,26 @@ fn list_empty_page_hints_and_quiet_suppresses() {
         .stderr(predicate::str::contains("No notes").not());
 }
 
+#[test]
+fn list_empty_page_with_total_above_zero_stays_silent() {
+    // WR-01: `--offset` paged past the end — the page is empty but notes
+    // DO exist (total: 5), so the "No notes yet" hint would be factually
+    // wrong. Exit 0, silent stderr; the empty table still renders.
+    let paged_past_end = serde_json::json!({
+        "data": [],
+        "meta": {"total": 5, "offset": 10, "limit": 50}
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &paged_past_end)]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "list", "deals", "d1", "--offset", "10"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("No notes").not());
+}
+
 // -- SC-5: rejection surfaces (zero HTTP) --
 
 #[test]
