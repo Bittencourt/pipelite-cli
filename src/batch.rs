@@ -65,20 +65,22 @@ impl BatchOutcome {
     }
 }
 
-/// Read stdin fully and parse as JSON array. Returns a CliError::Validation on failure.
+/// Read stdin fully and parse as JSON array. Returns a CliError::InvalidInput
+/// (exit code 2) on failure — the whole input is structurally broken, so no
+/// HTTP call has happened and nothing is mutated.
 ///
 /// Caller must verify stdin is not a terminal before calling this.
 pub fn read_stdin_json<T: serde::de::DeserializeOwned>(entity_hint: &str) -> Result<Vec<T>> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input).map_err(|e| {
-        CliError::Validation {
+        CliError::InvalidInput {
             detail: format!("Could not read stdin: {}", e),
             hint: "Ensure input is piped as UTF-8 text.".to_string(),
         }
     })?;
 
     serde_json::from_str(&input).map_err(|e| {
-        CliError::Validation {
+        CliError::InvalidInput {
             detail: format!("Invalid JSON input: {}", e),
             hint: format!(
                 "Stdin must contain a JSON array of {} objects.",
@@ -101,14 +103,14 @@ pub fn collect_delete_ids(
 ) -> Result<Vec<String>> {
     if stdin {
         if !raw_ids.is_empty() {
-            return Err(CliError::Validation {
+            return Err(CliError::InvalidInput {
                 detail: "--stdin and positional IDs are mutually exclusive".to_string(),
                 hint: "Use either positional IDs or --stdin, not both.".to_string(),
             }
             .into());
         }
         if io::stdin().is_terminal() {
-            return Err(CliError::Validation {
+            return Err(CliError::InvalidInput {
                 detail: "No data on stdin".to_string(),
                 hint: format!(
                     "Pipe JSON data: echo '{example}' | pipelite {cli_entity} delete --stdin"
@@ -118,7 +120,7 @@ pub fn collect_delete_ids(
         }
         let ids: Vec<String> = read_stdin_json("string IDs")?;
         if ids.is_empty() {
-            return Err(CliError::Validation {
+            return Err(CliError::InvalidInput {
                 detail: "Empty ID list".to_string(),
                 hint: "Provide at least one ID to delete.".to_string(),
             }
@@ -269,7 +271,7 @@ where
     F: AsyncFn(String, T, &serde_json::Value) -> Result<serde_json::Value>,
 {
     if io::stdin().is_terminal() {
-        return Err(CliError::Validation {
+        return Err(CliError::InvalidInput {
             detail: "No data on stdin".to_string(),
             hint: format!(
                 "Pipe JSON data: echo '{example}' | pipelite {cli_entity} update --stdin"
@@ -284,7 +286,7 @@ where
     // output — fail loudly instead, consistent with batch delete's
     // "Empty ID list" behavior.
     if items.is_empty() {
-        return Err(CliError::Validation {
+        return Err(CliError::InvalidInput {
             detail: "Empty update list".to_string(),
             hint: "Stdin must contain at least one object with an 'id' field.".to_string(),
         }

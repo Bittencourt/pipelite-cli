@@ -28,7 +28,7 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsUpdateArgs) -> Result<()> {
             || args.nodes.is_some();
 
         if has_flags {
-            return Err(CliError::Validation {
+            return Err(CliError::InvalidInput {
                 detail: "--stdin and individual field flags are mutually exclusive".to_string(),
                 hint: "Use either --stdin or individual flags, not both.".to_string(),
             }

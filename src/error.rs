@@ -28,6 +28,12 @@ pub enum CliError {
 
     #[error("Missing input")]
     MissingInput { detail: String, hint: String },
+
+    /// Structurally invalid user input (invalid JSON, empty list, mutually
+    /// exclusive flags). Maps to exit code 2 so scripts can distinguish
+    /// "whole input broken, nothing ran" from per-item failures (exit 1).
+    #[error("Invalid input")]
+    InvalidInput { detail: String, hint: String },
 }
 
 /// Display a structured error message on stderr.
@@ -48,6 +54,7 @@ pub fn display_error(err: &anyhow::Error, color: bool) {
                 hint,
             } => (cli_err.to_string(), detail, hint),
             CliError::MissingInput { detail, hint } => (cli_err.to_string(), detail, hint),
+            CliError::InvalidInput { detail, hint } => (cli_err.to_string(), detail, hint),
         };
         eprintln!("{}", format_error(&title, detail, hint, color));
     } else {
@@ -61,11 +68,19 @@ pub fn display_error(err: &anyhow::Error, color: bool) {
 
 /// Determine the exit code for an error.
 ///
-/// Returns 2 for clap usage errors (misuse), 1 for everything else.
+/// Returns 2 for clap usage errors (misuse) and structural input errors
+/// (MissingInput, InvalidInput), 1 for everything else — so scripts can
+/// tell "whole input was broken, nothing ran" (2) apart from "some items
+/// failed" (1).
 pub fn exit_code(err: &anyhow::Error) -> i32 {
     if err.downcast_ref::<clap::Error>().is_some() {
         2
-    } else if err.downcast_ref::<CliError>().is_some_and(|e| matches!(e, CliError::MissingInput { .. })) {
+    } else if err.downcast_ref::<CliError>().is_some_and(|e| {
+        matches!(
+            e,
+            CliError::MissingInput { .. } | CliError::InvalidInput { .. }
+        )
+    }) {
         2
     } else {
         1
@@ -195,5 +210,27 @@ mod tests {
     fn exit_code_returns_1_for_runtime_errors() {
         let err = anyhow::anyhow!("runtime error");
         assert_eq!(exit_code(&err), 1);
+    }
+
+    #[test]
+    fn exit_code_returns_2_for_structural_input_errors() {
+        let invalid_input = anyhow::Error::new(CliError::InvalidInput {
+            detail: "Empty update list".to_string(),
+            hint: "Provide at least one object.".to_string(),
+        });
+        assert_eq!(exit_code(&invalid_input), 2);
+
+        let missing_input = anyhow::Error::new(CliError::MissingInput {
+            detail: "missing value".to_string(),
+            hint: "provide a value".to_string(),
+        });
+        assert_eq!(exit_code(&missing_input), 2);
+
+        // Per-item batch failures stay exit 1 (Validation), never 2.
+        let validation = anyhow::Error::new(CliError::Validation {
+            detail: "1 of 2 update operations failed".to_string(),
+            hint: "Review the errors above.".to_string(),
+        });
+        assert_eq!(exit_code(&validation), 1);
     }
 }
