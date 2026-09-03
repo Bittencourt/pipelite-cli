@@ -82,6 +82,22 @@ fn parse_rfc7807(body: &str, status: u16) -> String {
         .unwrap_or_else(|| format!("HTTP {status}"))
 }
 
+/// Per-surface Forbidden hint table.
+///
+/// Keys are the entity/surface names passed to `handle_response` /
+/// `handle_delete_response`. The audit/trash/notes/webhooks entries are
+/// defined now so Phases 10-12 only need to pass a surface key; "general"
+/// covers the ping/init path (no meaningful surface).
+fn forbidden_hint(surface: &str) -> String {
+    match surface {
+        "audit" => "The audit log requires an admin API key.".to_string(),
+        "trash" => "Permanent purge requires an admin API key.".to_string(),
+        "notes" => "You can only modify your own notes (or use an admin key).".to_string(),
+        "webhooks" => "This webhook belongs to another user.".to_string(),
+        _ => "Your API key doesn't have permission for this action.".to_string(),
+    }
+}
+
 impl PipeliteClient {
     /// Create a client from an existing AppConfig.
     pub fn new(config: &AppConfig) -> Result<Self> {
@@ -239,14 +255,24 @@ impl PipeliteClient {
         })
     }
 
-    /// Check if a response status indicates an auth failure.
+    /// Check if a response status indicates an auth or permission failure.
+    ///
+    /// 401 and 403 are deliberately split: 401 means the key is bad (Auth),
+    /// 403 means the key is valid but lacks permission (Forbidden) —
+    /// the ping/init path must not tell users to "check your API key" when
+    /// the server actually rejected their permissions (Pitfall 1).
     fn check_auth_status(&self, status: reqwest::StatusCode, url: &str) -> Result<()> {
-        if status == reqwest::StatusCode::UNAUTHORIZED
-            || status == reqwest::StatusCode::FORBIDDEN
-        {
+        if status == reqwest::StatusCode::UNAUTHORIZED {
             return Err(CliError::Auth {
                 detail: format!("Server returned {} for {}", status, url),
                 hint: "Check your API key. Run `pipelite init` to reconfigure.".to_string(),
+            }
+            .into());
+        }
+        if status == reqwest::StatusCode::FORBIDDEN {
+            return Err(CliError::Forbidden {
+                detail: format!("Server returned 403 Forbidden for {}", url),
+                hint: forbidden_hint("general"),
             }
             .into());
         }
@@ -260,13 +286,19 @@ impl PipeliteClient {
 
     /// Handle an HTTP response, mapping status codes to typed errors.
     ///
-    /// Deserializes the JSON body on success. Maps 401/403 to Auth,
-    /// 404 to NotFound, 422 to Validation, 429 to a rate-limit Api error
-    /// (reached only when the server answered 429 twice — one retry was
-    /// already attempted in `send_with_retry`), and other errors to Api.
+    /// Deserializes the JSON body on success. Maps 401 to Auth and 403 to
+    /// Forbidden (with a per-surface hint), 404 to NotFound, 409 to an Api
+    /// error with an actionable conflict hint, 422 to Validation, 429 to a
+    /// rate-limit Api error (reached only when the server answered 429
+    /// twice — one retry was already attempted in `send_with_retry`), and
+    /// other errors to Api. Error detail comes from `parse_rfc7807`.
+    ///
+    /// `surface` is the entity name the request serves ("deals", "orgs", ...)
+    /// and keys the 403 Forbidden hint table.
     async fn handle_response<T: DeserializeOwned>(
         &self,
         response: reqwest::Response,
+        surface: &'static str,
     ) -> Result<T> {
         let status = response.status();
 
@@ -281,23 +313,35 @@ impl PipeliteClient {
             return Ok(body);
         }
 
-        // Try to extract error detail from response body
+        // Extract error detail from the RFC 7807 problem body.
         let status_code = status.as_u16();
         let error_body = response.text().await.unwrap_or_default();
-        let error_detail = serde_json::from_str::<serde_json::Value>(&error_body)
-            .ok()
-            .and_then(|v| v.get("error").or(v.get("message")).map(|m| m.to_string()))
-            .unwrap_or_else(|| format!("HTTP {}", status_code));
+        let error_detail = parse_rfc7807(&error_body, status_code);
 
         match status_code {
-            401 | 403 => Err(CliError::Auth {
+            401 => Err(CliError::Auth {
                 detail: error_detail,
                 hint: "Check your API key. Run `pipelite init` to reconfigure.".to_string(),
+            }
+            .into()),
+            403 => Err(CliError::Forbidden {
+                detail: error_detail,
+                hint: forbidden_hint(surface),
             }
             .into()),
             404 => Err(CliError::NotFound {
                 detail: error_detail,
                 hint: "The requested resource was not found.".to_string(),
+            }
+            .into()),
+            409 => Err(CliError::Api {
+                status: 409,
+                detail: error_detail,
+                hint: if surface == "workflows" {
+                    "Workflow trigger is inactive — activate it before firing (`pipelite workflows update <id> --active true`)".to_string()
+                } else {
+                    "Resolve the conflict and try again.".to_string()
+                },
             }
             .into()),
             422 => Err(CliError::Validation {
@@ -323,7 +367,14 @@ impl PipeliteClient {
     }
 
     /// Handle a DELETE response that may return 204 No Content.
-    async fn handle_delete_response(&self, response: reqwest::Response) -> Result<()> {
+    ///
+    /// Same status mapping as `handle_response` (including the 403/409
+    /// split) — `surface` keys the Forbidden hint table.
+    async fn handle_delete_response(
+        &self,
+        response: reqwest::Response,
+        surface: &'static str,
+    ) -> Result<()> {
         let status = response.status();
 
         if status.is_success() {
@@ -332,20 +383,32 @@ impl PipeliteClient {
 
         let status_code = status.as_u16();
         let error_body = response.text().await.unwrap_or_default();
-        let error_detail = serde_json::from_str::<serde_json::Value>(&error_body)
-            .ok()
-            .and_then(|v| v.get("error").or(v.get("message")).map(|m| m.to_string()))
-            .unwrap_or_else(|| format!("HTTP {}", status_code));
+        let error_detail = parse_rfc7807(&error_body, status_code);
 
         match status_code {
-            401 | 403 => Err(CliError::Auth {
+            401 => Err(CliError::Auth {
                 detail: error_detail,
                 hint: "Check your API key. Run `pipelite init` to reconfigure.".to_string(),
+            }
+            .into()),
+            403 => Err(CliError::Forbidden {
+                detail: error_detail,
+                hint: forbidden_hint(surface),
             }
             .into()),
             404 => Err(CliError::NotFound {
                 detail: error_detail,
                 hint: "The requested resource was not found.".to_string(),
+            }
+            .into()),
+            409 => Err(CliError::Api {
+                status: 409,
+                detail: error_detail,
+                hint: if surface == "workflows" {
+                    "Workflow trigger is inactive — activate it before firing (`pipelite workflows update <id> --active true`)".to_string()
+                } else {
+                    "Resolve the conflict and try again.".to_string()
+                },
             }
             .into()),
             429 => Err(CliError::Api {
@@ -374,7 +437,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "deals").await
     }
 
     /// Get a single deal by ID.
@@ -389,7 +452,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response, "deals").await?;
         Ok(wrapper.data)
     }
 
@@ -398,7 +461,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/deals", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response, "deals").await?;
         Ok(wrapper.data)
     }
 
@@ -407,7 +470,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/deals/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Deal> = self.handle_response(response, "deals").await?;
         Ok(wrapper.data)
     }
 
@@ -416,7 +479,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/deals/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "deals").await
     }
 
     /// Batch create multiple deals.
@@ -424,7 +487,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/deals/batch", self.base_url);
         let request = self.client.post(&url).json(deals);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "deals").await
     }
 
     // ── Organizations ───────────────────────────────────────────────
@@ -438,7 +501,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "orgs").await
     }
 
     /// Get a single organization by ID.
@@ -453,7 +516,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response, "orgs").await?;
         Ok(wrapper.data)
     }
 
@@ -462,7 +525,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/organizations", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response, "orgs").await?;
         Ok(wrapper.data)
     }
 
@@ -471,7 +534,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/organizations/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Organization> = self.handle_response(response, "orgs").await?;
         Ok(wrapper.data)
     }
 
@@ -480,7 +543,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/organizations/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "orgs").await
     }
 
     /// Batch create multiple organizations.
@@ -488,7 +551,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/organizations/batch", self.base_url);
         let request = self.client.post(&url).json(orgs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "orgs").await
     }
 
     // ── People ──────────────────────────────────────────────────────
@@ -502,7 +565,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "people").await
     }
 
     /// Get a single person by ID.
@@ -517,7 +580,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Person> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Person> = self.handle_response(response, "people").await?;
         Ok(wrapper.data)
     }
 
@@ -526,7 +589,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/people", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Person> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Person> = self.handle_response(response, "people").await?;
         Ok(wrapper.data)
     }
 
@@ -535,7 +598,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/people/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Person> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Person> = self.handle_response(response, "people").await?;
         Ok(wrapper.data)
     }
 
@@ -544,7 +607,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/people/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "people").await
     }
 
     /// Batch create multiple people.
@@ -552,7 +615,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/people/batch", self.base_url);
         let request = self.client.post(&url).json(people);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "people").await
     }
 
     // ── Activities ─────────────────────────────────────────────────
@@ -566,7 +629,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "activities").await
     }
 
     /// Get a single activity by ID.
@@ -581,7 +644,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response, "activities").await?;
         Ok(wrapper.data)
     }
 
@@ -590,7 +653,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/activities", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response, "activities").await?;
         Ok(wrapper.data)
     }
 
@@ -599,7 +662,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/activities/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response, "activities").await?;
         Ok(wrapper.data)
     }
 
@@ -611,7 +674,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/activities/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Activity> = self.handle_response(response, "activities").await?;
         Ok(wrapper.data)
     }
 
@@ -620,7 +683,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/activities/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "activities").await
     }
 
     // ── Pipelines ─────────────────────────────────────────────────
@@ -634,7 +697,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "pipelines").await
     }
 
     /// Get a single pipeline by ID.
@@ -649,7 +712,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response, "pipelines").await?;
         Ok(wrapper.data)
     }
 
@@ -658,7 +721,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/pipelines", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response, "pipelines").await?;
         Ok(wrapper.data)
     }
 
@@ -667,7 +730,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/pipelines/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Pipeline> = self.handle_response(response, "pipelines").await?;
         Ok(wrapper.data)
     }
 
@@ -676,7 +739,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/pipelines/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "pipelines").await
     }
 
     // ── Stages ────────────────────────────────────────────────────
@@ -690,7 +753,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "stages").await
     }
 
     /// Get a single stage by ID.
@@ -705,7 +768,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response, "stages").await?;
         Ok(wrapper.data)
     }
 
@@ -714,7 +777,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/stages", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response, "stages").await?;
         Ok(wrapper.data)
     }
 
@@ -723,7 +786,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/stages/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Stage> = self.handle_response(response, "stages").await?;
         Ok(wrapper.data)
     }
 
@@ -732,7 +795,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/stages/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "stages").await
     }
 
     // -- Workflows --
@@ -746,7 +809,7 @@ impl PipeliteClient {
         let query_pairs = params.to_query_pairs();
         let request = self.client.get(&url).query(&query_pairs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response).await
+        self.handle_response(response, "workflows").await
     }
 
     /// Get a single workflow by ID.
@@ -761,7 +824,7 @@ impl PipeliteClient {
             req = req.query(&[("expand", expand.join(","))]);
         }
         let response = self.send_with_retry(req).await?;
-        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response, "workflows").await?;
         Ok(wrapper.data)
     }
 
@@ -770,7 +833,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/workflows", self.base_url);
         let request = self.client.post(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response, "workflows").await?;
         Ok(wrapper.data)
     }
 
@@ -779,7 +842,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/workflows/{}", self.base_url, id);
         let request = self.client.put(&url).json(data);
         let response = self.send_with_retry(request).await?;
-        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response).await?;
+        let wrapper: ApiSingleResponse<Workflow> = self.handle_response(response, "workflows").await?;
         Ok(wrapper.data)
     }
 
@@ -788,7 +851,7 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/workflows/{}", self.base_url, id);
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
-        self.handle_delete_response(response).await
+        self.handle_delete_response(response, "workflows").await
     }
 
     /// Trigger a workflow run.
@@ -807,7 +870,7 @@ impl PipeliteClient {
         }
         let response = self.send_with_retry(req).await?;
         let wrapper: ApiSingleResponse<WorkflowRunResponse> =
-            self.handle_response(response).await?;
+            self.handle_response(response, "workflows").await?;
         Ok(wrapper.data)
     }
 
