@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 
-/// Flattened passthrough map capturing `--expand` relation payloads (owner,
-/// organization, person, stage, type, deal, stages, pipeline) and any other
-/// server-emitted keys beyond the typed fields. Added to each Base model so
-/// expanded data survives deserialization and re-renders at the top level of
-/// JSON output; table/csv/plain render it when named via `--fields`.
-///
-/// `#[serde(default)]` is REQUIRED: flatten always matches, so payloads
-/// without extra keys fail deserialization without it (missing-key error).
+// Flattened passthrough map capturing `--expand` relation payloads (owner,
+// organization, person, stage, type, deal, stages, pipeline) and any other
+// server-emitted keys beyond the typed fields. Added to each Base model so
+// expanded data survives deserialization and re-renders at the top level of
+// JSON output; table/csv/plain render it when named via `--fields`.
+//
+// `#[serde(default)]` is REQUIRED: flatten always matches, so payloads
+// without extra keys fail deserialization without it (missing-key error).
+// (File-level convention note — kept as plain comments so rustdoc does not
+// attach it to the next item, e.g. PingResponse.)
 
 /// Response from the server health/ping endpoint.
 #[derive(Debug, Deserialize)]
