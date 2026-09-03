@@ -492,6 +492,8 @@ pub enum WorkflowRunStatus {
 
 impl WorkflowRunStatus {
     /// The lowercase wire value — renderers quote strings, never re-serialize.
+    /// (Wired into user-facing rendering by the 09-02 watch loop.)
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Pending => "pending",
@@ -544,6 +546,7 @@ impl WorkflowRunStepStatus {
 /// mapping guarantees a future server-side terminal state can never hang a
 /// watch loop. Pending/Running/Waiting are mid-flight (Waiting polls on:
 /// steps' resume_at shows why it waits).
+#[allow(dead_code)]
 pub fn run_status_is_terminal(s: &WorkflowRunStatus) -> bool {
     matches!(
         s,
@@ -558,6 +561,7 @@ pub fn run_status_is_terminal(s: &WorkflowRunStatus) -> bool {
 /// failed so a future `cancelled`-style terminal failure cannot silently
 /// flip exit codes. Non-terminal states are unreachable in the watch loop
 /// and exit 0.
+#[allow(dead_code)]
 pub fn watch_exit_code(s: &WorkflowRunStatus, exit_status_flag: bool) -> i32 {
     match s {
         WorkflowRunStatus::Completed => 0,
@@ -631,9 +635,14 @@ pub struct WorkflowRunDetail {
 }
 
 /// Human-readable duration between a step's start and completion
-/// (e.g. "3 seconds"). Empty when either timestamp is missing or unparseable —
-/// pending/running steps have no duration yet, and rendering must never panic
-/// on malformed server timestamps.
+/// (e.g. "5 minutes"; sub-minute deltas render as "now"). Empty when either
+/// timestamp is missing or unparseable — pending/running steps have no
+/// duration yet, and rendering must never panic on malformed server
+/// timestamps.
+///
+/// Uses `to_text_en(Rough, Present)` instead of `Display`: Display picks the
+/// tense relative to *now* (positive deltas render "in 5 minutes"), which is
+/// wrong for a plain duration.
 pub fn step_duration(started_at: &Option<String>, completed_at: &Option<String>) -> String {
     let (Some(s), Some(c)) = (started_at, completed_at) else {
         return String::new();
@@ -642,7 +651,10 @@ pub fn step_duration(started_at: &Option<String>, completed_at: &Option<String>)
         chrono::DateTime::parse_from_rfc3339(s),
         chrono::DateTime::parse_from_rfc3339(c),
     ) {
-        (Ok(start), Ok(end)) => chrono_humanize::HumanTime::from(end - start).to_string(),
+        (Ok(start), Ok(end)) => chrono_humanize::HumanTime::from(end - start).to_text_en(
+            chrono_humanize::Accuracy::Rough,
+            chrono_humanize::Tense::Present,
+        ),
         _ => String::new(),
     }
 }
@@ -1524,6 +1536,12 @@ mod tests {
         let completed = Some("2026-01-01T00:00:03Z".to_string());
         let duration = step_duration(&started, &completed);
         assert!(!duration.is_empty(), "3s step must render a duration");
+        // Present-tense duration text, not the relative-to-now Display
+        // (which would render a positive delta as "in 3 seconds").
+        assert_eq!(duration, "now", "sub-minute deltas render as now");
+
+        let five_min = Some("2026-01-01T00:05:00Z".to_string());
+        assert_eq!(step_duration(&started, &five_min), "5 minutes");
     }
 
     #[test]
