@@ -20,6 +20,7 @@ Users can manage their entire Pipelite CRM from the terminal — fast, scriptabl
 - ✓ Configuration via ~/.pipelite/config.toml — v1.0
 - ✓ Batch update (`--stdin`, JSON array) and batch delete (multi-ID / `--stdin`) across all 7 entities, with continue-on-error reporting, exit-code contract (0 ok / 1 item-failed / 2 structural), --force gating on batch deletes, and 429 Retry-After retry — Validated in Phase 7: Batch Operations
 - ✓ Truthful error layer (RFC 7807 errors[]/detail parsing, Forbidden ≠ Auth with per-surface hints, 409 activation hint), honest models (fractional positions, --expand passthrough), honest lists (stages all-mode, --all ceiling warning), dead flags removed with exit-2 hints + v1.1 changelog — Validated in Phase 8: Foundations
+- ✓ Workflow runs observation (list with --status + --include-dry-run, flattened step detail, --watch with --exit-status script contract), workflow templates CRUD (no-update-by-design, triggers[0] mapping), `docs` OpenAPI fetch (unauthenticated, --save) — Validated in Phase 9: Workflow Runs, Templates & Docs
 - ✓ Shell completions (bash, zsh, fish) with dynamic entity ID completion — v1.0
 - ✓ Local caching with TTL-based invalidation — v1.0
 - ✓ ASCII art splash screen — v1.0
@@ -113,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-03 after Phase 8 (Foundations) completion*
+*Last updated: 2026-09-03 after Phase 9 (Workflow Runs, Templates & Docs) completion*
