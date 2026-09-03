@@ -1,4 +1,14 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
+
+/// Flattened passthrough map capturing `--expand` relation payloads (owner,
+/// organization, person, stage, type, deal, stages, pipeline) and any other
+/// server-emitted keys beyond the typed fields. Added to each Base model so
+/// expanded data survives deserialization and re-renders at the top level of
+/// JSON output; table/csv/plain render it when named via `--fields`.
+///
+/// `#[serde(default)]` is REQUIRED: flatten always matches, so payloads
+/// without extra keys fail deserialization without it (missing-key error).
 
 /// Response from the server health/ping endpoint.
 #[derive(Debug, Deserialize)]
@@ -37,12 +47,18 @@ pub struct Deal {
     pub organization_id: Option<String>,
     pub person_id: Option<String>,
     pub owner_id: String,
-    pub position: Option<i64>,
+    /// Server emits fractional values (Postgres numeric + parseFloat) —
+    /// f64 since v1.1; whole numbers render as `10000.0` (documented nuance).
+    /// NOTE: `custom_field_definitions.position` is `numeric(20,10)` + parseFloat
+    /// too — its Phase 12 model (CFLD-01) must be f64 from birth.
+    pub position: Option<f64>,
     pub expected_close_date: Option<String>,
     pub notes: Option<String>,
     pub custom_fields: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new deal.
@@ -109,6 +125,8 @@ pub struct Organization {
     pub custom_fields: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new organization.
@@ -162,6 +180,8 @@ pub struct Person {
     pub custom_fields: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new person.
@@ -226,6 +246,8 @@ pub struct Activity {
     pub custom_fields: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new activity.
@@ -284,6 +306,8 @@ pub struct Pipeline {
     pub owner_id: String,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new pipeline.
@@ -324,9 +348,13 @@ pub struct Stage {
     pub color: Option<String>,
     #[serde(rename = "type")]
     pub stage_type: String,
-    pub position: i64,
+    /// Integer on the server today (`integer` column) — f64 is forward-safe
+    /// and keeps stage rendering consistent with Deal.position.
+    pub position: f64,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new stage.
@@ -380,6 +408,8 @@ pub struct Workflow {
     pub created_by: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
+    pub expanded: Map<String, serde_json::Value>,
 }
 
 /// Payload for creating a new workflow.
