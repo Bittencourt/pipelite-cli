@@ -366,6 +366,68 @@ Generate shell completion scripts.
 
 ---
 
+## `pipelite notes`
+
+Notes annotate deals, organizations, people, and activities — the four note-capable entity types. The server orders notes newest first and soft-deletes them; only a note's author or an admin may edit or delete it (403 otherwise, rendered with the registered notes hint).
+
+**No single-note GET:** the server offers no way to fetch one note by ID. Use `notes list <type> <id> --format json` to read a note before editing. A hidden `notes get` subcommand exists only to reject with a hint (exit 2, zero requests).
+
+### `notes list <type> <parent-id>`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--limit` | u64 | `50` | Maximum notes (server caps pages at 100 — iterate `--offset`; there is no `--all`) |
+| `--offset` | u64 | `0` | Pagination offset |
+| `--fields` | string[] | | Select columns |
+
+Valid `<type>` values: `deals`, `orgs`, `people`, `activities` — anything else exits 2 with "notes are only available on deals, orgs, people, activities" before any request. Table output truncates note content to ~80 characters on one line (newlines flattened); `--format json` (or plain) prints the full raw text. An empty page prints one stderr hint, suppressed by `--quiet`.
+
+```bash
+pipelite notes list deals d1
+pipelite notes list deals d1 --limit 100 --format json
+pipelite notes list deals d1 --format json   # view before editing
+```
+
+### `notes add <type> <parent-id>`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--body` | string | Note text, `@filepath` to read from a file, or `@-` to read stdin |
+| `--stdin` | flag | Read the note text from stdin |
+
+The body comes from EXACTLY ONE source: `--body` (literal, `@file`, or `@-`), `--stdin`, or an interactive prompt on a TTY. Two sources (including `--body @-` together with `--stdin`) exit 2 before any request; an unreadable `@file` exits 2 with a check-the-path hint. Whitespace-only content is rejected by the server with a 422 (no client-side trim).
+
+```bash
+pipelite notes add deals d1 --body "Followed up"
+pipelite notes add deals d1 --body @note.md
+echo "Note text" | pipelite notes add deals d1 --stdin
+```
+
+### `notes edit <type> <parent-id> <note-id>`
+
+Same body options as `add`. The request carries only the note ID — `<type>` and `<parent-id>` are required by the grammar but otherwise unused. No confirmation (editing is non-destructive); `--dry-run` previews the PATCH. There is no single-note GET — view the current content first with `notes list <type> <id> --format json`.
+
+```bash
+pipelite notes edit deals d1 n1 --body "Updated text"
+pipelite notes edit deals d1 n1 --body @note.md
+```
+
+### `notes delete <type> <parent-id> <note-id>`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--force` | flag | Skip confirmation prompt (required in non-interactive mode) |
+
+Deletion is a soft delete and requires confirmation unless `--force` is given; without a TTY, `--force` is required (exit 1 refusal otherwise, before any request). `--dry-run` previews the request. Re-deleting a deleted note fails with 404 ("Note not found").
+
+```bash
+pipelite notes delete deals d1 n1
+pipelite notes delete deals d1 n1 --force
+pipelite notes delete deals d1 n1 --dry-run
+```
+
+---
+
 ## Error Codes
 
 | Code | Category | Description |

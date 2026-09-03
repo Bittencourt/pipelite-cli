@@ -120,3 +120,50 @@ fn templates_help_has_examples_and_no_update_advertisement() {
         "templates --help must not advertise an update subcommand:\n{stdout}"
     );
 }
+
+// The `notes` help page must be truthful (ROADMAP SC-5): it carries
+// examples, states that the server has no single-note GET, does NOT
+// advertise a `get` subcommand (hidden parse-then-error variant), and does
+// NOT advertise an `--all` flag (server page cap is 100 — iterate --offset).
+#[test]
+fn notes_help_truthful() {
+    let output = Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["notes", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Examples:"), "help: {stdout}");
+    assert!(stdout.contains("no single-note GET"), "help: {stdout}");
+    assert!(stdout.contains("--body"), "help: {stdout}");
+    assert!(
+        !stdout.contains("--all"),
+        "notes --help must not advertise an --all flag:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("get"),
+        "notes --help must not advertise a get subcommand:\n{stdout}"
+    );
+}
+
+// Every notes subcommand help page carries Examples (after_help).
+#[test]
+fn notes_subcommands_have_examples() {
+    for args in [
+        ["notes", "list"],
+        ["notes", "add"],
+        ["notes", "edit"],
+        ["notes", "delete"],
+    ] {
+        Command::cargo_bin("pipelite")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Examples:"));
+    }
+}
