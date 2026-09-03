@@ -53,3 +53,33 @@ fn config_show_help_has_examples() {
         .success()
         .stdout(predicate::str::contains("Examples:"));
 }
+
+// The `workflows runs` help pages must each carry Examples (after_help):
+// `pipelite workflows runs --help`, `pipelite workflows runs list --help`
+// (advertising --include-dry-run), and `pipelite workflows runs get --help`
+// (advertising the required --workflow flag).
+#[test]
+fn workflows_runs_help_has_examples() {
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["workflows", "runs", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Examples:"));
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["workflows", "runs", "list", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Examples:"))
+        .stdout(predicate::str::contains("--include-dry-run"));
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["workflows", "runs", "get", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Examples:"))
+        .stdout(predicate::str::contains("--workflow"));
+}
