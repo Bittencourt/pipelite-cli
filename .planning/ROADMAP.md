@@ -81,7 +81,12 @@ Plans:
   4. User can list/get/create/delete workflow templates — and correctly finds no `update` subcommand (the server has none)
   5. `pipelite docs [--save FILE]` fetches the OpenAPI 3.1 spec without authentication
 **Notes**: Parallelizable with Phase 10 (mutually independent read surfaces).
-**Plans**: TBD
+**Plans**: 3 plans — 09-01 (runs list/detail), 09-02 (watch + templates), 09-03 (docs)
+
+Plans:
+- [ ] 09-01-PLAN.md — Workflow runs: models + API client (list/detail, status/dry_run params), `workflows runs list/get` with required `--workflow`, steps table + JSON passthrough, empty-result hints (WRUN-01, WRUN-02)
+- [ ] 09-02-PLAN.md — `--watch`/`--exit-status` poll loop on run detail + top-level `templates` group (list/get/create with triggers[0] mapping/hidden update/delete with confirmation) (WRUN-03, TPL-01)
+- [ ] 09-03-PLAN.md — `docs` command: unauthenticated OpenAPI fetch (headerless client), `--save` with overwrite refusal, error-layer hints (DOCS-01)
 
 ### Phase 10: Notes
 **Goal**: Users can attach, revise, and remove notes on deals, organizations, people, and activities — the first parent-scoped sub-resource
@@ -147,7 +152,7 @@ Plans:
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
 | 7. Batch Operations | v1.1 | 5/5 | Complete    | 2026-09-03 |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
-| 9. Workflow Runs, Templates & Docs | v1.1 | 0/TBD | Not started | - |
+| 9. Workflow Runs, Templates & Docs | v1.1 | 0/3 | Planning complete | - |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
 | 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |
