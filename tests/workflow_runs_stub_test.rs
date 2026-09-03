@@ -327,3 +327,252 @@ fn runs_get_without_workflow_fails_pre_http_with_exit_2() {
         .code(2)
         .stderr(predicate::str::contains("Connection failed").not());
 }
+
+// -- WRUN-03: --watch polling (09-02) --
+
+/// Detail body with the run status/error swapped for watch fixtures —
+/// mirrors the 09-01 detail fixture shape (same run + step fields).
+fn detail_body_status(status: &str, error: &str) -> String {
+    serde_json::json!({
+        "data": {
+            "id": "run_watch_1",
+            "workflow_id": "wf_1",
+            "status": status,
+            "trigger_data": {"dealId": "deal_001"},
+            "error": if error.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::Value::String(error.to_string())
+            },
+            "depth": 0,
+            "dry_run": false,
+            "current_node_id": null,
+            "started_at": "2026-01-01T00:00:00Z",
+            "completed_at": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "steps": [
+                {
+                    "id": "step_1",
+                    "run_id": "run_watch_1",
+                    "node_id": "fetch_deal",
+                    "status": "completed",
+                    "input": {"dealId": "deal_001"},
+                    "output": {"ok": true},
+                    "error": null,
+                    "resume_at": null,
+                    "started_at": "2026-01-01T00:00:00Z",
+                    "completed_at": "2026-01-01T00:00:05Z",
+                    "created_at": "2026-01-01T00:00:00Z"
+                }
+            ]
+        }
+    })
+    .to_string()
+}
+
+#[test]
+fn watch_polls_until_terminal_and_renders_final_detail() {
+    // Each poll consumes one scripted connection: running, running, completed.
+    let (url, counter, _heads) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("completed", "")),
+    ]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .success() // default exit 0 on ANY terminal state
+        .stdout(
+            // The final state renders like normal detail (shared renderer).
+            predicate::str::contains("run_watch_1")
+                .and(predicate::str::contains("completed"))
+                .and(predicate::str::contains("fetch_deal")),
+        );
+
+    assert_eq!(counter.load(Ordering::SeqCst), 3, "one request per poll");
+}
+
+#[test]
+fn watch_prints_exactly_one_transition_line_per_change() {
+    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("completed", "")),
+    ]);
+
+    let output = common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert_eq!(
+        stderr.matches("run run_watch_1: running → completed").count(),
+        1,
+        "exactly one transition line: {stderr}"
+    );
+    assert!(
+        !stderr.contains("running → running"),
+        "no line for running → running: {stderr}"
+    );
+    assert_eq!(
+        stderr.matches('→').count(),
+        1,
+        "the first observation prints nothing: {stderr}"
+    );
+}
+
+#[test]
+fn watch_quiet_suppresses_transition_lines() {
+    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("completed", "")),
+    ]);
+
+    // -q is a global flag — placed before the subcommand.
+    common::cmd_with_server(&url)
+        .args([
+            "-q",
+            "workflows",
+            "runs",
+            "get",
+            "run_watch_1",
+            "--workflow",
+            "wf_1",
+            "--watch",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("→").not());
+}
+
+#[test]
+fn watch_default_exits_zero_on_failed_run() {
+    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("failed", "boom")),
+    ]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .code(0);
+}
+
+#[test]
+fn watch_exit_status_maps_failed_to_exit_1() {
+    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("failed", "boom")),
+    ]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows",
+            "runs",
+            "get",
+            "run_watch_1",
+            "--workflow",
+            "wf_1",
+            "--watch",
+            "--exit-status",
+        ])
+        .assert()
+        .code(1);
+}
+
+#[test]
+fn watch_keeps_polling_through_waiting() {
+    // waiting is NOT terminal — watch keeps polling (steps' resume_at shows
+    // why it waits).
+    let (url, counter, _heads) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("waiting", "")),
+        (200, &detail_body_status("completed", "")),
+    ]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .success();
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        3,
+        "waiting polls — not terminal"
+    );
+}
+
+#[test]
+fn watch_on_already_terminal_run_makes_one_request() {
+    let (url, counter, _heads) =
+        common::spawn_head_capturing_stub_server(&[(200, &detail_body_status("completed", ""))]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("run_watch_1"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "terminal: single fetch");
+}
+
+// Ctrl-C during watch: NO handler is installed (locked decision), so the
+// default SIGINT disposition kills the process mid-poll — shells report
+// exit 130 (128 + SIGINT=2). assert_cmd::Command::spawn is private in 2.2.0,
+// so this builds a std::process::Command with the same hermetic env as
+// common::cmd_with_server.
+#[test]
+#[cfg(unix)]
+fn watch_sigint_terminates_the_child_with_signal_2() {
+    use std::os::unix::process::ExitStatusExt;
+
+    // Several running responses so the child is guaranteed mid-poll when
+    // the signal arrives.
+    let running = detail_body_status("running", "");
+    let script: Vec<(u16, &str)> = vec![(200, running.as_str()); 10];
+    let (url, _counter, _heads) = common::spawn_head_capturing_stub_server(&script);
+
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_pipelite"))
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .env("PIPELITE_URL", &url)
+        .env("PIPELITE_SERVER_URL", &url)
+        .env("PIPELITE_API_KEY", "fake-test-key")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("spawn pipelite --watch");
+
+    // Let the child make its first poll and enter the fixed 2s sleep.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
+    // Default SIGINT disposition: terminate. (If the child already exited,
+    // kill fails harmlessly and the assertion below reports the real status.)
+    let _ = std::process::Command::new("kill")
+        .args(["-INT", &child.id().to_string()])
+        .status()
+        .expect("run kill");
+
+    let status = child.wait().expect("wait for watched child");
+    assert_eq!(
+        status.signal(),
+        Some(2),
+        "expected death by SIGINT (shells report 130), got {status:?}"
+    );
+}
