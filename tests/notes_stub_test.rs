@@ -36,6 +36,10 @@ fn note_json(id: &str, entity_type: &str, entity_id: &str, content: &str) -> ser
     })
 }
 
+fn note_envelope(note: serde_json::Value) -> String {
+    serde_json::json!({ "data": note }).to_string()
+}
+
 fn notes_list_body(notes: Vec<serde_json::Value>) -> String {
     let total = notes.len();
     serde_json::json!({
@@ -54,6 +58,47 @@ fn parent_404(label: &str) -> String {
         "detail": format!("{label} not found")
     })
     .to_string()
+}
+
+/// Verified server 403 shape (author-or-admin gate, item routes).
+fn forbidden_403() -> String {
+    serde_json::json!({
+        "type": "https://api.pipelite.app/errors/FORBIDDEN",
+        "title": "Forbidden",
+        "status": 403,
+        "detail": "You don't have access to this resource"
+    })
+    .to_string()
+}
+
+/// Verified server 422 shape: errors[] carries the real info.
+fn content_422() -> String {
+    serde_json::json!({
+        "type": "https://api.pipelite.app/errors/VALIDATION_ERROR",
+        "title": "Validation Error",
+        "status": 422,
+        "detail": "Request validation failed",
+        "errors": [{"field": "content", "code": "too_small", "message": "Note content is required"}]
+    })
+    .to_string()
+}
+
+/// Verified note 404 shape (missing or soft-deleted note).
+fn note_404() -> String {
+    serde_json::json!({
+        "type": "https://api.pipelite.app/errors/ENTITY_NOT_FOUND",
+        "title": "Not Found",
+        "status": 404,
+        "detail": "Note not found"
+    })
+    .to_string()
+}
+
+/// The raw body of the LAST captured request (split at the first \r\n\r\n).
+fn last_captured_body(bodies: &std::sync::Mutex<Vec<String>>) -> String {
+    let guard = bodies.lock().expect("bodies lock");
+    let last = guard.last().expect("at least one captured request");
+    last.split("\r\n\r\n").nth(1).unwrap_or("").to_string()
 }
 
 // -- list (NOTE-01) --
@@ -222,4 +267,313 @@ fn get_hidden_variant_rejects_and_help_hides_it() {
         !stdout.contains("get"),
         "notes --help must not advertise a get subcommand:\n{stdout}"
     );
+}
+
+// -- add (NOTE-02): body source matrix and the exact wire body --
+
+#[test]
+fn add_body_flag_posts_exactly_the_content_key() {
+    let (url, counter, heads, bodies) = common::spawn_head_capturing_stub_server(&[(201,
+        &note_envelope(note_json("n_new", "deal", "d1", "hello from flag")))]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "add", "deals", "d1", "--body", "hello from flag"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("n_new"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let heads = heads.lock().expect("heads lock");
+    assert!(
+        heads[0].contains("post /api/v1/deals/d1/notes"),
+        "wire head: {}",
+        heads[0]
+    );
+    // Pitfall 2: the wire field is `content` (not `body`) and it is the
+    // ONLY key the CLI sends.
+    let posted: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("POST body is JSON");
+    assert_eq!(
+        posted,
+        serde_json::json!({"content": "hello from flag"}),
+        "wire body must be exactly one content key: {posted}"
+    );
+}
+
+#[test]
+fn add_body_at_file_reads_the_file_text() {
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(201,
+        &note_envelope(note_json("n_new", "deal", "d1", "from file")))]);
+
+    let file = tempfile::Builder::new().suffix(".md").tempfile().expect("tempfile");
+    std::fs::write(file.path(), "from file").expect("write tempfile");
+
+    common::cmd_with_server(&url)
+        .args([
+            "notes",
+            "add",
+            "deals",
+            "d1",
+            "--body",
+            &format!("@{}", file.path().display()),
+        ])
+        .assert()
+        .success();
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let posted: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("POST body is JSON");
+    assert_eq!(posted["content"], "from file");
+}
+
+#[test]
+fn add_unreadable_at_file_rejects_pre_http() {
+    common::cmd()
+        .args(["notes", "add", "deals", "d1", "--body", "@/nonexistent/nope.md"])
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("Check that the file path")
+                .and(predicate::str::contains("Connection failed").not()),
+        );
+}
+
+#[test]
+fn add_stdin_reads_stdin_data() {
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(201,
+        &note_envelope(note_json("n_new", "deal", "d1", "from stdin")))]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "add", "deals", "d1", "--stdin"])
+        .write_stdin("from stdin")
+        .assert()
+        .success();
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let posted: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("POST body is JSON");
+    assert_eq!(posted["content"], "from stdin");
+}
+
+#[test]
+fn add_body_at_dash_reads_stdin_data() {
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(201,
+        &note_envelope(note_json("n_new", "deal", "d1", "via at-dash")))]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "add", "deals", "d1", "--body", "@-"])
+        .write_stdin("via at-dash")
+        .assert()
+        .success();
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let posted: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("POST body is JSON");
+    assert_eq!(posted["content"], "via at-dash");
+}
+
+#[test]
+fn add_body_and_stdin_is_two_sources_rejected_pre_http() {
+    common::cmd()
+        .args(["notes", "add", "deals", "d1", "--body", "x", "--stdin"])
+        .write_stdin("ignored")
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("Multiple note body sources")
+                .and(predicate::str::contains("exactly one"))
+                .and(predicate::str::contains("Connection failed").not()),
+        );
+}
+
+#[test]
+fn add_at_dash_with_stdin_is_two_sources_rejected_pre_http() {
+    // Open question 3: --body @- and --stdin are BOTH stdin-backed — two
+    // explicit sources, rejected before any read (Pitfall 7).
+    common::cmd()
+        .args(["notes", "add", "deals", "d1", "--body", "@-", "--stdin"])
+        .write_stdin("ignored")
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("Multiple note body sources")
+                .and(predicate::str::contains("Connection failed").not()),
+        );
+}
+
+#[test]
+fn add_no_input_without_source_is_missing_input_pre_http() {
+    common::cmd()
+        .args(["notes", "add", "deals", "d1", "--no-input"])
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("--body")
+                .and(predicate::str::contains("Connection failed").not()),
+        );
+}
+
+#[test]
+fn add_dry_run_previews_the_post_with_zero_http() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(201,
+        &note_envelope(note_json("n", "deal", "d1", "x")))]);
+
+    common::cmd_with_server(&url)
+        .args(["--dry-run", "notes", "add", "deals", "d1", "--body", "preview me"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("POST")
+                .and(predicate::str::contains("/api/v1/deals/d1/notes"))
+                .and(predicate::str::contains("preview me")),
+        );
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "--dry-run makes no requests");
+}
+
+// -- edit (NOTE-03): PATCH by note ID only --
+
+#[test]
+fn edit_patches_the_note_url_with_the_content_body() {
+    let (url, counter, heads, bodies) = common::spawn_head_capturing_stub_server(&[(200,
+        &note_envelope(note_json("n1", "deal", "d1", "new text")))]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "edit", "deals", "d1", "n1", "--body", "new text"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Updated note n1"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let heads = heads.lock().expect("heads lock");
+    assert!(
+        heads[0].contains("patch /api/v1/notes/n1"),
+        "wire head: {}",
+        heads[0]
+    );
+    assert!(
+        !heads[0].contains("/deals/"),
+        "PATCH URL must carry ONLY the note id: {}",
+        heads[0]
+    );
+    let posted: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("PATCH body is JSON");
+    assert_eq!(
+        posted,
+        serde_json::json!({"content": "new text"}),
+        "wire body must be exactly one content key: {posted}"
+    );
+}
+
+#[test]
+fn edit_403_renders_the_registered_notes_hint() {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(403, &forbidden_403())]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "edit", "deals", "d1", "n1", "--body", "x"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("You can only modify your own notes"));
+}
+
+#[test]
+fn edit_whitespace_body_passes_through_and_422_renders_server_message() {
+    // No client-side trim (locked): whitespace-only bodies REACH the server,
+    // and the 422 errors[] message renders via the Phase 8 layer.
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(422, &content_422())]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "edit", "deals", "d1", "n1", "--body", "   "])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("Note content is required"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "body reached the server");
+}
+
+#[test]
+fn edit_dry_run_previews_the_patch_with_zero_http() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(200,
+        &note_envelope(note_json("n1", "deal", "d1", "x")))]);
+
+    common::cmd_with_server(&url)
+        .args(["--dry-run", "notes", "edit", "deals", "d1", "n1", "--body", "preview"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("PATCH")
+                .and(predicate::str::contains("/api/v1/notes/n1")),
+        );
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "--dry-run makes no requests");
+}
+
+// -- delete (NOTE-04): exact templates delete contract --
+
+#[test]
+fn delete_force_against_204_succeeds_with_one_request() {
+    let (url, counter, heads, _bodies) = common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "delete", "deals", "d1", "n1", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Deleted note n1"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let heads = heads.lock().expect("heads lock");
+    assert!(
+        heads[0].contains("delete /api/v1/notes/n1"),
+        "wire head: {}",
+        heads[0]
+    );
+}
+
+#[test]
+fn delete_non_tty_without_force_refuses_with_zero_http() {
+    // Unreachable server + non-TTY stdin: the refusal must fire BEFORE any
+    // HTTP (exit 1 via CliError::Validation).
+    common::cmd()
+        .args(["notes", "delete", "deals", "d1", "n1"])
+        .assert()
+        .code(1)
+        .stderr(
+            predicate::str::contains("--force")
+                .and(predicate::str::contains("Connection failed").not()),
+        );
+}
+
+#[test]
+fn delete_dry_run_previews_with_zero_http() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "delete", "deals", "d1", "n1", "--dry-run"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("/api/v1/notes/n1"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "--dry-run makes no requests");
+}
+
+#[test]
+fn delete_then_redelete_404s_as_not_found() {
+    // Pitfall 5: soft delete is idempotent only under a concurrent race —
+    // a SEQUENTIAL re-delete hits the server 404 ("Note not found") and
+    // renders as the normal NotFound failure path.
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, ""), (404, &note_404())]);
+
+    common::cmd_with_server(&url)
+        .args(["notes", "delete", "deals", "d1", "n1", "--force"])
+        .assert()
+        .success();
+
+    common::cmd_with_server(&url)
+        .args(["notes", "delete", "deals", "d1", "n1", "--force"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("Note not found"));
 }
