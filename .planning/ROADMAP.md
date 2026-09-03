@@ -27,7 +27,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 7: Batch Operations** - Batch update/delete across all 7 entities with a script-friendly exit-code/summary contract (completed 2026-09-02)
 - [x] **Phase 8: Foundations** - Error layer (403/409/RFC 7807), model + pagination fixes, dead-flag removal — shared infrastructure every later phase consumes (completed 2026-09-03)
-- [ ] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch
+- [x] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch (completed 2026-09-03)
 - [ ] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities
 - [ ] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer
 - [ ] **Phase 12: Custom Fields** - Definitions CRUD + type-aware `--custom-field` writing
@@ -86,7 +86,7 @@ Plans:
 Plans:
 - [x] 09-01-PLAN.md — Workflow runs: models + API client (list/detail, status/dry_run params), `workflows runs list/get` with required `--workflow`, steps table + JSON passthrough, empty-result hints (WRUN-01, WRUN-02)
 - [x] 09-02-PLAN.md — `--watch`/`--exit-status` poll loop on run detail + top-level `templates` group (list/get/create with triggers[0] mapping/hidden update/delete with confirmation) (WRUN-03, TPL-01)
-- [ ] 09-03-PLAN.md — `docs` command: unauthenticated OpenAPI fetch (headerless client), `--save` with overwrite refusal, error-layer hints (DOCS-01)
+- [x] 09-03-PLAN.md — `docs` command: unauthenticated OpenAPI fetch (headerless client), `--save` with overwrite refusal, error-layer hints (DOCS-01)
 
 ### Phase 10: Notes
 **Goal**: Users can attach, revise, and remove notes on deals, organizations, people, and activities — the first parent-scoped sub-resource
@@ -152,7 +152,7 @@ Plans:
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
 | 7. Batch Operations | v1.1 | 5/5 | Complete    | 2026-09-03 |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
-| 9. Workflow Runs, Templates & Docs | v1.1 | 2/3 | In Progress|  |
+| 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete   | 2026-09-03 |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
 | 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |

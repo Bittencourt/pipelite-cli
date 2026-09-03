@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: executing
+status: verifying
 stopped_at: Completed 09-02-PLAN.md (watch poll loop + templates stack — 23 new tests, 358 passing)
-last_updated: "2026-09-03T19:51:57.649Z"
+last_updated: "2026-09-03T20:07:46.645Z"
 last_activity: 2026-09-03
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
-  percent: 29
+  completed_plans: 10
+  percent: 43
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 Phase: 9 (workflow-runs-templates-docs) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-03
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [█████████░] 90%
 | 8 | 2 | - | - |
 | Phase 09 P01 | 13 min | 3 tasks | 10 files |
 | Phase 09 P02 | 24 min | 3 tasks | 18 files |
+| Phase 09 P03 | 12 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 9]: watch is a fixed 2s poll, no timeout — default exit 0 on ANY terminal state, --exit-status maps failed/unknown to 1, waiting keeps polling, Ctrl-C = default SIGINT (shell 130)
 - [Phase 9]: templates create resolves the trigger from exactly one source pre-HTTP; --workflow maps triggers[0]->trigger with a quiet-suppressible multi-trigger warning; --stdin posts raw via post_workflow_template_raw (verbatim)
 - [Phase 9]: stub helper is a 4-tuple (heads + full bodies); content-length parses the current request's head — hidden templates update stays parse-then-error exit 2
+- [Phase 9]: docs get_docs builds a local headerless reqwest client — the shared authenticated client leaks the API key via default_headers onto every request; the no-auth contract is wire-tested on the raw request head
+- [Phase 9]: docs --save refuses overwrites pre-HTTP (zero requests, exit 2) unless --force; 404/Api docs errors re-wrap at the command layer preserving server detail with the locked server-version hint; --format accepted but ignored per CONTEXT
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-03T19:51:57.604Z
+Last session: 2026-09-03T20:07:46.616Z
 Stopped at: Completed 09-02-PLAN.md (watch poll loop + templates stack — 23 new tests, 358 passing)
 Resume file: None

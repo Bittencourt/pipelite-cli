@@ -56,7 +56,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Docs
 
-- [ ] **DOCS-01**: User can fetch the server's OpenAPI 3.1 spec (`pipelite docs [--save FILE]`) without authentication
+- [x] **DOCS-01**: User can fetch the server's OpenAPI 3.1 spec (`pipelite docs [--save FILE]`) without authentication
 
 ### Fixes and Foundations
 
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WRUN-02 | Phase 9 | Complete |
 | WRUN-03 | Phase 9 | Complete |
 | TPL-01 | Phase 9 | Complete |
-| DOCS-01 | Phase 9 | Pending |
+| DOCS-01 | Phase 9 | Complete |
 | NOTE-01 | Phase 10 | Pending |
 | NOTE-02 | Phase 10 | Pending |
 | NOTE-03 | Phase 10 | Pending |
