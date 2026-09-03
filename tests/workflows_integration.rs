@@ -281,8 +281,86 @@ fn workflows_list_active_true_filters_client_side_with_warning() {
     assert_eq!(
         counter.load(Ordering::SeqCst),
         1,
-        "single request on the page path"
+        "--active routes through fetch_all; total fits in one 100-batch, so one request"
     );
+}
+
+#[test]
+fn workflows_list_active_covers_all_pages_before_filtering() {
+    // CR-01 regression: --active must cover ALL records, not just the first
+    // page. 150 workflows across 2 fetch_all pages (batch size 100); the only
+    // active rows are "Page One Active" (page 1) and "Page Two Active"
+    // (page 2). The page-2 active row MUST appear in the output and the
+    // request counter MUST show both fetches.
+    let total: u64 = 150;
+    let page_one: Vec<String> = (1..=100usize)
+        .map(|i| {
+            if i == 1 {
+                workflow_json("wf_1", "Page One Active", true)
+            } else {
+                workflow_json(&format!("wf_{i}"), &format!("Filler One {i}"), false)
+            }
+        })
+        .collect();
+    let page_two: Vec<String> = (101..=150usize)
+        .map(|i| {
+            if i == 150 {
+                workflow_json("wf_150", "Page Two Active", true)
+            } else {
+                workflow_json(&format!("wf_{i}"), &format!("Filler Two {i}"), false)
+            }
+        })
+        .collect();
+    let script = [
+        (200, page_body(&page_one, total, 0, 100)),
+        (200, page_body(&page_two, total, 100, 100)),
+    ];
+    let (url, counter) = spawn_stub_server(&script);
+
+    cmd_with_server(&url)
+        .args(["workflows", "list", "--active", "true"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Page One Active"))
+        // The key assertion: an active record beyond page 1 must not be lost.
+        .stdout(predicate::str::contains("Page Two Active"))
+        .stdout(predicate::str::contains("Filler One 2").not())
+        .stderr(predicate::str::contains(
+            "warning: --active filters client-side after fetching all records",
+        ));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "both pages fetched before filtering");
+}
+
+#[test]
+fn workflows_list_active_false_fetches_all_pages_before_filtering() {
+    // --active false follows the same fetch_all route: with 150 records
+    // across 2 pages the filter must see every record (all inactive here, so
+    // all 150 survive) and both fetches must happen.
+    let total: u64 = 150;
+    let page_one: Vec<String> = (1..=100usize)
+        .map(|i| workflow_json(&format!("wf_{i}"), &format!("Filler One {i}"), false))
+        .collect();
+    let page_two: Vec<String> = (101..=150usize)
+        .map(|i| workflow_json(&format!("wf_{i}"), &format!("Filler Two {i}"), false))
+        .collect();
+    let script = [
+        (200, page_body(&page_one, total, 0, 100)),
+        (200, page_body(&page_two, total, 100, 100)),
+    ];
+    let (url, counter) = spawn_stub_server(&script);
+
+    cmd_with_server(&url)
+        .args(["workflows", "list", "--active", "false"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Filler One 2"))
+        .stdout(predicate::str::contains("Filler Two 150"))
+        .stderr(predicate::str::contains(
+            "warning: --active filters client-side after fetching all records",
+        ));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "both pages fetched before filtering");
 }
 
 #[test]

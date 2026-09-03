@@ -9,9 +9,11 @@ use crate::output;
 /// List workflows with pagination.
 ///
 /// The server ignores the `active` query param, so `--active` is applied as a
-/// client-side filter AFTER fetching. When set, one stderr warning is printed
-/// per invocation so scripts can detect the changed semantics (FIX-01).
-/// When --all is set, auto-paginates in batches of 100 up to 1000 records.
+/// client-side filter AFTER fetching. A filtered result is only truthful if it
+/// covers ALL records, so `--active` always auto-paginates via `fetch_all`
+/// (batches of 100, up to 1000 records, with the ceiling warning). One stderr
+/// warning is printed per invocation so scripts can detect the changed
+/// semantics (FIX-01). `--all` alone also auto-paginates.
 pub async fn run(ctx: &AppContext, args: &WorkflowsListArgs) -> Result<()> {
     let config = workflows_table_config();
     let columns: Vec<String> = config
@@ -20,8 +22,11 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsListArgs) -> Result<()> {
         .map(|s| s.to_string())
         .collect();
 
+    // --active is client-side: it must cover ALL records to be truthful
+    // (fetch_all already auto-paginates and prints the 1000-ceiling warning).
     if args.active.is_some() {
         eprintln!("warning: --active filters client-side after fetching all records");
+        return fetch_all(ctx, args, &columns).await;
     }
 
     if args.all {
@@ -31,7 +36,8 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsListArgs) -> Result<()> {
     }
 }
 
-/// Fetch a single page of workflows.
+/// Fetch a single page of workflows (no `--active`: that always routes
+/// through `fetch_all` so the filter covers every record).
 async fn fetch_page(ctx: &AppContext, args: &WorkflowsListArgs, columns: &[String]) -> Result<()> {
     let params = WorkflowsListParams {
         limit: args.limit,
@@ -40,9 +46,7 @@ async fn fetch_page(ctx: &AppContext, args: &WorkflowsListArgs, columns: &[Strin
     };
 
     let response = ctx.client.list_workflows(&params).await?;
-
-    let (data, meta) = apply_active_filter(response.data, response.meta, args.active);
-    let items = workflows_to_values(&data)?;
+    let items = workflows_to_values(&response.data)?;
 
     output::render_list(
         &items,
@@ -50,7 +54,7 @@ async fn fetch_page(ctx: &AppContext, args: &WorkflowsListArgs, columns: &[Strin
         columns,
         &args.fields,
         ctx.color,
-        Some(&meta),
+        Some(&response.meta),
     )
 }
 
