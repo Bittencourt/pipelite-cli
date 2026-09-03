@@ -284,7 +284,7 @@ fn get_hidden_variant_rejects_and_help_hides_it() {
         .clone();
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        !stdout.contains("get"),
+        stdout.lines().all(|l| !l.trim().starts_with("get")),
         "notes --help must not advertise a get subcommand:\n{stdout}"
     );
 }

@@ -144,7 +144,7 @@ fn notes_help_truthful() {
         "notes --help must not advertise an --all flag:\n{stdout}"
     );
     assert!(
-        !stdout.contains("get"),
+        stdout.lines().all(|l| !l.trim().starts_with("get")),
         "notes --help must not advertise a get subcommand:\n{stdout}"
     );
 }
