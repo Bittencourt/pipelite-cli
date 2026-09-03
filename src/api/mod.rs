@@ -13,7 +13,8 @@ use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
     DealUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
     PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage, StageCreate,
-    StageUpdate, Workflow, WorkflowCreate, WorkflowRunResponse, WorkflowUpdate,
+    StageUpdate, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse,
+    WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -874,6 +875,50 @@ impl PipeliteClient {
         Ok(wrapper.data)
     }
 
+    /// List the runs of a workflow.
+    ///
+    /// GETs `/api/v1/workflows/{id}/runs?status&dry_run&limit&offset`.
+    /// `status` is forwarded untouched (server validates loosely — an
+    /// invalid status yields an empty page, never an error); `dry_run=true`
+    /// is sent ONLY when opted in (the server hides test runs unless the
+    /// param is exactly "true"). A foreign or missing workflow 404s
+    /// (anti-enumeration) and renders via the workflows-surface NotFound
+    /// mapping — no special casing.
+    pub async fn list_workflow_runs(
+        &self,
+        params: &WorkflowRunsListParams,
+    ) -> Result<ApiListResponse<WorkflowRun>> {
+        let url = format!(
+            "{}/api/v1/workflows/{}/runs",
+            self.base_url, params.workflow_id
+        );
+        let query_pairs = params.to_query_pairs();
+        let request = self.client.get(&url).query(&query_pairs);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "workflows").await
+    }
+
+    /// Get a single workflow run with its steps.
+    ///
+    /// GETs `/api/v1/workflows/{workflow_id}/runs/{run_id}` — the server
+    /// path requires BOTH ids and no run→workflow lookup exists, so callers
+    /// must supply the owning workflow id.
+    pub async fn get_workflow_run(
+        &self,
+        workflow_id: &str,
+        run_id: &str,
+    ) -> Result<WorkflowRunDetail> {
+        let url = format!(
+            "{}/api/v1/workflows/{}/runs/{}",
+            self.base_url, workflow_id, run_id
+        );
+        let request = self.client.get(&url);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<WorkflowRunDetail> =
+            self.handle_response(response, "workflows").await?;
+        Ok(wrapper.data)
+    }
+
     /// Map a reqwest request error to a CliError.
     fn map_request_error(&self, e: reqwest::Error) -> CliError {
         if e.is_timeout() {
@@ -1091,6 +1136,42 @@ impl WorkflowsListParams {
         if let Some(ref expand) = self.expand {
             pairs.push(("expand".to_string(), expand.join(",")));
         }
+
+        pairs
+    }
+}
+
+/// Parameters for listing the runs of one workflow.
+///
+/// `workflow_id` is a URL path segment (`/workflows/{id}/runs`), NEVER a
+/// query pair. `status` passes through untouched (server-side filter).
+/// `include_dry_run` is the ONLY path to test runs: the server hides them
+/// unless `dry_run=true` is sent — the CLI never filters client-side.
+pub struct WorkflowRunsListParams {
+    pub workflow_id: String,
+    pub status: Option<String>,
+    pub include_dry_run: bool,
+    pub limit: u64,
+    pub offset: u64,
+}
+
+impl WorkflowRunsListParams {
+    /// Convert parameters to query string pairs for reqwest.
+    ///
+    /// `status` only when set; `dry_run=true` only when opted in (never when
+    /// false — sending it unconditionally would silently include test runs
+    /// everywhere); limit+offset always.
+    pub fn to_query_pairs(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        if let Some(ref status) = self.status {
+            pairs.push(("status".to_string(), status.clone()));
+        }
+        if self.include_dry_run {
+            pairs.push(("dry_run".to_string(), "true".to_string()));
+        }
+        pairs.push(("limit".to_string(), self.limit.to_string()));
+        pairs.push(("offset".to_string(), self.offset.to_string()));
 
         pairs
     }

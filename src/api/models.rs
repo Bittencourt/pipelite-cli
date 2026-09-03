@@ -467,9 +467,198 @@ pub fn workflows_table_config() -> TableConfig {
     }
 }
 
+// -- Workflow run entities (Phase 9, verified wire shapes) --
+
+/// Status of a workflow run.
+///
+/// Wire values verified against the server enum (schema/workflows.ts):
+/// pending | running | completed | failed | waiting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorkflowRunStatus {
+    Pending,
+    Running,
+    Completed,
+    Failed,
+    Waiting,
+    /// Defensive mapping for an unrecognized future status (e.g. a future
+    /// `cancelled` value): the payload deserializes instead of erroring and
+    /// the status counts as terminal, so a watch loop (09-02) can never hang
+    /// on a status this CLI version does not know. Exit-code mapping mirrors
+    /// Failed under --exit-status (locked CONTEXT decision).
+    #[serde(other)]
+    Unknown,
+}
+
+impl WorkflowRunStatus {
+    /// The lowercase wire value — renderers quote strings, never re-serialize.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Running => "running",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Waiting => "waiting",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+/// Status of a single workflow run step.
+///
+/// Six wire values — note `skipped`, absent from the run-level enum
+/// (schema/workflows.ts).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorkflowRunStepStatus {
+    Pending,
+    Running,
+    Completed,
+    Failed,
+    Skipped,
+    Waiting,
+    /// Defensive mapping for an unrecognized future status — same rationale
+    /// as [`WorkflowRunStatus::Unknown`].
+    #[serde(other)]
+    Unknown,
+}
+
+impl WorkflowRunStepStatus {
+    /// The lowercase wire value.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Running => "running",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
+            Self::Waiting => "waiting",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+/// Whether a run status counts as terminal.
+///
+/// True exactly for Completed | Failed | Unknown — the defensive Unknown
+/// mapping guarantees a future server-side terminal state can never hang a
+/// watch loop. Pending/Running/Waiting are mid-flight (Waiting polls on:
+/// steps' resume_at shows why it waits).
+pub fn run_status_is_terminal(s: &WorkflowRunStatus) -> bool {
+    matches!(
+        s,
+        WorkflowRunStatus::Completed | WorkflowRunStatus::Failed | WorkflowRunStatus::Unknown
+    )
+}
+
+/// Exit code for a finished (terminal) run in the watch command (09-02).
+///
+/// Locked semantics: default watch exits 0 when the run reaches ANY terminal
+/// state (even failed); `--exit-status` maps failed -> 1. Unknown mirrors
+/// failed so a future `cancelled`-style terminal failure cannot silently
+/// flip exit codes. Non-terminal states are unreachable in the watch loop
+/// and exit 0.
+pub fn watch_exit_code(s: &WorkflowRunStatus, exit_status_flag: bool) -> i32 {
+    match s {
+        WorkflowRunStatus::Completed => 0,
+        WorkflowRunStatus::Failed | WorkflowRunStatus::Unknown => {
+            if exit_status_flag {
+                1
+            } else {
+                0
+            }
+        }
+        _ => 0,
+    }
+}
+
+/// A workflow run from the Pipelite CRM API.
+///
+/// Exactly the 11 fields the server serializer emits; the DB columns
+/// `context` and `replayed_from_run_id` never appear on the wire and are
+/// deliberately not modeled.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowRun {
+    pub id: String,
+    pub workflow_id: String,
+    pub status: WorkflowRunStatus,
+    pub trigger_data: Option<serde_json::Value>,
+    pub error: Option<String>,
+    /// Nested-workflow execution depth (child runs are separate rows on the
+    /// child workflow at depth + 1).
+    #[serde(default)]
+    pub depth: i64,
+    /// Test-run marker; the server hides dry runs unless `dry_run=true` is
+    /// sent (default false — all pre-column runs are real runs).
+    #[serde(default)]
+    pub dry_run: bool,
+    pub current_node_id: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub created_at: String,
+}
+
+/// One execution step of a workflow run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowRunStep {
+    pub id: String,
+    pub run_id: String,
+    pub node_id: String,
+    pub status: WorkflowRunStepStatus,
+    /// Arbitrary jsonb payloads (raw CRM record JSON) — rendered only as
+    /// compact JSON in detail views.
+    pub input: Option<serde_json::Value>,
+    pub output: Option<serde_json::Value>,
+    pub error: Option<String>,
+    /// When a waiting step resumes (waiting steps poll on this).
+    pub resume_at: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub created_at: String,
+}
+
+/// A workflow run detail: the run fields flattened at the top level plus the
+/// ordered steps array (server orders steps created_at ASC).
+///
+/// Flatten + default keeps JSON passthrough verbatim (run fields + "steps",
+/// no synthetic wrapper key) and tolerates runs without steps.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowRunDetail {
+    #[serde(flatten)]
+    pub run: WorkflowRun,
+    #[serde(default)]
+    pub steps: Vec<WorkflowRunStep>,
+}
+
+/// Human-readable duration between a step's start and completion
+/// (e.g. "3 seconds"). Empty when either timestamp is missing or unparseable —
+/// pending/running steps have no duration yet, and rendering must never panic
+/// on malformed server timestamps.
+pub fn step_duration(started_at: &Option<String>, completed_at: &Option<String>) -> String {
+    let (Some(s), Some(c)) = (started_at, completed_at) else {
+        return String::new();
+    };
+    match (
+        chrono::DateTime::parse_from_rfc3339(s),
+        chrono::DateTime::parse_from_rfc3339(c),
+    ) {
+        (Ok(start), Ok(end)) => chrono_humanize::HumanTime::from(end - start).to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Default table columns for workflow run list display (error reachable
+/// via --fields).
+pub fn workflow_runs_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["id", "status", "dry_run", "depth", "started_at", "completed_at"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::WorkflowRunsListParams;
     use serde_json::json;
 
     #[test]
@@ -1330,7 +1519,7 @@ mod tests {
     }
 
     #[test]
-    fn step_duration_computes_nonempty_for_parsed_pair() {
+    fn parsed_step_timestamps_yield_nonempty_duration() {
         let started = Some("2026-01-01T00:00:00Z".to_string());
         let completed = Some("2026-01-01T00:00:03Z".to_string());
         let duration = step_duration(&started, &completed);
@@ -1338,7 +1527,7 @@ mod tests {
     }
 
     #[test]
-    fn step_duration_empty_when_either_side_missing_or_garbage() {
+    fn missing_or_garbage_timestamps_yield_empty_duration() {
         let started = Some("2026-01-01T00:00:00Z".to_string());
         assert_eq!(step_duration(&started, &None), "");
         assert_eq!(step_duration(&None, &started), "");
