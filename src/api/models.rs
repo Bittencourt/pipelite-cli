@@ -746,7 +746,218 @@ mod tests {
         assert!(stage.description.is_none());
         assert_eq!(stage.color.as_deref(), Some("#ff0000"));
         assert_eq!(stage.stage_type, "open");
-        assert_eq!(stage.position, 2);
+        assert_eq!(stage.position, 2.0);
+    }
+
+    // -- FIX-03: position fields are f64 (server emits fractional values) --
+
+    #[test]
+    fn deal_fractional_position_deserializes_to_f64() {
+        // The FIX-03 break: deals.position is Postgres numeric + parseFloat —
+        // the server emits fractional values that i64 silently rejected.
+        let json_data = json!({
+            "id": "deal_float",
+            "title": "Fractional Position",
+            "value": null,
+            "stage_id": "stage_001",
+            "organization_id": null,
+            "person_id": null,
+            "owner_id": "user_001",
+            "position": 10010.5,
+            "expected_close_date": null,
+            "notes": null,
+            "custom_fields": null,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let deal: Deal = serde_json::from_value(json_data).unwrap();
+        assert_eq!(deal.position, Some(10010.5));
+    }
+
+    #[test]
+    fn deal_integer_position_token_deserializes_losslessly() {
+        // An integer JSON token (no fractional part) is accepted by f64
+        // losslessly — whole-number positions keep working.
+        let json_data = json!({
+            "id": "deal_int",
+            "title": "Integer Position Token",
+            "value": null,
+            "stage_id": "stage_001",
+            "organization_id": null,
+            "person_id": null,
+            "owner_id": "user_001",
+            "position": 10000,
+            "expected_close_date": null,
+            "notes": null,
+            "custom_fields": null,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let deal: Deal = serde_json::from_value(json_data).unwrap();
+        assert_eq!(deal.position, Some(10000.0));
+    }
+
+    #[test]
+    fn deal_position_renders_as_f64_with_trailing_zero() {
+        // Pitfall 5 pin: serde f64 rendering emits `10000.0` where the
+        // server emitted `10000`. Correct-but-cosmetically-different —
+        // documented in CHANGELOG, NOT hand-rolled away.
+        let json_data = json!({
+            "id": "deal_render",
+            "title": "Rendering Nuance",
+            "value": null,
+            "stage_id": "stage_001",
+            "organization_id": null,
+            "person_id": null,
+            "owner_id": "user_001",
+            "position": 10000,
+            "expected_close_date": null,
+            "notes": null,
+            "custom_fields": null,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let deal: Deal = serde_json::from_value(json_data).unwrap();
+        let rendered = serde_json::to_string(&deal).unwrap();
+        assert!(
+            rendered.contains("\"position\":10000.0"),
+            "expected f64 rendering, got: {rendered}"
+        );
+    }
+
+    #[test]
+    fn stage_position_deserializes_as_f64() {
+        // stages.position is integer on the server today; f64 is forward-safe.
+        let json_data = json!({
+            "id": "stg_f64",
+            "pipeline_id": "pl_001",
+            "name": "Forward Safe",
+            "type": "open",
+            "position": 3,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let stage: Stage = serde_json::from_value(json_data).unwrap();
+        assert_eq!(stage.position, 3.0);
+    }
+
+    // -- FIX-02: --expand payloads survive via the flattened `expanded` map --
+
+    #[test]
+    fn deal_expand_payload_survives_round_trip() {
+        // Unknown sibling key (the `--expand owner` payload) must land in
+        // `expanded` and re-serialize at the top level of the output.
+        let owner_payload = json!({"id": "u1", "full_name": "Owner One"});
+        let json_data = json!({
+            "id": "deal_expand",
+            "title": "Expanded Deal",
+            "value": null,
+            "stage_id": "stage_001",
+            "organization_id": null,
+            "person_id": null,
+            "owner_id": "u1",
+            "position": null,
+            "expected_close_date": null,
+            "notes": null,
+            "custom_fields": null,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z",
+            "owner": owner_payload
+        });
+
+        let deal: Deal = serde_json::from_value(json_data).unwrap();
+        assert_eq!(deal.expanded["owner"], owner_payload);
+
+        let output = serde_json::to_value(&deal).unwrap();
+        assert_eq!(output["owner"], owner_payload);
+    }
+
+    #[test]
+    fn deal_without_expand_keys_emits_no_expanded_key() {
+        // skip_serializing_if: exactly-typed payloads must not grow a
+        // synthetic "expanded" key in the output.
+        let json_data = json!({
+            "id": "deal_plain",
+            "title": "Plain Deal",
+            "value": null,
+            "stage_id": "stage_001",
+            "organization_id": null,
+            "person_id": null,
+            "owner_id": "user_001",
+            "position": null,
+            "expected_close_date": null,
+            "notes": null,
+            "custom_fields": null,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z"
+        });
+
+        let deal: Deal = serde_json::from_value(json_data).unwrap();
+        assert!(deal.expanded.is_empty());
+
+        let output = serde_json::to_value(&deal).unwrap();
+        assert!(
+            output.get("expanded").is_none(),
+            "empty expanded map must not render: {output}"
+        );
+    }
+
+    #[test]
+    fn workflow_unknown_keys_survive_in_expanded() {
+        let json_data = json!({
+            "id": "wf_expand",
+            "name": "Expanded Workflow",
+            "active": false,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z",
+            "deal": {"id": "deal_9"}
+        });
+
+        let workflow: Workflow = serde_json::from_value(json_data).unwrap();
+        assert_eq!(workflow.expanded["deal"]["id"], "deal_9");
+    }
+
+    #[test]
+    fn stage_unknown_keys_survive_in_expanded() {
+        let json_data = json!({
+            "id": "stg_expand",
+            "pipeline_id": "pl_001",
+            "name": "Expanded Stage",
+            "type": "open",
+            "position": 1,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z",
+            "pipeline": {"id": "pl_001", "name": "Sales"}
+        });
+
+        let stage: Stage = serde_json::from_value(json_data).unwrap();
+        assert_eq!(stage.expanded["pipeline"]["name"], "Sales");
+    }
+
+    #[test]
+    fn person_unknown_keys_survive_in_expanded() {
+        let json_data = json!({
+            "id": "per_expand",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "full_name": null,
+            "email": null,
+            "phone": null,
+            "notes": null,
+            "organization_id": null,
+            "owner_id": "user_001",
+            "custom_fields": null,
+            "created_at": "2026-01-15T10:30:00Z",
+            "updated_at": "2026-03-20T14:22:00Z",
+            "organization": {"id": "org_9", "name": "Acme"}
+        });
+
+        let person: Person = serde_json::from_value(json_data).unwrap();
+        assert_eq!(person.expanded["organization"]["name"], "Acme");
     }
 
     #[test]
