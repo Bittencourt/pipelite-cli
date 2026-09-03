@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: ready_to_plan
-stopped_at: Phase 9 complete (3/3) — ready to discuss Phase 10
-last_updated: 2026-09-03T20:58:03.436Z
+status: verifying
+stopped_at: Completed 10-01-PLAN.md (notes surface — 25 stub tests, 402 passing)
+last_updated: "2026-09-03T22:27:22.246Z"
 last_activity: 2026-09-03
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
-  percent: 43
+  completed_phases: 4
+  total_plans: 11
+  completed_plans: 11
+  percent: 57
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
-Status: Ready to plan
+Phase: 10 (notes) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
 Last activity: 2026-09-03
 
 Progress: [██████████] 100%
@@ -54,6 +54,7 @@ Progress: [██████████] 100%
 | Phase 09 P02 | 24 min | 3 tasks | 18 files |
 | Phase 09 P03 | 12 min | 2 tasks | 8 files |
 | 9 | 3 | - | - |
+| Phase 10 P01 | 23min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 9]: stub helper is a 4-tuple (heads + full bodies); content-length parses the current request's head — hidden templates update stays parse-then-error exit 2
 - [Phase 9]: docs get_docs builds a local headerless reqwest client — the shared authenticated client leaks the API key via default_headers onto every request; the no-auth contract is wire-tested on the raw request head
 - [Phase 9]: docs --save refuses overwrites pre-HTTP (zero requests, exit 2) unless --force; 404/Api docs errors re-wrap at the command layer preserving server detail with the locked server-version hint; --format accepted but ignored per CONTEXT
+- [Phase 10]: notes is the first parent-scoped sub-resource — collection routes carry the parent segment, item routes (PATCH/DELETE) carry ONLY the note ID; parent args are grammar-locked (validated then unused)
+- [Phase 10]: resolve_body locks the input precedence (--body > @file/@- > --stdin > prompt); XOR explicit-source guard BEFORE any read — @- + --stdin is two sources exit 2; prompting suppressed under --dry-run
+- [Phase 10]: table-only truncation (flatten newlines + ~80-char truncate_with_ellipsis in the table value builder); json/plain/csv keep full raw text; mutation success output keys on resolved format (json → render_single, else confirmation line)
 
 ### Pending Todos
 
@@ -103,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-03T20:07:46.616Z
-Stopped at: Completed 09-02-PLAN.md (watch poll loop + templates stack — 23 new tests, 358 passing)
+Last session: 2026-09-03T22:27:22.219Z
+Stopped at: Completed 10-01-PLAN.md (notes surface — 25 stub tests, 402 passing)
 Resume file: None

@@ -16,10 +16,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Notes
 
-- [ ] **NOTE-01**: User can list notes on a deal, organization, person, or activity (`notes list <type> <id>`)
-- [ ] **NOTE-02**: User can add a note to any of the four note-capable entities via flag, `@file`, stdin, or interactive prompt
-- [ ] **NOTE-03**: User can edit a note by ID (note: no single-note GET exists — document `notes list --json` as the view-before-edit path)
-- [ ] **NOTE-04**: User can delete a note by ID with confirmation and `--force` bypass
+- [x] **NOTE-01**: User can list notes on a deal, organization, person, or activity (`notes list <type> <id>`)
+- [x] **NOTE-02**: User can add a note to any of the four note-capable entities via flag, `@file`, stdin, or interactive prompt
+- [x] **NOTE-03**: User can edit a note by ID (note: no single-note GET exists — document `notes list --json` as the view-before-edit path)
+- [x] **NOTE-04**: User can delete a note by ID with confirmation and `--force` bypass
 
 ### Workflow Runs
 
@@ -116,10 +116,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WRUN-03 | Phase 9 | Complete |
 | TPL-01 | Phase 9 | Complete |
 | DOCS-01 | Phase 9 | Complete |
-| NOTE-01 | Phase 10 | Pending |
-| NOTE-02 | Phase 10 | Pending |
-| NOTE-03 | Phase 10 | Pending |
-| NOTE-04 | Phase 10 | Pending |
+| NOTE-01 | Phase 10 | Complete |
+| NOTE-02 | Phase 10 | Complete |
+| NOTE-03 | Phase 10 | Complete |
+| NOTE-04 | Phase 10 | Complete |
 | WHOK-01 | Phase 11 | Pending |
 | WHOK-02 | Phase 11 | Pending |
 | WHOK-03 | Phase 11 | Pending |

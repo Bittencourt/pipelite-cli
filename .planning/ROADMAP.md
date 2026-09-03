@@ -28,7 +28,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 7: Batch Operations** - Batch update/delete across all 7 entities with a script-friendly exit-code/summary contract (completed 2026-09-02)
 - [x] **Phase 8: Foundations** - Error layer (403/409/RFC 7807), model + pagination fixes, dead-flag removal — shared infrastructure every later phase consumes (completed 2026-09-03)
 - [x] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch (completed 2026-09-03)
-- [ ] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities
+- [x] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities (completed 2026-09-03)
 - [ ] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer
 - [ ] **Phase 12: Custom Fields** - Definitions CRUD + type-aware `--custom-field` writing
 - [ ] **Phase 13: Integration Hardening & Docs** - Cross-phase verification of global-flag/convention contracts + docs refresh
@@ -102,7 +102,7 @@ Plans:
 **Plans**: 1 plan — 10-01 (single plan: 16 files, under the 17-file 09-02 precedent; models + client + group wiring + list/rejections + body resolver + add/edit/delete + tests + docs)
 
 Plans:
-- [ ] 10-01-PLAN.md — Top-level `notes` group: Note model (serializer-exact), 4 client methods, list/add/edit/delete with body-source precedence (--body > @file > --stdin > prompt), pre-HTTP rejection surfaces (non-capable types, hidden get, multiple sources), templates delete contract, docs + 25 stub tests (NOTE-01, NOTE-02, NOTE-03, NOTE-04)
+- [x] 10-01-PLAN.md — Top-level `notes` group: Note model (serializer-exact), 4 client methods, list/add/edit/delete with body-source precedence (--body > @file > --stdin > prompt), pre-HTTP rejection surfaces (non-capable types, hidden get, multiple sources), templates delete contract, docs + 25 stub tests (NOTE-01, NOTE-02, NOTE-03, NOTE-04)
 
 ### Phase 11: Webhooks, Trash & Audit
 **Goal**: Users can manage automation integrations and recover from mistakes — with admin-gated and irreversible operations failing safe
@@ -156,7 +156,7 @@ Plans:
 | 7. Batch Operations | v1.1 | 5/5 | Complete    | 2026-09-03 |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete    | 2026-09-03 |
-| 10. Notes | v1.1 | 0/TBD | Not started | - |
+| 10. Notes | v1.1 | 1/1 | Complete   | 2026-09-03 |
 | 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |
 | 13. Integration Hardening & Docs | v1.1 | 0/TBD | Not started | - |
