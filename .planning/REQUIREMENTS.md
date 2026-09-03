@@ -64,7 +64,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **FIX-02**: `--expand` payloads render in output instead of being silently discarded (output-path raw-Value passthrough; typed models stay request-only)
 - [ ] **FIX-03**: `Deal.position` (and other position fields) deserialize server-emitted floats (`Option<f64>`)
 - [ ] **FIX-04**: `stages list` allows omitting `--pipeline` to list all stages across pipelines
-- [ ] **FIX-05**: Error layer speaks RFC 7807: parse `detail`/`errors[]` keys; new `Forbidden` error variant with per-surface hints (audit → admin key, purge → admin, notes → author-or-admin, webhooks → foreign 403); 409 (inactive workflow trigger) mapped with actionable hint
+- [x] **FIX-05**: Error layer speaks RFC 7807: parse `detail`/`errors[]` keys; new `Forbidden` error variant with per-surface hints (audit → admin key, purge → admin, notes → author-or-admin, webhooks → foreign 403); 409 (inactive workflow trigger) mapped with actionable hint
 - [ ] **FIX-06**: Auto-pagination (`--all`) warns loudly on stderr when it hits a record ceiling instead of silently stopping at 1000
 
 ## Future Requirements
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-02 | Phase 8 | Pending |
 | FIX-03 | Phase 8 | Pending |
 | FIX-04 | Phase 8 | Pending |
-| FIX-05 | Phase 8 | Pending |
+| FIX-05 | Phase 8 | Complete |
 | FIX-06 | Phase 8 | Pending |
 | WRUN-01 | Phase 9 | Pending |
 | WRUN-02 | Phase 9 | Pending |
