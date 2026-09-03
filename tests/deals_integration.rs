@@ -173,9 +173,17 @@ fn deals_delete_without_id_fails_with_exit_code_2() {
 #[test]
 fn deals_list_limit_zero_is_accepted() {
     // --limit 0 is a valid argument (clap accepts it).
-    // The command will fail at runtime (no config), but NOT with exit code 2.
+    // The command must fail at runtime (exit 1), never with clap misuse (2).
+    // Env isolation (WR-03): without these overrides a machine with a real
+    // ~/.pipelite/config.toml issued a REAL authenticated API call here.
+    // Point the binary at a nonexistent config + unreachable endpoint so the
+    // test is hermetic in both no-config and live-config environments.
     Command::cargo_bin("pipelite")
         .unwrap()
+        .env("PIPELITE_CONFIG", "/tmp/pipelite-test-no-such-config.toml")
+        .env("PIPELITE_URL", "http://127.0.0.1:1")
+        .env("PIPELITE_SERVER_URL", "http://127.0.0.1:1")
+        .env("PIPELITE_API_KEY", "fake-test-key")
         .args(["deals", "list", "--limit", "0"])
         .assert()
         .failure()
