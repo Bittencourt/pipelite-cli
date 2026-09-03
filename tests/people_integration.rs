@@ -17,13 +17,15 @@ fn people_help_shows_subcommands() {
 
 #[test]
 fn people_list_help_shows_filter_flags() {
+    // v1.1: --org/--owner are removed dead flags — hidden from --help
+    // (still parsed so the handler can reject with a replacement hint).
     Command::cargo_bin("pipelite")
         .unwrap()
         .args(["people", "list", "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("--org"))
-        .stdout(predicate::str::contains("--owner"))
+        .stdout(predicate::str::contains("--org").not())
+        .stdout(predicate::str::contains("--owner").not())
         .stdout(predicate::str::contains("--limit"))
         .stdout(predicate::str::contains("--offset"));
 }
