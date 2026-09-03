@@ -84,6 +84,20 @@ fn workflows_runs_help_has_examples() {
         .stdout(predicate::str::contains("--workflow"));
 }
 
+// The `pipelite docs --help` page must carry examples and state that
+// --format is ignored (the OpenAPI spec is JSON, not tabular output).
+#[test]
+fn docs_help_has_examples() {
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["docs", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Examples:"))
+        .stdout(predicate::str::contains("--save"))
+        .stdout(predicate::str::contains("ignored"));
+}
+
 // The `templates` help page must be truthful (ROADMAP SC-4): it carries
 // examples, states that the server has no template update, and does NOT
 // advertise an update subcommand (the hidden Update variant is a
