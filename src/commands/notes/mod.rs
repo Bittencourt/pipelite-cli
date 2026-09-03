@@ -1,3 +1,7 @@
+pub mod add;
+pub mod body;
+pub mod delete;
+pub mod edit;
 pub mod list;
 
 use anyhow::Result;
@@ -15,6 +19,9 @@ use crate::error::CliError;
 pub async fn run(ctx: &AppContext, cmd: &NotesCommands) -> Result<()> {
     match cmd {
         NotesCommands::List(args) => list::run(ctx, args).await,
+        NotesCommands::Add(args) => add::run(ctx, args).await,
+        NotesCommands::Edit(args) => edit::run(ctx, args).await,
+        NotesCommands::Delete(args) => delete::run(ctx, args).await,
         NotesCommands::Get(_) => Err(CliError::InvalidInput {
             detail: "The server exposes no single-note GET".to_string(),
             hint: "the server has no single-note GET — use `notes list <type> <id> --json`"

@@ -756,6 +756,25 @@ pub fn notes_table_config() -> TableConfig {
     }
 }
 
+/// Payload for creating a note (attached to a note-capable parent).
+///
+/// The server reads NOTHING but `content` — the author is forced to the API
+/// key's user (anti-forgery) and `source` is forced "user", so sending
+/// anything else is dead weight. Wire shape: exactly {"content": …}
+/// (Pitfall 2: the wire field is `content`, not `body`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteCreate {
+    pub content: String,
+}
+
+/// Payload for updating a note (PATCH /api/v1/notes/{noteId}).
+///
+/// Same single-key contract as NoteCreate — content only.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteUpdate {
+    pub content: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1747,5 +1766,24 @@ mod tests {
         assert!(note.author_id.is_none());
         assert!(note.created_at.is_none());
         assert!(note.updated_at.is_none());
+    }
+
+    #[test]
+    fn note_create_and_update_serialize_to_exactly_one_content_key() {
+        // Pitfall 2: the wire field is `content`, and it is the ONLY key
+        // the CLI sends (author/source are server-forced).
+        let create = serde_json::to_value(NoteCreate {
+            content: "hello".to_string(),
+        })
+        .unwrap();
+        assert_eq!(create, json!({"content": "hello"}));
+        assert_eq!(create.as_object().unwrap().len(), 1, "exactly one key");
+
+        let update = serde_json::to_value(NoteUpdate {
+            content: "new".to_string(),
+        })
+        .unwrap();
+        assert_eq!(update, json!({"content": "new"}));
+        assert_eq!(update.as_object().unwrap().len(), 1, "exactly one key");
     }
 }

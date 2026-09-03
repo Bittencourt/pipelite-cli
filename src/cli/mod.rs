@@ -161,7 +161,7 @@ pub enum Commands {
     /// Manage notes on records
     #[command(
         subcommand,
-        after_help = "Notes annotate deals, organizations, people, and activities.\nThe server exposes no single-note GET — use `notes list <type> <id> --json` to read a note before editing.\n\nExamples:\n  pipelite notes list deals d1\n  pipelite notes add deals d1 --body \"Followed up\""
+        after_help = "Notes annotate deals, organizations, people, and activities.\nThe server exposes no single-note GET — use `notes list <type> <id> --json` to read a note before editing.\n\nExamples:\n  pipelite notes list deals d1\n  pipelite notes add deals d1 --body \"Followed up\"\n  pipelite notes edit deals d1 n1 --body \"Updated text\"\n  pipelite notes delete deals d1 n1 --force"
     )]
     Notes(NotesCommands),
 

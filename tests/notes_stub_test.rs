@@ -435,16 +435,38 @@ fn add_dry_run_previews_the_post_with_zero_http() {
 
 #[test]
 fn edit_patches_the_note_url_with_the_content_body() {
-    let (url, counter, heads, bodies) = common::spawn_head_capturing_stub_server(&[(200,
-        &note_envelope(note_json("n1", "deal", "d1", "new text")))]);
+    let (url, counter, heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &note_envelope(note_json("n1", "deal", "d1", "new text"))),
+        (200, &note_envelope(note_json("n1", "deal", "d1", "new text"))),
+    ]);
 
+    // Piped default (json): the updated note renders as data — the id is
+    // present.
     common::cmd_with_server(&url)
         .args(["notes", "edit", "deals", "d1", "n1", "--body", "new text"])
         .assert()
         .success()
+        .stdout(predicate::str::contains("n1"));
+
+    // Table mode (human default on a TTY): the quiet-suppressible
+    // confirmation line.
+    common::cmd_with_server(&url)
+        .args([
+            "notes",
+            "edit",
+            "deals",
+            "d1",
+            "n1",
+            "--body",
+            "new text",
+            "--format",
+            "table",
+        ])
+        .assert()
+        .success()
         .stdout(predicate::str::contains("Updated note n1"));
 
-    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    assert_eq!(counter.load(Ordering::SeqCst), 2);
     let heads = heads.lock().expect("heads lock");
     assert!(
         heads[0].contains("patch /api/v1/notes/n1"),

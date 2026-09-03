@@ -11,10 +11,10 @@ use crate::error::CliError;
 
 use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
-    DealUpdate, Note, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
-    PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage, StageCreate,
-    StageUpdate, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse,
-    WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
+    DealUpdate, Note, NoteCreate, NoteUpdate, Organization, OrganizationCreate, OrganizationUpdate,
+    Person, PersonCreate, PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse,
+    Stage, StageCreate, StageUpdate, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail,
+    WorkflowRunResponse, WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -1032,6 +1032,62 @@ impl PipeliteClient {
         ]);
         let response = self.send_with_retry(request).await?;
         self.handle_response(response, "notes").await
+    }
+
+    /// Create a note attached to a note-capable parent.
+    ///
+    /// POSTs `/api/v1/{route_segment}/{parent_id}/notes` (201 {data}).
+    /// `route_segment` is the REST segment of a validated note-capable
+    /// parent. The server forces `authorId` to the API key's user and
+    /// `source` to "user" — only `content` is read from the payload.
+    /// Whitespace-only or >200k-char content 422s server-side and flows
+    /// through the Phase 8 error layer untouched. Surface "notes": GET/POST
+    /// never 403, the key is passed for surface consistency.
+    pub async fn create_note(
+        &self,
+        route_segment: &str,
+        parent_id: &str,
+        data: &NoteCreate,
+    ) -> Result<Note> {
+        let url = format!(
+            "{}/api/v1/{}/{}/notes",
+            self.base_url, route_segment, parent_id
+        );
+        let request = self.client.post(&url).json(data);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<Note> = self.handle_response(response, "notes").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update a note by ITS OWN ID.
+    ///
+    /// PATCHes `/api/v1/notes/{note_id}` — the URL carries ONLY the note
+    /// id; the parent entity type/id are grammar-locked (validated by the
+    /// caller, then unused). The server authorizes author-or-admin BEFORE
+    /// reading the body, so a foreign note 403s regardless of payload
+    /// validity and renders the pre-registered "notes" Forbidden hint.
+    /// Soft-deleted and missing notes are the identical 404 ("Note not
+    /// found" — deliberate no-existence-oracle).
+    pub async fn update_note(&self, note_id: &str, data: &NoteUpdate) -> Result<Note> {
+        let url = format!("{}/api/v1/notes/{}", self.base_url, note_id);
+        let request = self.client.patch(&url).json(data);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<Note> = self.handle_response(response, "notes").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete (soft-delete) a note by ITS OWN ID.
+    ///
+    /// DELETEs `/api/v1/notes/{note_id}` (204 No Content, handled by
+    /// `handle_delete_response`). Author-or-admin gated like PATCH. A
+    /// SEQUENTIAL re-delete hits 404 ("Note not found") — the normal
+    /// failure path, no special casing. No cache invalidation: notes are
+    /// never cached.
+    pub async fn delete_note(&self, note_id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/notes/{}", self.base_url, note_id);
+        let request = self.client.delete(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_delete_response(response, "notes").await
     }
 
     // -- Docs --

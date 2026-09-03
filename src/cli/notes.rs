@@ -9,6 +9,24 @@ pub enum NotesCommands {
     )]
     List(NotesListArgs),
 
+    /// Add a note to a deal, organization, person, or activity
+    #[command(
+        after_help = "Examples:\n  pipelite notes add deals d1 --body \"Followed up\"\n  pipelite notes add deals d1 --body @note.md\n  echo \"Note text\" | pipelite notes add deals d1 --stdin\n\nThe body comes from EXACTLY ONE source: --body (literal, @file, or @- for stdin), --stdin, or an interactive prompt. On a TTY with no source, the text is prompted."
+    )]
+    Add(NotesAddArgs),
+
+    /// Edit a note's content by note ID
+    #[command(
+        after_help = "The server exposes no single-note GET — run `pipelite notes list <type> <id> --format json` to view existing content first.\n\nExamples:\n  pipelite notes list deals d1 --format json   # view before editing\n  pipelite notes edit deals d1 n1 --body \"Updated text\"\n  pipelite notes edit deals d1 n1 --body @note.md\n\nThe request uses only the note ID; <type> and <parent-id> are required by the grammar but otherwise unused. No confirmation — editing is non-destructive; --dry-run previews the PATCH."
+    )]
+    Edit(NotesEditArgs),
+
+    /// Delete a note by note ID (soft delete)
+    #[command(
+        after_help = "Examples:\n  pipelite notes delete deals d1 n1\n  pipelite notes delete deals d1 n1 --force\n  pipelite notes delete deals d1 n1 --dry-run\n\nDeletion is a soft delete and requires confirmation unless --force is given (confirmation is impossible without a TTY, so --force is required in scripts). Re-deleting a deleted note fails with 404."
+    )]
+    Delete(NotesDeleteArgs),
+
     /// [SERVER] No single-note GET exists — list and read --json instead.
     #[command(hide = true)]
     Get(NotesGetArgs),
@@ -33,6 +51,63 @@ pub struct NotesListArgs {
     /// Select specific fields (comma-separated)
     #[arg(long, value_delimiter = ',')]
     pub fields: Option<Vec<String>>,
+}
+
+#[derive(Args)]
+pub struct NotesAddArgs {
+    /// Entity type: one of deals, orgs, people, activities
+    pub entity_type: String,
+
+    /// Parent record ID (deal, organization, person, or activity ID)
+    pub parent_id: String,
+
+    /// Note text, @filepath to read from a file, or @- to read stdin
+    #[arg(long)]
+    pub body: Option<String>,
+
+    /// Read the note text from stdin (exactly one source with --body)
+    #[arg(long)]
+    pub stdin: bool,
+}
+
+#[derive(Args)]
+pub struct NotesEditArgs {
+    /// Entity type: one of deals, orgs, people, activities (validated per
+    /// grammar — the request itself uses only the note ID)
+    pub entity_type: String,
+
+    /// Parent record ID (validated per grammar — the request uses only the
+    /// note ID)
+    pub parent_id: String,
+
+    /// Note ID to edit (from `notes list <type> <id> --json`)
+    pub note_id: String,
+
+    /// New note text, @filepath to read from a file, or @- to read stdin
+    #[arg(long)]
+    pub body: Option<String>,
+
+    /// Read the new note text from stdin (exactly one source with --body)
+    #[arg(long)]
+    pub stdin: bool,
+}
+
+#[derive(Args)]
+pub struct NotesDeleteArgs {
+    /// Entity type: one of deals, orgs, people, activities (validated per
+    /// grammar — the request itself uses only the note ID)
+    pub entity_type: String,
+
+    /// Parent record ID (validated per grammar — the request uses only the
+    /// note ID)
+    pub parent_id: String,
+
+    /// Note ID to delete (from `notes list <type> <id> --json`)
+    pub note_id: String,
+
+    /// Skip confirmation prompt (required in non-interactive mode)
+    #[arg(long)]
+    pub force: bool,
 }
 
 /// Permissive args for the hidden `notes get` variant: any invocation parses
