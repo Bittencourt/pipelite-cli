@@ -495,6 +495,62 @@ fn watch_exit_status_maps_failed_to_exit_1() {
 }
 
 #[test]
+fn exit_status_applies_when_run_already_terminal_at_first_fetch() {
+    // Live-UAT regression (Phase 9): a run that is terminal BEFORE the watch
+    // starts must still honor --exit-status (ROADMAP SC-3) — the single-shot
+    // path used to bypass watch_exit_code entirely.
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &detail_body_status("failed", "already failed"),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows",
+            "runs",
+            "get",
+            "run_watch_1",
+            "--workflow",
+            "wf_1",
+            "--watch",
+            "--exit-status",
+        ])
+        .assert()
+        .code(1);
+
+    // Single-shot (no --watch) honors --exit-status too.
+    let (url2, _c2, _h2, _b2) =
+        common::spawn_head_capturing_stub_server(&[(200, &detail_body_status("failed", "boom"))]);
+    common::cmd_with_server(&url2)
+        .args([
+            "workflows",
+            "runs",
+            "get",
+            "run_watch_1",
+            "--workflow",
+            "wf_1",
+            "--exit-status",
+        ])
+        .assert()
+        .code(1);
+
+    // ...and without the flag, a failed run still exits 0 (report-only).
+    let (url3, _c3, _h3, _b3) =
+        common::spawn_head_capturing_stub_server(&[(200, &detail_body_status("failed", "boom"))]);
+    common::cmd_with_server(&url3)
+        .args([
+            "workflows",
+            "runs",
+            "get",
+            "run_watch_1",
+            "--workflow",
+            "wf_1",
+        ])
+        .assert()
+        .code(0);
+}
+
+#[test]
 fn watch_keeps_polling_through_waiting() {
     // waiting is NOT terminal — watch keeps polling (steps' resume_at shows
     // why it waits).

@@ -62,9 +62,22 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsRunsGetArgs) -> Result<()> {
     let mut detail = ctx.client.get_workflow_run(&args.workflow, &args.run_id).await?;
 
     // Single-shot path (no --watch, or an already-terminal run under
-    // --watch): unchanged behavior, exit stays whatever main() returns.
+    // --watch): unchanged behavior — except that an explicit --exit-status
+    // must still gate the exit code even when the run is terminal at the
+    // first fetch (ROADMAP SC-3: a failed run yields exit 1 so scripts can
+    // react, regardless of whether the terminal state predated the watch).
     if !args.watch || run_status_is_terminal(&detail.run.status) {
-        return render_detail(ctx, args, detail);
+        let terminal = args.exit_status && run_status_is_terminal(&detail.run.status);
+        let exit_code = if terminal {
+            Some(watch_exit_code(&detail.run.status, true))
+        } else {
+            None
+        };
+        let result = render_detail(ctx, args, detail);
+        if let Some(code) = exit_code {
+            std::process::exit(code);
+        }
+        return result;
     }
 
     // Watch loop: prev starts empty so the first observation prints nothing.
