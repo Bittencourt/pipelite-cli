@@ -42,8 +42,6 @@ pub async fn run(ctx: &AppContext, args: &PeopleListArgs) -> Result<()> {
 /// Fetch a single page of people.
 async fn fetch_page(ctx: &AppContext, args: &PeopleListArgs, columns: &[String]) -> Result<()> {
     let params = PeopleListParams {
-        org: args.org.clone(),
-        owner: args.owner.clone(),
         limit: args.limit,
         offset: args.offset,
         expand: args.expand.clone(),
@@ -72,8 +70,6 @@ async fn fetch_all(ctx: &AppContext, args: &PeopleListArgs, columns: &[String]) 
 
     loop {
         let params = PeopleListParams {
-            org: args.org.clone(),
-            owner: args.owner.clone(),
             limit: batch_size,
             offset,
             expand: args.expand.clone(),

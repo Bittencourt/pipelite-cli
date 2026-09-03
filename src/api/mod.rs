@@ -958,10 +958,10 @@ impl OrgsListParams {
     }
 }
 
-/// Parameters for listing people with filtering and pagination.
+/// Parameters for listing people with pagination. (No filters: the server
+/// ignores `organization_id`/`owner_id` on /people, so the dead flags were
+/// removed — filtering is done client-side after fetching.)
 pub struct PeopleListParams {
-    pub org: Option<String>,
-    pub owner: Option<String>,
     pub limit: u64,
     pub offset: u64,
     pub expand: Option<Vec<String>>,
@@ -972,12 +972,6 @@ impl PeopleListParams {
     pub fn to_query_pairs(&self) -> Vec<(String, String)> {
         let mut pairs = Vec::new();
 
-        if let Some(ref org) = self.org {
-            pairs.push(("organization_id".to_string(), org.clone()));
-        }
-        if let Some(ref owner) = self.owner {
-            pairs.push(("owner_id".to_string(), owner.clone()));
-        }
         pairs.push(("limit".to_string(), self.limit.to_string()));
         pairs.push(("offset".to_string(), self.offset.to_string()));
 

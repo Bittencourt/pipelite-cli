@@ -195,8 +195,6 @@ async fn fetch_all_people(ctx: &AppContext) -> Result<Vec<(String, String)>> {
 
     loop {
         let params = PeopleListParams {
-            org: None,
-            owner: None,
             limit,
             offset,
             expand: None,
