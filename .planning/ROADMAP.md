@@ -64,7 +64,11 @@ Plans:
   3. `deals list` succeeds against records with fractional `position` values (deserialization no longer breaks), and `stages list` without `--pipeline` lists all stages across pipelines
   4. `--expand` payloads appear in command output instead of being silently discarded
   5. Dead flags are gone: `people list --org/--owner` removed with hint, `workflows create --active` and dead `--custom-field` flags on pipelines/stages removed (breaking — changelog callout), `workflows list --active` filters client-side with a visible warning; `--all` pagination warns loudly on stderr at the record ceiling
-**Plans**: TBD
+**Plans**: 2 plans — 08-01 (error layer: RFC 7807 parser, Forbidden variant, 409 hint), 08-02 (models/pagination/dead-flags: f64 positions, expand passthrough, stages all-mode, flag removals + changelog)
+
+Plans:
+- [ ] 08-01-PLAN.md — Error layer: RFC 7807 parsing, Forbidden variant with per-surface hints at all three 401/403 sites, 409 inactive-trigger hint
+- [ ] 08-02-PLAN.md — Models/pagination/dead-flags: f64 positions, --expand passthrough, stages all-mode, dead-flag removals + CHANGELOG, --all ceiling warning
 
 ### Phase 9: Workflow Runs, Templates & Docs
 **Goal**: Users can observe workflow executions, reuse workflow templates, and fetch the server's API contract — the observe-and-react half of automation
@@ -142,7 +146,7 @@ Plans:
 | 5. Power Features | v1.0 | 5/5 | Complete | 2026-03-28 |
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
 | 7. Batch Operations | v1.1 | 5/5 | Complete    | 2026-09-03 |
-| 8. Foundations — Error Layer, Models & Pagination | v1.1 | 0/TBD | Not started | - |
+| 8. Foundations — Error Layer, Models & Pagination | v1.1 | 0/2 | Not started | - |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 0/TBD | Not started | - |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
 | 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |
