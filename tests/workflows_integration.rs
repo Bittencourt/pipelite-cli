@@ -1,13 +1,106 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::io::{Read as _, Write as _};
+use std::net::TcpListener;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Helper: build a pipelite command with fake config env vars.
 /// Uses an unreachable server to prove dry-run never makes HTTP requests.
 fn cmd() -> Command {
     let mut c = Command::cargo_bin("pipelite").unwrap();
     c.env("PIPELITE_URL", "http://127.0.0.1:1");
+    c.env("PIPELITE_SERVER_URL", "http://127.0.0.1:1");
     c.env("PIPELITE_API_KEY", "fake-test-key");
     c
+}
+
+/// Helper: pipelite command pointed at a live stub server URL (hermetic).
+fn cmd_with_server(url: &str) -> Command {
+    let mut c = Command::cargo_bin("pipelite").unwrap();
+    c.env("PIPELITE_URL", url);
+    c.env("PIPELITE_SERVER_URL", url);
+    c.env("PIPELITE_API_KEY", "fake-test-key");
+    c
+}
+
+/// Full Workflow JSON fixture.
+fn workflow_json(id: &str, name: &str, active: bool) -> String {
+    format!(
+        r#"{{"id":"{id}","name":"{name}","description":null,"triggers":[],"nodes":[],"active":{active},"created_by":"user_001","created_at":"2026-01-15T10:30:00Z","updated_at":"2026-03-20T14:22:00Z"}}"#
+    )
+}
+
+fn page_body(items: &[String], total: u64, offset: u64, limit: u64) -> String {
+    format!(
+        r#"{{"data":[{}],"meta":{{"total":{total},"offset":{offset},"limit":{limit}}}}}"#,
+        items.join(",")
+    )
+}
+
+/// Body-carrying stub server with a request counter (pattern from
+/// error_layer_stub_test.rs; copied per test crate).
+fn spawn_stub_server(script: &[(u16, String)]) -> (String, Arc<AtomicUsize>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind stub server");
+    let addr = listener.local_addr().expect("stub server address");
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_clone = Arc::clone(&counter);
+    let script: Vec<(u16, String)> = script.to_vec();
+
+    std::thread::spawn(move || {
+        for (status, body) in script {
+            let (mut stream, _) = match listener.accept() {
+                Ok(conn) => conn,
+                Err(_) => break,
+            };
+
+            let mut received = Vec::new();
+            let mut buf = [0u8; 4096];
+            loop {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        received.extend_from_slice(&buf[..n]);
+                        if received.windows(4).any(|w| w == b"\r\n\r\n") {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let header_end = received
+                .windows(4)
+                .position(|w| w == b"\r\n\r\n")
+                .map(|p| p + 4)
+                .unwrap_or(received.len());
+            let headers = String::from_utf8_lossy(&received[..header_end]).to_lowercase();
+            let content_length = headers
+                .lines()
+                .find_map(|l| l.strip_prefix("content-length:"))
+                .and_then(|v| v.trim().parse::<usize>().ok())
+                .unwrap_or(0);
+            let mut body_read = received.len().saturating_sub(header_end);
+            while body_read < content_length {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => body_read += n,
+                }
+            }
+
+            let reason = if status == 200 { "OK" } else { "Error" };
+            let mut response = format!("HTTP/1.1 {status} {reason}\r\n");
+            response.push_str(&format!("Content-Length: {}\r\n", body.len()));
+            response.push_str("Content-Type: application/json\r\n");
+            response.push_str("Connection: close\r\n\r\n");
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.write_all(body.as_bytes());
+            let _ = stream.flush();
+            drop(stream);
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        }
+    });
+
+    (format!("http://{addr}"), counter)
 }
 
 #[test]
@@ -155,4 +248,60 @@ fn workflows_delete_help_shows_force_flag() {
         .assert()
         .success()
         .stdout(predicate::str::contains("--force"));
+}
+
+// -- FIX-01: workflows list --active filters client-side (server ignores it) --
+
+#[test]
+fn workflows_list_active_true_filters_client_side_with_warning() {
+    let body = page_body(
+        &[
+            workflow_json("wf_1", "Active One", true),
+            workflow_json("wf_2", "Inactive One", false),
+            workflow_json("wf_3", "Active Two", true),
+        ],
+        3,
+        0,
+        50,
+    );
+    let (url, counter) = spawn_stub_server(&[(200, body)]);
+
+    cmd_with_server(&url)
+        .args(["workflows", "list", "--active", "true"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Active One"))
+        .stdout(predicate::str::contains("Active Two"))
+        .stdout(predicate::str::contains("Inactive One").not())
+        // Locked warning line — exactly this text, on stderr.
+        .stderr(predicate::str::contains(
+            "warning: --active filters client-side after fetching all records",
+        ));
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "single request on the page path"
+    );
+}
+
+#[test]
+fn workflows_list_without_active_stays_unfiltered_and_silent() {
+    let body = page_body(
+        &[
+            workflow_json("wf_1", "Active One", true),
+            workflow_json("wf_2", "Inactive One", false),
+        ],
+        2,
+        0,
+        50,
+    );
+    let (url, _counter) = spawn_stub_server(&[(200, body)]);
+
+    cmd_with_server(&url)
+        .args(["workflows", "list"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Inactive One"))
+        .stderr(predicate::str::contains("client-side").not());
 }
