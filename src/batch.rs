@@ -239,6 +239,39 @@ pub fn ensure_update_fields<T: Default + PartialEq>(data: &T, cli_entity: &str) 
     Ok(())
 }
 
+/// Pre-scan parsed update items for a string "id" field BEFORE any HTTP call
+/// (verification gap 1: zero mutations on structurally invalid input).
+///
+/// Absent and non-string ids are both treated as missing, matching the
+/// in-loop `as_str()` extraction semantics. On any violation the WHOLE input
+/// is rejected with CliError::InvalidInput (exit 2) — valid items in a mixed
+/// batch are never mutated.
+fn prevalidate_item_ids(items: &[serde_json::Value]) -> Result<()> {
+    let missing: Vec<usize> = items
+        .iter()
+        .enumerate()
+        .filter(|(_, item)| item.get("id").and_then(|v| v.as_str()).is_none())
+        .map(|(i, _)| i + 1)
+        .collect();
+
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    let positions = missing
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Err(CliError::InvalidInput {
+        detail: format!("Item(s) missing a string 'id' field: {positions}"),
+        hint: "Every object in the JSON array must contain a string 'id' field identifying the record to update."
+            .to_string(),
+    }
+    .into())
+}
+
 /// Shared batch update flow for `--stdin` JSON-array updates (per D-02, D-03).
 ///
 /// Reads objects from stdin, previews via `--dry-run`, then updates each item
@@ -292,6 +325,11 @@ where
         }
         .into());
     }
+
+    // Structural id validation BEFORE the dry-run block: --dry-run is how
+    // users validate input, so structurally broken input must be rejected
+    // there too — and always before the first HTTP call (zero mutations).
+    prevalidate_item_ids(&items)?;
 
     if ctx.dry_run {
         for item in &items {
