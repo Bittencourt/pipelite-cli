@@ -6,6 +6,7 @@ pub mod dashboard;
 pub mod deals;
 pub mod docs;
 pub mod init;
+pub mod notes;
 pub mod orgs;
 pub mod people;
 pub mod ping;

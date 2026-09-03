@@ -6,6 +6,7 @@ pub mod dashboard;
 pub mod deals;
 pub mod docs;
 pub mod init;
+pub mod notes;
 pub mod orgs;
 pub mod people;
 pub mod pipelines;
@@ -24,6 +25,7 @@ use dashboard::DashboardArgs;
 use deals::DealsCommands;
 use docs::DocsArgs;
 use init::InitArgs;
+use notes::NotesCommands;
 use orgs::OrgsCommands;
 use people::PeopleCommands;
 use pipelines::PipelinesCommands;
@@ -155,6 +157,13 @@ pub enum Commands {
         after_help = "Workflow templates snapshot a workflow's trigger and nodes for reuse — instantiating a template creates a workflow.\n\nThe server exposes no template update — delete and recreate to change a template.\nNote: templates are deployment-global (any valid API key can read or delete them).\n\nExamples:\n  pipelite templates list\n  pipelite templates create --name \"Alert\" --workflow wf_abc123\n  pipelite templates delete tpl_abc123 --force"
     )]
     Templates(TemplatesCommands),
+
+    /// Manage notes on records
+    #[command(
+        subcommand,
+        after_help = "Notes annotate deals, organizations, people, and activities.\nThe server exposes no single-note GET — use `notes list <type> <id> --json` to read a note before editing.\n\nExamples:\n  pipelite notes list deals d1\n  pipelite notes add deals d1 --body \"Followed up\""
+    )]
+    Notes(NotesCommands),
 
     /// Fetch the server's OpenAPI 3.1 spec (public route — no API key sent)
     #[command(

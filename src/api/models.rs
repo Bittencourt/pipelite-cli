@@ -716,6 +716,46 @@ pub fn workflow_templates_table_config() -> TableConfig {
     }
 }
 
+// -- Note entity (Phase 10, verified wire shapes) --
+
+/// A note from the Pipelite CRM API.
+///
+/// Exactly the fields the server serializer emits (SerializedNote): id,
+/// entity_type, entity_id, content, author_id, source, created_at,
+/// updated_at. `entity_type` is the server discriminator and is SINGULAR
+/// ("deal" / "organization" / "person" / "activity") — NEVER the plural CLI
+/// positional names, so it stays a plain String (Pitfall 1). NO `deleted_at`
+/// field (the server deliberately omits it — soft-delete oracle prevention)
+/// and NO `expanded` map (notes support no --expand).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Note {
+    pub id: String,
+    /// Server discriminator — SINGULAR ("deal"), never the plural CLI name.
+    pub entity_type: String,
+    /// Parent record ID (the deal/org/person/activity the note is on).
+    pub entity_id: String,
+    pub content: String,
+    /// Null for migrated notes or when the author was deleted; author-or-admin
+    /// authorization treats null-author notes as admin-only.
+    #[serde(default)]
+    pub author_id: Option<String>,
+    /// Server-forced ("user" | "migration") — never settable via the API.
+    pub source: String,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+}
+
+/// Default table columns for note list display (content is newline-flattened
+/// and truncated to ~80 chars in the table builder only; --format json keeps
+/// the full raw text).
+pub fn notes_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["id", "created_at", "content"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1665,5 +1705,47 @@ mod tests {
         assert!(serialized.get("category").is_none());
         assert!(serialized.get("nodes").is_none(), "absent nodes are not sent");
         assert_eq!(serialized["trigger"]["type"], "schedule");
+    }
+
+    #[test]
+    fn note_parses_serializer_exact_payload() {
+        // Singular entity_type (Pitfall 1), nullable author_id, and NO
+        // deleted_at key — exactly what SerializedNote emits.
+        let body = json!({
+            "id": "n1",
+            "entity_type": "deal",
+            "entity_id": "d1",
+            "content": "hello",
+            "author_id": null,
+            "source": "user",
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z"
+        });
+
+        let note: Note = serde_json::from_value(body).unwrap();
+        assert_eq!(note.id, "n1");
+        assert_eq!(note.entity_type, "deal", "entity_type is SINGULAR");
+        assert_eq!(note.entity_id, "d1");
+        assert_eq!(note.content, "hello");
+        assert!(note.author_id.is_none(), "author_id is nullable");
+        assert_eq!(note.source, "user");
+        assert_eq!(note.created_at.as_deref(), Some("2026-09-01T10:00:00.000Z"));
+    }
+
+    #[test]
+    fn note_parses_with_absent_optional_fields() {
+        // created_at/updated_at/author_id may be absent (serde default).
+        let body = json!({
+            "id": "n2",
+            "entity_type": "person",
+            "entity_id": "p1",
+            "content": "migrated",
+            "source": "migration"
+        });
+
+        let note: Note = serde_json::from_value(body).unwrap();
+        assert!(note.author_id.is_none());
+        assert!(note.created_at.is_none());
+        assert!(note.updated_at.is_none());
     }
 }

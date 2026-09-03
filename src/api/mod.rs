@@ -11,7 +11,7 @@ use crate::error::CliError;
 
 use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
-    DealUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
+    DealUpdate, Note, Organization, OrganizationCreate, OrganizationUpdate, Person, PersonCreate,
     PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage, StageCreate,
     StageUpdate, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse,
     WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
@@ -1000,6 +1000,38 @@ impl PipeliteClient {
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
         self.handle_delete_response(response, "templates").await
+    }
+
+    // -- Notes --
+
+    /// List the notes attached to a parent record.
+    ///
+    /// GETs `/api/v1/{route_segment}/{parent_id}/notes?limit&offset` —
+    /// `route_segment` is the REST segment of a note-capable parent
+    /// (deals | organizations | people | activities), already validated by
+    /// the caller via `resolve_entity_type`. The server orders notes
+    /// createdAt DESC, id DESC (newest first — not configurable) and clamps
+    /// limit into [1, 100]: the page cap is 100, which is why the CLI has
+    /// no `--all` flag (iterate `--offset` instead). The "notes" surface is
+    /// pre-registered in `forbidden_hint`; GET/POST never 403, the key is
+    /// passed for surface consistency and future-proofing.
+    pub async fn list_notes(
+        &self,
+        route_segment: &str,
+        parent_id: &str,
+        limit: u64,
+        offset: u64,
+    ) -> Result<ApiListResponse<Note>> {
+        let url = format!(
+            "{}/api/v1/{}/{}/notes",
+            self.base_url, route_segment, parent_id
+        );
+        let request = self.client.get(&url).query(&[
+            ("limit", limit.to_string()),
+            ("offset", offset.to_string()),
+        ]);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "notes").await
     }
 
     // -- Docs --
