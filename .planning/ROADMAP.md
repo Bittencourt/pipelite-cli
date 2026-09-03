@@ -26,7 +26,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Bring the CLI to full parity with the upgraded Pipelite CRM server — batch operations, 8 new API surfaces (notes, workflow runs, webhooks, trash, custom fields, templates, audit, docs), and fixes for every dead flag and model mismatch — without breaking the v1.0 conventions (4 output formats, `--dry-run` = zero HTTP, hint-bearing errors, `--no-input`/`--quiet`/`--no-color`).
 
 - [x] **Phase 7: Batch Operations** - Batch update/delete across all 7 entities with a script-friendly exit-code/summary contract (completed 2026-09-02)
-- [ ] **Phase 8: Foundations** - Error layer (403/409/RFC 7807), model + pagination fixes, dead-flag removal — shared infrastructure every later phase consumes
+- [x] **Phase 8: Foundations** - Error layer (403/409/RFC 7807), model + pagination fixes, dead-flag removal — shared infrastructure every later phase consumes (completed 2026-09-03)
 - [ ] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch
 - [ ] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities
 - [ ] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer
@@ -67,8 +67,8 @@ Plans:
 **Plans**: 2 plans — 08-01 (error layer: RFC 7807 parser, Forbidden variant, 409 hint), 08-02 (models/pagination/dead-flags: f64 positions, expand passthrough, stages all-mode, flag removals + changelog)
 
 Plans:
-- [ ] 08-01-PLAN.md — Error layer: RFC 7807 parsing, Forbidden variant with per-surface hints at all three 401/403 sites, 409 inactive-trigger hint
-- [ ] 08-02-PLAN.md — Models/pagination/dead-flags: f64 positions, --expand passthrough, stages all-mode, dead-flag removals + CHANGELOG, --all ceiling warning
+- [x] 08-01-PLAN.md — Error layer: RFC 7807 parsing, Forbidden variant with per-surface hints at all three 401/403 sites, 409 inactive-trigger hint
+- [x] 08-02-PLAN.md — Models/pagination/dead-flags: f64 positions, --expand passthrough, stages all-mode, dead-flag removals + CHANGELOG, --all ceiling warning
 
 ### Phase 9: Workflow Runs, Templates & Docs
 **Goal**: Users can observe workflow executions, reuse workflow templates, and fetch the server's API contract — the observe-and-react half of automation
@@ -146,7 +146,7 @@ Plans:
 | 5. Power Features | v1.0 | 5/5 | Complete | 2026-03-28 |
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
 | 7. Batch Operations | v1.1 | 5/5 | Complete    | 2026-09-03 |
-| 8. Foundations — Error Layer, Models & Pagination | v1.1 | 0/2 | Planned    |  |
+| 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete   | 2026-09-03 |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 0/TBD | Not started | - |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
 | 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |

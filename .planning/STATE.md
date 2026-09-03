@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: executing
+status: verifying
 stopped_at: Completed 07-03-PLAN.md (pipelines/stages/workflows batch ops — all 7 entities batch-capable)
-last_updated: "2026-09-03T15:55:48.074Z"
+last_updated: "2026-09-03T16:28:52.929Z"
 last_activity: 2026-09-03
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 5
-  percent: 14
+  completed_plans: 7
+  percent: 29
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 Phase: 8 (foundations-error-layer-models-pagination) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-03
 
-Progress: [███████░░░] 71%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [███████░░░] 71%
 | Phase 07 P03 | 10 min | 2 tasks | 9 files |
 | Phase 7 P04 | 9 min | 2 tasks | 3 files |
 | 7 | 5 | - | - |
+| Phase 8 P02 | 27 min | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,10 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 7]: Batch pattern replicated to pipelines/stages/workflows verbatim from deals/orgs reference; workflows batch delete skips confirmation on force/no-input/non-TTY while single-delete refusal behavior preserved
 - [Phase 7]: Pipeline mutations invalidate KEY_PIPELINES + stages_ cache prefix; batch stage updates use stages_ prefix invalidation (multi-pipeline safe)
 - [Phase 7]: Batch integration suite (26 tests/3 files) verifies all 7 entities; cmd() helpers set PIPELITE_SERVER_URL (live override) so unreachable-server error tests stay config-hermetic
+- [Phase 8]: Dead flags stay defined with hide=true (parse-then-error: exit 2 + replacement hint before any HTTP) instead of clap removal — hints must survive
+- [Phase 8]: workflows --active is a client-side filter with one locked stderr warning and meta rebuilt from filtered rows; dead WorkflowsListParams.active removed
+- [Phase 8]: expanded Map uses flatten+default+skip_serializing_if on all 7 Base models — expand payloads render in JSON automatically, no synthetic key when empty
+- [Phase 8]: Deal/Stage position are f64 (server numeric column) — 10000.0 rendering documented in CHANGELOG; Phase 12 CFLD-01 must be f64 from birth
 
 ### Pending Todos
 
@@ -85,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-03T15:55:48.047Z
+Last session: 2026-09-03T16:28:52.880Z
 Stopped at: Completed 07-03-PLAN.md (pipelines/stages/workflows batch ops — all 7 entities batch-capable)
 Resume file: None

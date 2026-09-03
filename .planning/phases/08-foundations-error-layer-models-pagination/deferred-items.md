@@ -23,10 +23,28 @@ fake-test-key").
 
 ### 2. Pre-existing build warnings (untouched files)
 
-- `src/commands/workflows/list.rs:56` — value assigned to `total` never read
-- `src/api/models.rs:416` — struct `WorkflowRunTrigger` never constructed
+- `src/api/models.rs:446` — struct `WorkflowRunTrigger` never constructed
 - `src/cache.rs:30` — constant `TTL_WORKFLOWS` never used
 - `src/prompt.rs:318` — function `get_workflows_cached` never used
 
-**Note:** models/cache/prompt dead items may become live again in 08-02 or
-Phases 10-12 (workflows cache usage); re-check before deleting.
+**Note:** models/cache/prompt dead items may become live again in Phases
+10-12 (workflows cache usage); re-check before deleting.
+**Resolved in 08-02:** the `workflows/list.rs` unused-`total` warning
+disappeared when the file was rewritten for the client-side `--active`
+filter (initializer removed, matching the other 6 list files).
+
+### 3. Intermittent config unit-test flake (pre-existing, proven at 7627c15)
+
+- `config::tests::env_var_precedence_server_url`
+- `config::tests::load_and_save_roundtrip`
+
+Observed during 08-02 full-suite runs: these two bin-unit tests fail
+~1 in 20 runs, and WHICH one fails varies (or none). NOT caused by 08-02:
+reproduced at the pre-08-02 commit `7627c15` via throwaway worktree
+(19 pass / 1 fail across 20 runs). Same root-cause family as item 1 —
+env-var/config-file mutation racing between parallel test threads with a
+real `~/.pipelite/config.toml` present. The 08-02 test additions shift
+thread timing, which surfaces it more often.
+
+**Candidate fix (deferred, same as item 1):** hermetic `HOME`/temp config
+for the config test module, or a shared mutex around env mutation.

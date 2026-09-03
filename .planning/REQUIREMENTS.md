@@ -60,12 +60,12 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Fixes and Foundations
 
-- [ ] **FIX-01**: Misleading/ignored filter flags are fixed or removed: `people list --org/--owner` (fix server-side filtering client-side is impossible — remove with hint), `workflows list --active` (client-side filter with warning), `workflows create --active` (remove), dead `--custom-field` flags on pipelines/stages create (remove)
-- [ ] **FIX-02**: `--expand` payloads render in output instead of being silently discarded (output-path raw-Value passthrough; typed models stay request-only)
-- [ ] **FIX-03**: `Deal.position` (and other position fields) deserialize server-emitted floats (`Option<f64>`)
-- [ ] **FIX-04**: `stages list` allows omitting `--pipeline` to list all stages across pipelines
+- [x] **FIX-01**: Misleading/ignored filter flags are fixed or removed: `people list --org/--owner` (fix server-side filtering client-side is impossible — remove with hint), `workflows list --active` (client-side filter with warning), `workflows create --active` (remove), dead `--custom-field` flags on pipelines/stages create (remove)
+- [x] **FIX-02**: `--expand` payloads render in output instead of being silently discarded (output-path raw-Value passthrough; typed models stay request-only)
+- [x] **FIX-03**: `Deal.position` (and other position fields) deserialize server-emitted floats (`Option<f64>`)
+- [x] **FIX-04**: `stages list` allows omitting `--pipeline` to list all stages across pipelines
 - [x] **FIX-05**: Error layer speaks RFC 7807: parse `detail`/`errors[]` keys; new `Forbidden` error variant with per-surface hints (audit → admin key, purge → admin, notes → author-or-admin, webhooks → foreign 403); 409 (inactive workflow trigger) mapped with actionable hint
-- [ ] **FIX-06**: Auto-pagination (`--all`) warns loudly on stderr when it hits a record ceiling instead of silently stopping at 1000
+- [x] **FIX-06**: Auto-pagination (`--all`) warns loudly on stderr when it hits a record ceiling instead of silently stopping at 1000
 
 ## Future Requirements
 
@@ -105,12 +105,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BATCH-02 | Phase 7 | Complete |
 | BATCH-03 | Phase 7 | Complete |
 | BATCH-04 | Phase 7 | Complete |
-| FIX-01 | Phase 8 | Pending |
-| FIX-02 | Phase 8 | Pending |
-| FIX-03 | Phase 8 | Pending |
-| FIX-04 | Phase 8 | Pending |
+| FIX-01 | Phase 8 | Complete |
+| FIX-02 | Phase 8 | Complete |
+| FIX-03 | Phase 8 | Complete |
+| FIX-04 | Phase 8 | Complete |
 | FIX-05 | Phase 8 | Complete |
-| FIX-06 | Phase 8 | Pending |
+| FIX-06 | Phase 8 | Complete |
 | WRUN-01 | Phase 9 | Pending |
 | WRUN-02 | Phase 9 | Pending |
 | WRUN-03 | Phase 9 | Pending |
