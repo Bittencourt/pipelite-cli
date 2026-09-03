@@ -129,12 +129,64 @@ fn batch_delete_unreachable_server_exits_nonzero() {
 
 #[test]
 fn batch_update_missing_id_in_item_shows_error() {
-    // An item without "id" should be reported as failed but not crash the batch
+    // An item without a string "id" is a STRUCTURAL input failure: the whole
+    // batch must be rejected with exit 2 before any HTTP call fires.
     let input = r#"[{"title":"No ID Here"}]"#;
     cmd()
         .write_stdin(input)
         .args(["deals", "update", "--stdin"])
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("missing").or(predicate::str::contains("id")));
+        .code(2)
+        .stderr(
+            predicate::str::contains("missing a string 'id' field")
+                .and(predicate::str::contains(": 1")),
+        );
+}
+
+#[test]
+fn batch_update_mixed_batch_missing_id_zero_http() {
+    // THE core regression for verification gap 1: a valid item followed by an
+    // id-less item must NOT mutate the valid item. The unreachable
+    // 127.0.0.1:1 server guarantees any HTTP attempt prints "Connection
+    // failed", so its absence from stderr proves zero requests fired.
+    let input = r#"[{"id":"deal_1","title":"X"},{"title":"No ID Here"}]"#;
+    cmd()
+        .write_stdin(input)
+        .args(["deals", "update", "--stdin"])
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("missing a string 'id' field")
+                .and(predicate::str::contains(": 2"))
+                .and(predicate::str::contains("Connection failed").not())
+                .and(predicate::str::contains("[1/2] Failed").not()),
+        );
+}
+
+#[test]
+fn batch_update_non_string_id_exits_2() {
+    // Non-string ids are treated as missing (matches the in-loop
+    // as_str() extraction semantics) -> structural exit 2.
+    let input = r#"[{"id":123,"title":"X"}]"#;
+    cmd()
+        .write_stdin(input)
+        .args(["deals", "update", "--stdin"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("missing a string 'id' field"));
+}
+
+#[test]
+fn batch_update_dry_run_missing_id_exits_2() {
+    // The pre-scan runs BEFORE the dry-run block: --dry-run is how users
+    // validate input, so structurally broken input is rejected there too —
+    // no per-item dry-run output on stdout.
+    let input = r#"[{"id":"deal_1","title":"X"},{"title":"No ID Here"}]"#;
+    cmd()
+        .write_stdin(input)
+        .args(["deals", "update", "--dry-run", "--stdin"])
+        .assert()
+        .code(2)
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("missing a string 'id' field"));
 }
