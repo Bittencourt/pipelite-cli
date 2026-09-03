@@ -19,7 +19,9 @@ pub enum CliError {
     #[error("Validation error")]
     Validation { detail: String, hint: String },
 
-    #[error("API error")]
+    // Title interpolates the status so per-item batch failure lines (which
+    // render only the error title) carry the code — e.g. "API error (HTTP 429)".
+    #[error("API error (HTTP {status})")]
     Api {
         status: u16,
         detail: String,
