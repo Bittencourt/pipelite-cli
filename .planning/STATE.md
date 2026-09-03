@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: verifying
-stopped_at: Completed 07-03-PLAN.md (pipelines/stages/workflows batch ops — all 7 entities batch-capable)
-last_updated: "2026-09-03T16:28:52.929Z"
+status: ready_to_plan
+stopped_at: Phase 8 complete (2/2) — ready to discuss Phase 9
+last_updated: 2026-09-03T17:11:41.034Z
 last_activity: 2026-09-03
 progress:
   total_phases: 7
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-02)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal — fast, scriptable, and composable with other tools.
-**Current focus:** Phase 8 — foundations-error-layer-models-pagination
+**Current focus:** Phase 9 — workflow runs, templates & docs
 
 ## Current Position
 
-Phase: 8 (foundations-error-layer-models-pagination) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 9
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-09-03
 
 Progress: [██████████] 100%
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 23 (v1.0)
+- Total plans completed: 25 (v1.0)
 - Average duration: — (not tracked)
 - Total execution time: —
 
@@ -49,6 +49,7 @@ Progress: [██████████] 100%
 | Phase 7 P04 | 9 min | 2 tasks | 3 files |
 | 7 | 5 | - | - |
 | Phase 8 P02 | 27 min | 3 tasks | 23 files |
+| 8 | 2 | - | - |
 
 ## Accumulated Context
 
