@@ -1084,4 +1084,268 @@ mod tests {
         assert!(!obj.contains_key("color"));
         assert!(!obj.contains_key("type"));
     }
+
+    // -- Phase 9: workflow run contracts (verified wire shapes) --
+
+    #[test]
+    fn run_status_parses_all_five_wire_values_case_exact() {
+        for (wire, expected) in [
+            ("pending", WorkflowRunStatus::Pending),
+            ("running", WorkflowRunStatus::Running),
+            ("completed", WorkflowRunStatus::Completed),
+            ("failed", WorkflowRunStatus::Failed),
+            ("waiting", WorkflowRunStatus::Waiting),
+        ] {
+            let parsed: WorkflowRunStatus = serde_json::from_value(json!(wire)).unwrap();
+            assert_eq!(parsed, expected, "wire value: {wire}");
+            assert_eq!(parsed.as_str(), wire);
+        }
+    }
+
+    #[test]
+    fn run_status_unknown_future_value_falls_back_to_unknown() {
+        // Defensive: a future status (e.g. `cancelled`) must deserialize
+        // instead of erroring the whole request down.
+        let parsed: WorkflowRunStatus = serde_json::from_value(json!("cancelled")).unwrap();
+        assert_eq!(parsed, WorkflowRunStatus::Unknown);
+        assert_eq!(parsed.as_str(), "unknown");
+    }
+
+    #[test]
+    fn step_status_parses_all_six_wire_values() {
+        for (wire, expected) in [
+            ("pending", WorkflowRunStepStatus::Pending),
+            ("running", WorkflowRunStepStatus::Running),
+            ("completed", WorkflowRunStepStatus::Completed),
+            ("failed", WorkflowRunStepStatus::Failed),
+            ("skipped", WorkflowRunStepStatus::Skipped),
+            ("waiting", WorkflowRunStepStatus::Waiting),
+        ] {
+            let parsed: WorkflowRunStepStatus = serde_json::from_value(json!(wire)).unwrap();
+            assert_eq!(parsed, expected, "wire value: {wire}");
+            assert_eq!(parsed.as_str(), wire);
+        }
+    }
+
+    #[test]
+    fn step_status_unknown_future_value_falls_back_to_unknown() {
+        let parsed: WorkflowRunStepStatus = serde_json::from_value(json!("cancelled")).unwrap();
+        assert_eq!(parsed, WorkflowRunStepStatus::Unknown);
+        assert_eq!(parsed.as_str(), "unknown");
+    }
+
+    #[test]
+    fn run_status_is_terminal_truth_table() {
+        // Terminal: completed, failed — plus Unknown so a future terminal
+        // state can never hang a watch loop.
+        assert!(!run_status_is_terminal(&WorkflowRunStatus::Pending));
+        assert!(!run_status_is_terminal(&WorkflowRunStatus::Running));
+        assert!(!run_status_is_terminal(&WorkflowRunStatus::Waiting));
+        assert!(run_status_is_terminal(&WorkflowRunStatus::Completed));
+        assert!(run_status_is_terminal(&WorkflowRunStatus::Failed));
+        assert!(run_status_is_terminal(&WorkflowRunStatus::Unknown));
+    }
+
+    #[test]
+    fn watch_exit_code_truth_table() {
+        // Completed -> 0 regardless of the flag.
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Completed, false), 0);
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Completed, true), 0);
+        // Failed -> 1 only under --exit-status (default watch exits 0 even
+        // on failed, locked CONTEXT semantics).
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Failed, false), 0);
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Failed, true), 1);
+        // Unknown mirrors failed (defensive cancelled mapping) — a future
+        // terminal failure state must not silently flip exit codes.
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Unknown, false), 0);
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Unknown, true), 1);
+        // Non-terminal states are unreachable in the watch loop -> 0.
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Pending, true), 0);
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Running, true), 0);
+        assert_eq!(watch_exit_code(&WorkflowRunStatus::Waiting, true), 0);
+    }
+
+    /// Verified server run row (serializeRun, 11 fields).
+    fn full_run_row_json() -> serde_json::Value {
+        json!({
+            "id": "run_abc123",
+            "workflow_id": "wf_abc123",
+            "status": "completed",
+            "trigger_data": {"dealId": "deal_001"},
+            "error": null,
+            "depth": 0,
+            "dry_run": false,
+            "current_node_id": null,
+            "started_at": "2026-01-01T00:00:00Z",
+            "completed_at": "2026-01-01T00:00:05Z",
+            "created_at": "2026-01-01T00:00:00Z"
+        })
+    }
+
+    #[test]
+    fn workflow_run_deserializes_full_verified_wire_shape() {
+        let run: WorkflowRun = serde_json::from_value(full_run_row_json()).unwrap();
+        assert_eq!(run.id, "run_abc123");
+        assert_eq!(run.workflow_id, "wf_abc123");
+        assert_eq!(run.status, WorkflowRunStatus::Completed);
+        assert_eq!(run.trigger_data.as_ref().unwrap()["dealId"], "deal_001");
+        assert!(run.error.is_none());
+        assert_eq!(run.depth, 0);
+        assert!(!run.dry_run);
+        assert!(run.current_node_id.is_none());
+        assert_eq!(run.started_at.as_deref(), Some("2026-01-01T00:00:00Z"));
+        assert_eq!(run.completed_at.as_deref(), Some("2026-01-01T00:00:05Z"));
+        assert_eq!(run.created_at, "2026-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn workflow_run_dry_run_and_depth_default_when_absent() {
+        // dry_run is NOT NULL DEFAULT false server-side; depth defaults 0.
+        // Pre-column runs and rows without depth must deserialize.
+        let mut row = full_run_row_json();
+        row.as_object_mut().unwrap().remove("dry_run");
+        row.as_object_mut().unwrap().remove("depth");
+        let run: WorkflowRun = serde_json::from_value(row).unwrap();
+        assert!(!run.dry_run);
+        assert_eq!(run.depth, 0);
+    }
+
+    #[test]
+    fn workflow_run_detail_flattens_run_fields_and_defaults_steps() {
+        // Detail envelope data: run fields at the top level plus steps[]
+        // (steps ordered created_at ASC server-side).
+        let mut data = full_run_row_json();
+        data["steps"] = json!([
+            {
+                "id": "step_1",
+                "run_id": "run_abc123",
+                "node_id": "fetch_deal",
+                "status": "completed",
+                "input": {"dealId": "deal_001"},
+                "output": {"ok": true},
+                "error": null,
+                "resume_at": null,
+                "started_at": "2026-01-01T00:00:00Z",
+                "completed_at": "2026-01-01T00:00:03Z",
+                "created_at": "2026-01-01T00:00:00Z"
+            }
+        ]);
+        let detail: WorkflowRunDetail = serde_json::from_value(data).unwrap();
+        assert_eq!(detail.run.id, "run_abc123");
+        assert_eq!(detail.run.status, WorkflowRunStatus::Completed);
+        assert_eq!(detail.steps.len(), 1);
+        assert_eq!(detail.steps[0].node_id, "fetch_deal");
+        assert_eq!(detail.steps[0].status, WorkflowRunStepStatus::Completed);
+        assert_eq!(detail.steps[0].output.as_ref().unwrap()["ok"], true);
+        assert!(detail.steps[0].error.is_none());
+    }
+
+    #[test]
+    fn workflow_run_detail_steps_default_when_absent() {
+        let data = full_run_row_json();
+        let detail: WorkflowRunDetail = serde_json::from_value(data).unwrap();
+        assert!(detail.steps.is_empty());
+    }
+
+    #[test]
+    fn workflow_run_detail_serializes_run_fields_plus_steps_no_wrapper() {
+        // Serializing detail must emit the run fields flattened + "steps" —
+        // never a synthetic wrapper key (FIX-02 passthrough convention).
+        let data = json!({
+            "id": "run_abc123",
+            "workflow_id": "wf_abc123",
+            "status": "failed",
+            "trigger_data": null,
+            "error": "boom",
+            "depth": 0,
+            "dry_run": false,
+            "current_node_id": null,
+            "started_at": null,
+            "completed_at": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "steps": [
+                {
+                    "id": "step_1",
+                    "run_id": "run_abc123",
+                    "node_id": "send_email",
+                    "status": "failed",
+                    "input": null,
+                    "output": null,
+                    "error": "SMTP timeout",
+                    "resume_at": null,
+                    "started_at": null,
+                    "completed_at": null,
+                    "created_at": "2026-01-01T00:00:00Z"
+                }
+            ]
+        });
+        let detail: WorkflowRunDetail = serde_json::from_value(data).unwrap();
+        let out = serde_json::to_value(&detail).unwrap();
+        let obj = out.as_object().unwrap();
+        assert!(obj.contains_key("id"));
+        assert!(obj.contains_key("status"));
+        assert!(obj.contains_key("workflow_id"));
+        assert!(obj.contains_key("created_at"));
+        assert!(obj.contains_key("steps"));
+        assert!(!obj.contains_key("run"), "no synthetic wrapper key: {out}");
+        assert_eq!(out["steps"][0]["error"], "SMTP timeout");
+        assert_eq!(out["steps"][0]["status"], "failed");
+    }
+
+    #[test]
+    fn runs_list_params_query_pairs_conditional_matrix() {
+        // Full: status + dry_run + limit + offset (workflow_id is a PATH
+        // segment, never a query pair).
+        let full = WorkflowRunsListParams {
+            workflow_id: "wf_1".to_string(),
+            status: Some("failed".to_string()),
+            include_dry_run: true,
+            limit: 10,
+            offset: 20,
+        };
+        let pairs = full.to_query_pairs();
+        assert!(pairs.contains(&("status".to_string(), "failed".to_string())));
+        assert!(pairs.contains(&("dry_run".to_string(), "true".to_string())));
+        assert!(pairs.contains(&("limit".to_string(), "10".to_string())));
+        assert!(pairs.contains(&("offset".to_string(), "20".to_string())));
+        assert!(
+            !pairs.iter().any(|(k, _)| k == "workflow_id"),
+            "workflow_id must never appear as a query pair: {pairs:?}"
+        );
+
+        // Minimal: only limit+offset — no status, NO dry_run (the server
+        // hides test runs unless the param is exactly "true"; sending it
+        // unconditionally would silently include test runs everywhere).
+        let minimal = WorkflowRunsListParams {
+            workflow_id: "wf_1".to_string(),
+            status: None,
+            include_dry_run: false,
+            limit: 50,
+            offset: 0,
+        };
+        let pairs = minimal.to_query_pairs();
+        assert_eq!(pairs.len(), 2);
+        assert!(pairs.contains(&("limit".to_string(), "50".to_string())));
+        assert!(pairs.contains(&("offset".to_string(), "0".to_string())));
+    }
+
+    #[test]
+    fn step_duration_computes_nonempty_for_parsed_pair() {
+        let started = Some("2026-01-01T00:00:00Z".to_string());
+        let completed = Some("2026-01-01T00:00:03Z".to_string());
+        let duration = step_duration(&started, &completed);
+        assert!(!duration.is_empty(), "3s step must render a duration");
+    }
+
+    #[test]
+    fn step_duration_empty_when_either_side_missing_or_garbage() {
+        let started = Some("2026-01-01T00:00:00Z".to_string());
+        assert_eq!(step_duration(&started, &None), "");
+        assert_eq!(step_duration(&None, &started), "");
+        assert_eq!(step_duration(&None, &None), "");
+        // Unparseable timestamps must degrade to empty, never panic.
+        let garbage = Some("not-a-timestamp".to_string());
+        assert_eq!(step_duration(&garbage, &started), "");
+        assert_eq!(step_duration(&started, &garbage), "");
+    }
 }
