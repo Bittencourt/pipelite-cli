@@ -46,7 +46,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   4. Structurally broken input (malformed JSON, missing IDs) is fully rejected before the first HTTP call — zero mutations on invalid input
   5. A rate-limited (429) item retries once per `Retry-After`; if it still fails it is classified as a failed item with detail — never a crash or silent skip
 **Notes**: Plans drafted as 01-01…01-04 in `.planning/phases/01-batch-operations-for-all-entities/` — **to be renumbered 07-01…07-04 after roadmap approval** (orchestrator handles the directory/plan rename). Research amendment folded into 07-01: extract `confirm_destructive` into the shared batch utility (trash purge in Phase 11 needs the identical dry-run→confirm ordering). Internal order: batch utility before per-entity batch plans.
-**Plans**: 4 plans drafted (renumber pending)
+**Plans**: 5 plans — 07-01 (batch utility + deals), 07-02 (orgs/people/activities), 07-03 (pipelines/stages/workflows), 07-04 (integration tests), 07-05 (gap closure: BATCH-04 hardening — missing-ID pre-validation, 429 Retry-After retry-once, exit-2 structural contract)
 
 Plans:
 - [x] 07-01: (drafted as 01-01) Batch utility module + deals reference implementation
