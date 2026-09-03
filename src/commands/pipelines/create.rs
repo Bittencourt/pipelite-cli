@@ -16,7 +16,20 @@ use crate::prompt;
 /// When --stdin is set, reads a JSON array and creates each individually
 /// (no batch endpoint for pipelines). Otherwise, builds a single PipelineCreate
 /// from CLI flags (with interactive prompts on TTY when flags are missing).
+///
+/// --custom-field is removed (v1.1): pipelines do not support custom fields,
+/// so it is rejected structurally BEFORE any HTTP call (T-08-04).
 pub async fn run(ctx: &AppContext, args: &PipelinesCreateArgs) -> Result<()> {
+    if !args.custom_field.is_empty() {
+        return Err(CliError::InvalidInput {
+            detail: "--custom-field was removed: pipelines do not support custom fields"
+                .to_string(),
+            hint: "Remove the flag; --custom-field on deals/orgs/people/activities is unaffected."
+                .to_string(),
+        }
+        .into());
+    }
+
     // Validate mutual exclusivity: --stdin vs individual flags
     if args.stdin {
         let has_flags = args.name.is_some()

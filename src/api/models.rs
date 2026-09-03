@@ -413,6 +413,11 @@ pub struct Workflow {
 }
 
 /// Payload for creating a new workflow.
+///
+/// No `active` field (v1.1): the server always creates workflows inactive.
+/// The only truth fix — a request carrying `active` was silently ignored
+/// anyway. Stdin JSON carrying `active` still deserializes (serde ignores
+/// unknown fields). `WorkflowUpdate.active` remains the live activation path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowCreate {
     pub name: String,
@@ -422,8 +427,6 @@ pub struct WorkflowCreate {
     pub triggers: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nodes: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub active: Option<bool>,
 }
 
 /// Payload for updating an existing workflow. All fields optional.
@@ -1021,7 +1024,6 @@ mod tests {
             description: None,
             triggers: None,
             nodes: None,
-            active: None,
         };
 
         let json = serde_json::to_value(&create).unwrap();
@@ -1033,6 +1035,19 @@ mod tests {
         assert!(!obj.contains_key("triggers"));
         assert!(!obj.contains_key("nodes"));
         assert!(!obj.contains_key("active"));
+    }
+
+    #[test]
+    fn workflow_create_stdin_json_with_active_key_still_deserializes() {
+        // A3: serde ignores unknown fields — a client script piping
+        // {"name":"W","active":true} must not error; the key is dropped
+        // and never re-serialized into the request.
+        let input = r#"{"name":"W","active":true}"#;
+        let create: WorkflowCreate = serde_json::from_str(input).unwrap();
+        assert_eq!(create.name, "W");
+
+        let out = serde_json::to_value(&create).unwrap();
+        assert!(out.get("active").is_none());
     }
 
     #[test]

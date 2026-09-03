@@ -4,13 +4,27 @@ use crate::api::PeopleListParams;
 use crate::api::models::{PaginationMeta, Person, people_table_config};
 use crate::cli::people::PeopleListArgs;
 use crate::context::AppContext;
+use crate::error::CliError;
 use crate::output;
 
 /// List people with filtering and pagination.
 ///
 /// When --all is set, auto-paginates in batches of 100 up to 1000 records.
 /// Prints a warning to stderr if more results exist beyond the cap.
+///
+/// --org/--owner are removed dead flags (v1.1): the server ignores them, so
+/// they are rejected structurally BEFORE any HTTP call (T-08-04).
 pub async fn run(ctx: &AppContext, args: &PeopleListArgs) -> Result<()> {
+    if args.org.is_some() || args.owner.is_some() {
+        return Err(CliError::InvalidInput {
+            detail: "--org/--owner were removed: the server ignores them and returns unfiltered data"
+                .to_string(),
+            hint: "Fetch people (`pipelite people list`) and filter client-side, e.g. with jq."
+                .to_string(),
+        }
+        .into());
+    }
+
     let config = people_table_config();
     let columns: Vec<String> = config
         .default_columns

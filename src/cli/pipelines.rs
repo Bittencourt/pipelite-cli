@@ -100,8 +100,10 @@ pub struct PipelinesCreateArgs {
     #[arg(long)]
     pub default: bool,
 
-    /// Custom field (key=value, repeatable)
-    #[arg(long = "custom-field")]
+    /// [REMOVED v1.1] --custom-field was dead: pipelines do not support
+    /// custom fields. Kept defined (hidden) so the handler can reject
+    /// with a replacement hint instead of silently dropping the values.
+    #[arg(long = "custom-field", hide = true)]
     pub custom_field: Vec<String>,
 
     /// Read JSON array from stdin for batch create

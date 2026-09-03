@@ -15,13 +15,26 @@ use crate::prompt;
 ///
 /// When --stdin is set, reads a JSON WorkflowCreate object from stdin.
 /// Otherwise, builds from CLI flags with interactive prompts for basic
-/// fields (name, description, active) on TTY. Triggers and nodes are
-/// JSON-only via --triggers/--nodes flags.
+/// fields (name, description) on TTY. Triggers and nodes are JSON-only via
+/// --triggers/--nodes flags.
+///
+/// `active` is never sent on create (v1.1): the server always creates
+/// workflows inactive. The removed --active flag is rejected structurally
+/// BEFORE any HTTP call; activate via `workflows update <id> --active true`.
 pub async fn run(ctx: &AppContext, args: &WorkflowsCreateArgs) -> Result<()> {
+    if args.active.is_some() {
+        return Err(CliError::InvalidInput {
+            detail: "--active was removed on create: the server always creates workflows inactive"
+                .to_string(),
+            hint: "New workflows start inactive; activate with `pipelite workflows update <id> --active true`."
+                .to_string(),
+        }
+        .into());
+    }
+
     if args.stdin {
         let has_flags = args.name.is_some()
             || args.description.is_some()
-            || args.active.is_some()
             || args.triggers.is_some()
             || args.nodes.is_some();
 
@@ -62,29 +75,16 @@ async fn single_create(ctx: &AppContext, args: &WorkflowsCreateArgs) -> Result<(
     // Optional: description
     let description = prompt::optional_text(&args.description, "Description", ctx.no_input)?;
 
-    // Optional: active toggle (interactive Confirm on TTY)
-    let active = if args.active.is_some() {
-        args.active
-    } else if io::stdin().is_terminal() && !ctx.no_input {
-        let confirmed = dialoguer::Confirm::new()
-            .with_prompt("Set workflow active?")
-            .default(false)
-            .interact()?;
-        Some(confirmed)
-    } else {
-        None
-    };
-
     // Optional: triggers and nodes as JSON string flags
     let triggers = parse_json_array_flag(&args.triggers, "triggers")?;
     let nodes = parse_json_array_flag(&args.nodes, "nodes")?;
 
+    // No `active` on create: the server always creates workflows inactive.
     let data = WorkflowCreate {
         name,
         description,
         triggers,
         nodes,
-        active,
     };
 
     // Dry-run intercept

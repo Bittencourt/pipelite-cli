@@ -38,7 +38,7 @@ fn org_id_candidates() -> Vec<CompletionCandidate> {
 pub enum PeopleCommands {
     /// List people with optional filtering and pagination
     #[command(
-        after_help = "Examples:\n  pipelite people list\n  pipelite people list --org org_abc123\n  pipelite people list --owner usr_001 --limit 10\n  pipelite people list --all --format json\n  pipelite people list --fields id,full_name,email"
+        after_help = "Examples:\n  pipelite people list\n  pipelite people list --limit 10\n  pipelite people list --all --format json\n  pipelite people list --fields id,full_name,email"
     )]
     List(PeopleListArgs),
 
@@ -69,12 +69,16 @@ pub enum PeopleCommands {
 
 #[derive(Args)]
 pub struct PeopleListArgs {
-    /// Filter by organization ID
-    #[arg(long, add = ArgValueCandidates::new(org_id_candidates))]
+    /// [REMOVED v1.1] --org was dead: the server ignores it and returns
+    /// unfiltered data. Kept defined (hidden) so the handler can reject
+    /// with a replacement hint instead of a silent no-op.
+    #[arg(long, hide = true, add = ArgValueCandidates::new(org_id_candidates))]
     pub org: Option<String>,
 
-    /// Filter by owner ID
-    #[arg(long)]
+    /// [REMOVED v1.1] --owner was dead: the server ignores it and returns
+    /// unfiltered data. Kept defined (hidden) so the handler can reject
+    /// with a replacement hint instead of a silent no-op.
+    #[arg(long, hide = true)]
     pub owner: Option<String>,
 
     /// Maximum number of results (default: 50)

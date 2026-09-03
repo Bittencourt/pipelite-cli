@@ -17,7 +17,19 @@ use crate::prompt;
 /// (no batch endpoint for stages). Otherwise, builds a single StageCreate
 /// from CLI flags (with interactive prompts on TTY when flags are missing).
 /// Both --name and --pipeline are required.
+///
+/// --custom-field is removed (v1.1): stages do not support custom fields,
+/// so it is rejected structurally BEFORE any HTTP call (T-08-04).
 pub async fn run(ctx: &AppContext, args: &StagesCreateArgs) -> Result<()> {
+    if !args.custom_field.is_empty() {
+        return Err(CliError::InvalidInput {
+            detail: "--custom-field was removed: stages do not support custom fields".to_string(),
+            hint: "Remove the flag; --custom-field on deals/orgs/people/activities is unaffected."
+                .to_string(),
+        }
+        .into());
+    }
+
     // Validate mutual exclusivity: --stdin vs individual flags
     if args.stdin {
         let has_flags = args.name.is_some()

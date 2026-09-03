@@ -110,8 +110,10 @@ pub struct WorkflowsCreateArgs {
     #[arg(long)]
     pub description: Option<String>,
 
-    /// Set workflow active status
-    #[arg(long)]
+    /// [REMOVED v1.1] --active on create was a lie: the server always creates
+    /// workflows inactive. Kept defined (hidden) so the handler can reject
+    /// with the activation path (`workflows update <id> --active true`).
+    #[arg(long, hide = true)]
     pub active: Option<bool>,
 
     /// Triggers as JSON array string
