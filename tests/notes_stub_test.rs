@@ -359,6 +359,22 @@ fn add_unreadable_at_file_rejects_pre_http() {
 }
 
 #[test]
+fn add_bare_at_rejects_with_clear_hint_pre_http() {
+    // IN-01: bare `@` (no path) must NOT surface "Failed to read file ''" —
+    // exit 2 with a hint explaining @ needs a path or @- for stdin.
+    common::cmd()
+        .args(["notes", "add", "deals", "d1", "--body", "@"])
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("no file path")
+                .and(predicate::str::contains("@-"))
+                .and(predicate::str::contains("Failed to read file ''").not())
+                .and(predicate::str::contains("Connection failed").not()),
+        );
+}
+
+#[test]
 fn add_stdin_reads_stdin_data() {
     let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(201,
         &note_envelope(note_json("n_new", "deal", "d1", "from stdin")))]);

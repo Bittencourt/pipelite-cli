@@ -12,7 +12,8 @@ use crate::error::CliError;
 ///    pair `--body @-` + `--stdin` can never consume each other's data
 ///    (Pitfall 7 / open question 3).
 /// 2. `--body`: a leading `@` reads from a file (`@-` = stdin to end);
-///    an unreadable file is InvalidInput exit 2 with a check-the-path hint
+///    bare `@` (no path) is InvalidInput exit 2; an unreadable file is
+///    InvalidInput exit 2 with a check-the-path hint
 ///    (InvalidInput per the Phase 10 CONTEXT lock — NOT Validation).
 /// 3. `--stdin`: read stdin to end.
 /// 4. Neither: interactive prompt when stdin is a TTY and prompting is
@@ -48,6 +49,12 @@ pub fn resolve_body(
     if let Some(value) = body {
         return match value.strip_prefix('@') {
             Some("-") => read_stdin_to_end(),
+            Some("") => Err(CliError::InvalidInput {
+                detail: "`--body @` has no file path".to_string(),
+                hint: "@ must be followed by a file path (`--body @note.md`), or use `--body @-` for stdin."
+                    .to_string(),
+            }
+            .into()),
             Some(path) => std::fs::read_to_string(path).map_err(|e| {
                 CliError::InvalidInput {
                     detail: format!("Failed to read file '{path}': {e}"),
