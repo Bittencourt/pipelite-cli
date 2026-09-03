@@ -12,7 +12,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **BATCH-01**: User can batch-update any entity by piping JSON objects to `--stdin`
 - [x] **BATCH-02**: User can batch-delete by passing multiple IDs or piping IDs via `--stdin`
 - [x] **BATCH-03**: User can run batch operations with continue-on-error, seeing per-item results and a final `N ok, M failed` summary
-- [ ] **BATCH-04**: All entity batch operations share one utility with a consistent contract: exit 0 (all ok), 1 (any failed, even with continue-on-error), 2 (structural input failure before any HTTP); summary survives `--quiet`; stdin fully validated before the first HTTP call; 429 Retry-After retried once then classified as failure
+- [x] **BATCH-04**: All entity batch operations share one utility with a consistent contract: exit 0 (all ok), 1 (any failed, even with continue-on-error), 2 (structural input failure before any HTTP); summary survives `--quiet`; stdin fully validated before the first HTTP call; 429 Retry-After retried once then classified as failure
 
 ### Notes
 
@@ -104,7 +104,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BATCH-01 | Phase 7 | Complete |
 | BATCH-02 | Phase 7 | Complete |
 | BATCH-03 | Phase 7 | Complete |
-| BATCH-04 | Phase 7 | Pending |
+| BATCH-04 | Phase 7 | Complete |
 | FIX-01 | Phase 8 | Pending |
 | FIX-02 | Phase 8 | Pending |
 | FIX-03 | Phase 8 | Pending |

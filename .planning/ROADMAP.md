@@ -141,7 +141,7 @@ Plans:
 | 4. Developer Experience | v1.0 | 3/3 | Complete | 2026-03-25 |
 | 5. Power Features | v1.0 | 5/5 | Complete | 2026-03-28 |
 | 6. Workflow API Integration | v1.0 | 2/2 | Complete | 2026-03-29 |
-| 7. Batch Operations | v1.1 | 4/4 | Complete   | 2026-09-02 |
+| 7. Batch Operations | v1.1 | 5/5 | Complete   | 2026-09-03 |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 0/TBD | Not started | - |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 0/TBD | Not started | - |
 | 10. Notes | v1.1 | 0/TBD | Not started | - |
