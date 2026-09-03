@@ -22,12 +22,14 @@ fn cmd() -> Command {
 
 #[test]
 fn batch_update_unreachable_server_exits_nonzero() {
+    // All items are structurally valid; failures are per-item (unreachable
+    // server), so the batch exits 1 — never 2 (exit-2 is structural only).
     let input = r#"[{"id":"deal_1","title":"New"}]"#;
     cmd()
         .write_stdin(input)
         .args(["deals", "update", "--stdin"])
         .assert()
-        .failure()
+        .code(1)
         .stderr(predicate::str::contains("failed").or(predicate::str::contains("Failed")));
 }
 
@@ -36,12 +38,58 @@ fn batch_update_unreachable_server_exits_nonzero() {
 #[test]
 fn batch_update_empty_array_fails() {
     // An empty array runs zero operations and must not exit 0 silently.
+    // Structural input failure -> exit 2 (BATCH-04 exit-code matrix).
     cmd()
         .write_stdin("[]")
         .args(["deals", "update", "--stdin"])
         .assert()
-        .failure()
+        .code(2)
         .stderr(predicate::str::contains("Empty update list"));
+}
+
+#[test]
+fn batch_update_invalid_json_exits_2() {
+    // Malformed JSON is a structural input failure -> exit 2.
+    cmd()
+        .write_stdin("not json")
+        .args(["deals", "update", "--stdin"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Invalid JSON input"));
+}
+
+#[test]
+fn batch_delete_empty_list_exits_2() {
+    // Empty ID array is a structural input failure -> exit 2.
+    cmd()
+        .write_stdin("[]")
+        .args(["deals", "delete", "--stdin"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Empty ID list"));
+}
+
+#[test]
+fn batch_delete_stdin_with_positional_ids_exits_2() {
+    // --stdin + positional IDs conflict is a structural input failure -> exit 2.
+    cmd()
+        .write_stdin(r#"["deal_1"]"#)
+        .args(["deals", "delete", "deal_1", "--stdin"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("mutually exclusive"));
+}
+
+#[test]
+fn batch_update_stdin_with_field_flag_exits_2() {
+    // --stdin + individual field flags conflict is structural -> exit 2
+    // (deals stand in for all 7 entities, which share the identical path).
+    cmd()
+        .write_stdin(r#"[{"id":"deal_1","title":"X"}]"#)
+        .args(["deals", "update", "--stdin", "--title", "X"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("mutually exclusive"));
 }
 
 #[test]
@@ -70,7 +118,7 @@ fn batch_delete_unreachable_server_exits_nonzero() {
         .write_stdin("")
         .args(["deals", "delete", "deal_1", "deal_2", "--force"])
         .assert()
-        .failure()
+        .code(1)
         .stderr(predicate::str::contains("failed").or(predicate::str::contains("Failed")));
 }
 
