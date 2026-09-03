@@ -1,5 +1,9 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::io::{Read as _, Write as _};
+use std::net::TcpListener;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Helper: build a pipelite command with fake config env vars.
 /// Per CLAUDE.md: tests use 127.0.0.1:1 + fake-test-key.
@@ -16,6 +20,103 @@ fn cmd() -> Command {
     c.env("PIPELITE_SERVER_URL", "http://127.0.0.1:1");
     c.env("PIPELITE_API_KEY", "fake-test-key");
     c
+}
+
+/// Helper: pipelite command pointed at a live stub server URL.
+fn cmd_with_server(url: &str) -> Command {
+    let mut c = Command::cargo_bin("pipelite").unwrap();
+    c.env("PIPELITE_URL", url);
+    c.env("PIPELITE_SERVER_URL", url);
+    c.env("PIPELITE_API_KEY", "fake-test-key");
+    c
+}
+
+/// A complete ApiSingleResponse<Deal> body (all Deal fields required).
+const DEAL_SUCCESS_BODY: &str = r#"{"data":{"id":"deal_1","title":"Updated","value":null,"stage_id":"s1","organization_id":null,"person_id":null,"owner_id":"u1","position":null,"expected_close_date":null,"notes":null,"custom_fields":null,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}"#;
+
+/// Hand-rolled HTTP stub server (no new crates): serves one scripted
+/// `(status, Retry-After)` response per accepted connection, in order.
+///
+/// Returns the base URL and a shared counter of served responses so tests
+/// can assert exactly how many requests the CLI made (one retry = 2 total).
+fn spawn_stub_server(script: &[(u16, Option<&str>)]) -> (String, Arc<AtomicUsize>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind stub server");
+    let addr = listener.local_addr().expect("stub server address");
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_clone = Arc::clone(&counter);
+    let script: Vec<(u16, Option<String>)> = script
+        .iter()
+        .map(|(status, retry_after)| (*status, retry_after.map(|s| s.to_string())))
+        .collect();
+
+    std::thread::spawn(move || {
+        for (status, retry_after) in script {
+            let (mut stream, _) = match listener.accept() {
+                Ok(conn) => conn,
+                Err(_) => break,
+            };
+
+            // Read the request head (headers end at the first \r\n\r\n).
+            let mut received = Vec::new();
+            let mut buf = [0u8; 4096];
+            loop {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        received.extend_from_slice(&buf[..n]);
+                        if received.windows(4).any(|w| w == b"\r\n\r\n") {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Read exactly Content-Length body bytes, if any (the PUT body).
+            let header_end = received
+                .windows(4)
+                .position(|w| w == b"\r\n\r\n")
+                .map(|p| p + 4)
+                .unwrap_or(received.len());
+            let headers = String::from_utf8_lossy(&received[..header_end]).to_lowercase();
+            let content_length = headers
+                .lines()
+                .find_map(|l| l.strip_prefix("content-length:"))
+                .and_then(|v| v.trim().parse::<usize>().ok())
+                .unwrap_or(0);
+            let mut body_read = received.len().saturating_sub(header_end);
+            while body_read < content_length {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => body_read += n,
+                }
+            }
+
+            let reason = if status == 429 {
+                "Too Many Requests"
+            } else {
+                "OK"
+            };
+            let body = if status == 429 {
+                r#"{"error":"rate limited"}"#
+            } else {
+                DEAL_SUCCESS_BODY
+            };
+            let mut response = format!("HTTP/1.1 {status} {reason}\r\n");
+            if let Some(ra) = &retry_after {
+                response.push_str(&format!("Retry-After: {ra}\r\n"));
+            }
+            response.push_str(&format!("Content-Length: {}\r\n", body.len()));
+            response.push_str("Content-Type: application/json\r\n");
+            response.push_str("Connection: close\r\n\r\n");
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.write_all(body.as_bytes());
+            let _ = stream.flush();
+            drop(stream);
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        }
+    });
+
+    (format!("http://{addr}"), counter)
 }
 
 // -- Batch update against unreachable server -> all fail, non-zero exit (D-06, D-07) --
@@ -189,4 +290,65 @@ fn batch_update_dry_run_missing_id_exits_2() {
         .code(2)
         .stdout(predicate::str::is_empty())
         .stderr(predicate::str::contains("missing a string 'id' field"));
+}
+
+// -- 429 Retry-After retry-once (verification gap 2) --
+// The retry lives in the shared API client, so the deals entity alone
+// proves the behavior for all 7 entities.
+
+#[test]
+fn batch_update_429_retries_once_then_succeeds() {
+    // Request 1 -> 429 (Retry-After: 0); request 2 (the one retry) -> 200.
+    // The item must SUCCEED (exit 0, no failure line) after exactly one retry.
+    let (url, count) = spawn_stub_server(&[(429, Some("0")), (200, None)]);
+    let input = r#"[{"id":"deal_1","title":"New"}]"#;
+    let output = cmd_with_server(&url)
+        .write_stdin(input)
+        .args(["deals", "update", "--stdin"])
+        .output()
+        .expect("run pipelite against stub server");
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "retry after 429 should make the item succeed; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("Failed"),
+        "no failure line expected after successful retry: {stderr}"
+    );
+    assert_eq!(
+        count.load(Ordering::SeqCst),
+        2,
+        "expected exactly one retry (2 requests total)"
+    );
+}
+
+#[test]
+fn batch_update_still_429_after_retry_fails_item_with_detail() {
+    // 429 twice: exactly one retry (never more), then the item is reported
+    // as a failed item carrying rate-limit detail, and the batch exits 1.
+    let (url, count) = spawn_stub_server(&[(429, Some("0")), (429, Some("0"))]);
+    let input = r#"[{"id":"deal_1","title":"New"}]"#;
+    let output = cmd_with_server(&url)
+        .write_stdin(input)
+        .args(["deals", "update", "--stdin"])
+        .output()
+        .expect("run pipelite against stub server");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "still-429 after retry must fail the batch"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("429") || stderr.contains("Rate limited"),
+        "expected rate-limit detail on the failure line: {stderr}"
+    );
+    assert_eq!(
+        count.load(Ordering::SeqCst),
+        2,
+        "exactly one retry, not two (no retry storm)"
+    );
 }
