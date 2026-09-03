@@ -2,6 +2,7 @@ pub mod create;
 pub mod delete;
 pub mod get;
 pub mod list;
+pub mod runs;
 pub mod trigger;
 pub mod update;
 
@@ -19,5 +20,6 @@ pub async fn run(ctx: &AppContext, cmd: &WorkflowsCommands) -> Result<()> {
         WorkflowsCommands::Update(args) => update::run(ctx, args).await,
         WorkflowsCommands::Delete(args) => delete::run(ctx, args).await,
         WorkflowsCommands::Trigger(args) => trigger::run(ctx, args).await,
+        WorkflowsCommands::Runs(args) => runs::run(ctx, &args.command).await,
     }
 }

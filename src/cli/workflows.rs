@@ -56,6 +56,12 @@ pub enum WorkflowsCommands {
         after_help = "Examples:\n  pipelite workflows trigger wf_abc123\n  pipelite workflows trigger wf_abc123 --data '{\"dealId\":\"deal_001\"}'\n  pipelite workflows trigger wf_abc123 --data @payload.json"
     )]
     Trigger(WorkflowsTriggerArgs),
+
+    /// Explore the runs (executions) of a workflow
+    #[command(
+        after_help = "Examples:\n  pipelite workflows runs list --workflow wf_abc123\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --format json"
+    )]
+    Runs(WorkflowsRunsArgs),
 }
 
 #[derive(Args)]
@@ -184,4 +190,77 @@ pub struct WorkflowsTriggerArgs {
     /// Optional JSON data (inline string or @filepath)
     #[arg(long)]
     pub data: Option<String>,
+}
+
+#[derive(Args)]
+pub struct WorkflowsRunsArgs {
+    #[command(subcommand)]
+    pub command: WorkflowsRunsCommands,
+}
+
+#[derive(Subcommand)]
+pub enum WorkflowsRunsCommands {
+    /// List the runs of a workflow
+    ///
+    /// Test runs are hidden unless --include-dry-run is passed; the server
+    /// owns all filtering (--status passes through untouched).
+    #[command(
+        after_help = "Examples:\n  pipelite workflows runs list --workflow wf_abc123\n  pipelite workflows runs list --workflow wf_abc123 --status failed\n  pipelite workflows runs list --workflow wf_abc123 --include-dry-run --format json"
+    )]
+    List(WorkflowsRunsListArgs),
+
+    /// Get a single workflow run with its steps
+    ///
+    /// The server path requires both the run id and the owning workflow id
+    /// (no run→workflow lookup exists). A run in `waiting` is mid-flight —
+    /// steps' resume_at shows why it waits.
+    #[command(
+        after_help = "Examples:\n  pipelite workflows runs get run_abc123 --workflow wf_abc123\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --fields id,status,error\n  pipelite workflows runs get run_abc123 --workflow wf_abc123 --format json"
+    )]
+    Get(WorkflowsRunsGetArgs),
+}
+
+#[derive(Args)]
+pub struct WorkflowsRunsListArgs {
+    /// Workflow ID whose runs to list (the server path is /workflows/{id}/runs)
+    #[arg(long, add = ArgValueCandidates::new(workflow_id_candidates))]
+    pub workflow: String,
+
+    /// Filter by run status — passed through to the server (valid values:
+    /// pending, running, completed, failed, waiting; an unrecognized value
+    /// yields an empty result, never an error)
+    #[arg(long)]
+    pub status: Option<String>,
+
+    /// Include test runs (server-created dry runs) — distinct from the
+    /// global --dry-run preview flag, which never affects listing
+    #[arg(long)]
+    pub include_dry_run: bool,
+
+    /// Maximum number of results (default: 50)
+    #[arg(long, default_value = "50")]
+    pub limit: u64,
+
+    /// Pagination offset (default: 0)
+    #[arg(long, default_value = "0")]
+    pub offset: u64,
+
+    /// Select specific fields (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub fields: Option<Vec<String>>,
+}
+
+#[derive(Args)]
+pub struct WorkflowsRunsGetArgs {
+    /// Run ID
+    pub run_id: String,
+
+    /// Workflow ID that owns the run (the server path is
+    /// /workflows/{id}/runs/{runId} — no run→workflow lookup exists)
+    #[arg(long, add = ArgValueCandidates::new(workflow_id_candidates))]
+    pub workflow: String,
+
+    /// Select specific fields (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub fields: Option<Vec<String>>,
 }
