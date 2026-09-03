@@ -9,6 +9,8 @@
 //!   has multiple triggers, and rejects zero-trigger workflows pre-POST
 //! - `--stdin` passes a raw body through verbatim (single request)
 //! - exactly-one trigger source is enforced BEFORE any HTTP (exit 2)
+//! - `--workflow` + `--nodes` is rejected pre-HTTP (the snapshot's nodes
+//!   cannot be overridden — WR-01)
 //! - 422 errors[] passthrough (Phase 8 layer)
 //! - the delete confirmation contract: --force bypass, non-TTY refusal
 //!   (exit 1, zero HTTP), --dry-run preview
@@ -294,6 +296,34 @@ fn create_with_two_sources_rejected_pre_http() {
         .assert()
         .code(2)
         .stderr(predicate::str::contains("Connection failed").not());
+}
+
+#[test]
+fn create_workflow_with_nodes_rejected_pre_http() {
+    // WR-01: --workflow snapshots the workflow's own nodes, so an explicit
+    // --nodes must be REJECTED (exit 2) before any HTTP instead of being
+    // silently discarded in favor of the snapshot. Unreachable server: any
+    // request would surface as "Connection failed".
+    common::cmd()
+        .args([
+            "templates",
+            "create",
+            "--name",
+            "T",
+            "--workflow",
+            "wf_1",
+            "--nodes",
+            r#"[{"id":"n9"}]"#,
+        ])
+        .assert()
+        .code(2)
+        .stderr(
+            predicate::str::contains("--workflow and --nodes are mutually exclusive")
+                .and(predicate::str::contains(
+                    "--nodes cannot be combined with --workflow",
+                ))
+                .and(predicate::str::contains("Connection failed").not()),
+        );
 }
 
 #[test]

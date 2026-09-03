@@ -120,7 +120,8 @@ pub struct TemplatesCreateArgs {
     #[arg(long)]
     pub trigger: Option<String>,
 
-    /// Nodes as a raw JSON array string
+    /// Nodes as a raw JSON array string (requires --trigger; rejected with
+    /// --workflow, which snapshots the workflow's own nodes)
     #[arg(long)]
     pub nodes: Option<String>,
 

@@ -19,7 +19,10 @@ use crate::prompt;
 /// - `--workflow <id>`: fetches the workflow, maps `triggers[0]` -> `trigger`
 ///   (workflows store an array, templates a single object) and clones its
 ///   nodes; a stderr warning fires when the workflow has multiple triggers —
-///   only the first is captured (suppressed under --quiet);
+///   only the first is captured (suppressed under --quiet). `--nodes` is
+///   REJECTED with `--workflow` (exit 2, pre-HTTP): the snapshot's nodes
+///   cannot be overridden, and silently discarding the flag would hide the
+///   surprise;
 /// - `--trigger <json>`: inline trigger object (+ optional `--nodes`).
 ///
 /// The server validates the payload (zod 422s flow through the Phase 8
@@ -45,6 +48,20 @@ pub async fn run(ctx: &AppContext, args: &TemplatesCreateArgs) -> Result<()> {
             detail: "--workflow and --trigger are mutually exclusive".to_string(),
             hint: "The trigger must resolve from exactly one source: --workflow <id>, \
                    --trigger <json>, or --stdin."
+                .to_string(),
+        }
+        .into());
+    }
+
+    // --workflow snapshots the workflow's own nodes; an explicit --nodes
+    // would otherwise be silently discarded (WR-01). Reject the combination
+    // so nothing runs on input the user did not intend.
+    if has_workflow && args.nodes.is_some() {
+        return Err(CliError::InvalidInput {
+            detail: "--workflow and --nodes are mutually exclusive".to_string(),
+            hint: "--nodes cannot be combined with --workflow (the template copies the \
+                   workflow's nodes); use --trigger <json> with --nodes <json> to supply \
+                   custom nodes."
                 .to_string(),
         }
         .into());
