@@ -11,6 +11,10 @@
 //!   error/duration) above/beside the run summary; --format json passes the
 //!   run+steps document through verbatim
 //! - missing required --workflow exits 2 BEFORE any HTTP
+//! - --watch tolerates up to 3 consecutive failed polls (scripted transport
+//!   failures via the stub's status-0 drop convention) and gives up with a
+//!   Validation error + hint on the 4th (WR-02); --quiet suppresses the
+//!   per-failure warnings
 //!
 //! Uses tests/common/mod.rs (shared Phase 9 helpers, no new crates).
 
@@ -529,6 +533,98 @@ fn watch_on_already_terminal_run_makes_one_request() {
         .stdout(predicate::str::contains("run_watch_1"));
 
     assert_eq!(counter.load(Ordering::SeqCst), 1, "terminal: single fetch");
+}
+
+// -- WRUN-03b: watch-loop resilience to transient poll failures (WR-02) --
+
+#[test]
+fn watch_survives_a_transient_poll_failure_then_completes() {
+    // Scripted connection #2 drops WITHOUT responding (transport blip);
+    // #3 and #4 answer normally. The watch must ride out the failure:
+    // one stderr warning, the final state still rendered, exit 0.
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (0, ""),
+        (200, &detail_body_status("running", "")),
+        (200, &detail_body_status("completed", "")),
+    ]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("run_watch_1")
+                .and(predicate::str::contains("completed"))
+                .and(predicate::str::contains("fetch_deal")),
+        )
+        .stderr(
+            predicate::str::contains("poll failed")
+                .and(predicate::str::contains("retrying (1/3)")),
+        );
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        4,
+        "initial fetch + failed poll + 2 good polls"
+    );
+}
+
+#[test]
+fn watch_gives_up_after_persistent_poll_failures() {
+    // Initial fetch OK, then FOUR consecutive dropped connections: the
+    // retry budget (3) is exhausted on the 4th — Validation error, exit 1,
+    // with an actionable hint, instead of spinning forever.
+    let running = detail_body_status("running", "");
+    let script: Vec<(u16, &str)> =
+        vec![(200, running.as_str()), (0, ""), (0, ""), (0, ""), (0, "")];
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&script);
+
+    common::cmd_with_server(&url)
+        .args([
+            "workflows", "runs", "get", "run_watch_1", "--workflow", "wf_1", "--watch",
+        ])
+        .assert()
+        .code(1)
+        .stderr(
+            predicate::str::contains("consecutive failed polls")
+                .and(predicate::str::contains("re-run: pipelite workflows runs get")),
+        );
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        5,
+        "initial fetch + 4 failed polls (3 tolerated, 4th fatal)"
+    );
+}
+
+#[test]
+fn watch_quiet_suppresses_poll_failure_warnings() {
+    // The per-failure stderr lines follow the transition-line contract:
+    // suppressed under --quiet while the loop keeps retrying.
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &detail_body_status("running", "")),
+        (0, ""),
+        (200, &detail_body_status("completed", "")),
+    ]);
+
+    // -q is a global flag — placed before the subcommand.
+    common::cmd_with_server(&url)
+        .args([
+            "-q",
+            "workflows",
+            "runs",
+            "get",
+            "run_watch_1",
+            "--workflow",
+            "wf_1",
+            "--watch",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("poll failed").not());
 }
 
 // Ctrl-C during watch: NO handler is installed (locked decision), so the

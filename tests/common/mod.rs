@@ -37,6 +37,11 @@ pub fn cmd() -> Command {
 /// RECORDS each request so tests can assert query strings on the wire,
 /// header presence/absence, and POST bodies.
 ///
+/// A scripted status of 0 is a TRANSPORT FAILURE: the connection is
+/// accepted, the request is read + recorded + counted, and then the stream
+/// is dropped WITHOUT any response — the client sees the connection die
+/// mid-conversation (watch-loop resilience tests).
+///
 /// Returns `(base_url, request_counter, captured_heads, captured_bodies)`:
 /// - heads: the lowercased request line + headers of each request
 /// - bodies: each request's FULL bytes (head + `\r\n\r\n` + body) so tests
@@ -125,6 +130,14 @@ pub fn spawn_head_capturing_stub_server(
                 .lock()
                 .expect("bodies lock")
                 .push(String::from_utf8_lossy(&received).to_string());
+
+            // Scripted transport failure: the request reached the server
+            // (counted), but the connection dies before any response bytes.
+            if status == 0 {
+                drop(stream);
+                counter_clone.fetch_add(1, Ordering::SeqCst);
+                continue;
+            }
 
             let reason = match status {
                 401 => "Unauthorized",

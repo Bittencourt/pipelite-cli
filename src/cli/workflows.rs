@@ -261,7 +261,9 @@ pub struct WorkflowsRunsGetArgs {
     pub workflow: String,
 
     /// Poll every 2 seconds until the run reaches a terminal state; no
-    /// timeout — Ctrl-C stops watching (shells report exit 130)
+    /// timeout — Ctrl-C stops watching (shells report exit 130). Tolerates
+    /// up to 3 consecutive failed polls (stderr warning each) before giving
+    /// up; a successful poll resets the count
     #[arg(long)]
     pub watch: bool,
 

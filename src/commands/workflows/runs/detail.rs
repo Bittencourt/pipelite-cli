@@ -6,8 +6,16 @@ use crate::api::models::{
 };
 use crate::cli::workflows::WorkflowsRunsGetArgs;
 use crate::context::AppContext;
+use crate::error::CliError;
 use crate::output::OutputFormat;
 use crate::output;
+
+/// Consecutive poll failures the watch loop tolerates before giving up
+/// (WR-02): unattended `--watch` scripts must survive transient transport
+/// blips (Wi-Fi drop, server restart), but a dead server must not spin
+/// forever. Failure #4 in a row aborts; ANY successful poll resets the
+/// counter (so scattered single blips never accumulate into an abort).
+const MAX_CONSECUTIVE_POLL_FAILURES: u32 = 3;
 
 /// Columns of the run-summary block (table mode) — applied verbatim unless
 /// the user narrows them with --fields.
@@ -40,6 +48,14 @@ const STEP_COLUMNS: [&str; 6] = ["node", "status", "input", "output", "error", "
 /// renderer. Exit is 0 on ANY terminal state by default; `--exit-status`
 /// maps failed (and unknown) to 1.
 ///
+/// Transient poll failures (WR-02): up to
+/// [`MAX_CONSECUTIVE_POLL_FAILURES`] consecutive failures keep the loop
+/// alive — each prints one stderr warning (suppressed under `--quiet`) and
+/// polling continues on the same 2s interval; a successful poll resets the
+/// counter. The next consecutive failure aborts with a `Validation` error
+/// (exit 1, hint included) instead of hanging on a dead server. The initial
+/// fetch still fails fast — there is no last-known state to fall back on.
+///
 /// Ctrl-C: NO signal handler is installed — the default SIGINT disposition
 /// kills the process mid-poll and the shell reports exit 130 (128 + 2).
 pub async fn run(ctx: &AppContext, args: &WorkflowsRunsGetArgs) -> Result<()> {
@@ -53,6 +69,7 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsRunsGetArgs) -> Result<()> {
 
     // Watch loop: prev starts empty so the first observation prints nothing.
     let mut prev = String::new();
+    let mut consecutive_failures = 0u32;
     loop {
         let status = detail.run.status;
         let current = status.as_str();
@@ -68,10 +85,39 @@ pub async fn run(ctx: &AppContext, args: &WorkflowsRunsGetArgs) -> Result<()> {
         }
 
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-        detail = ctx
-            .client
-            .get_workflow_run(&args.workflow, &args.run_id)
-            .await?;
+        detail = match ctx.client.get_workflow_run(&args.workflow, &args.run_id).await {
+            Ok(d) => {
+                consecutive_failures = 0;
+                d
+            }
+            Err(e) if consecutive_failures < MAX_CONSECUTIVE_POLL_FAILURES => {
+                consecutive_failures += 1;
+                if !ctx.quiet {
+                    eprintln!(
+                        "warning: run {}: poll failed ({e}); retrying \
+                         ({consecutive_failures}/{MAX_CONSECUTIVE_POLL_FAILURES})",
+                        args.run_id
+                    );
+                }
+                continue;
+            }
+            Err(e) => {
+                return Err(CliError::Validation {
+                    detail: format!(
+                        "Gave up watching run {} after {} consecutive failed polls: {e}",
+                        args.run_id,
+                        MAX_CONSECUTIVE_POLL_FAILURES + 1
+                    ),
+                    hint: format!(
+                        "The server was unreachable for the whole watch retry budget. \
+                         Check connectivity or server health, then re-run: \
+                         pipelite workflows runs get {} --workflow {}",
+                        args.run_id, args.workflow
+                    ),
+                }
+                .into());
+            }
+        };
     }
 }
 
