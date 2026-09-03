@@ -6,6 +6,15 @@ pub enum CliError {
     #[error("Authentication failed")]
     Auth { detail: String, hint: String },
 
+    /// 403 Forbidden — the key is valid but lacks permission. Distinct from
+    /// `Auth` so the two permission tiers are distinguishable by message:
+    /// Auth means "check your key", Forbidden means "insufficient rights"
+    /// (with a surface-specific hint). Runtime condition → exit 1.
+    // Title interpolates the status so per-item batch failure lines (which
+    // render only the error title) carry the code, matching the Api variant.
+    #[error("Forbidden (HTTP 403)")]
+    Forbidden { detail: String, hint: String },
+
     #[error("Connection failed")]
     Connection { detail: String, hint: String },
 
@@ -46,6 +55,7 @@ pub fn display_error(err: &anyhow::Error, color: bool) {
     if let Some(cli_err) = err.downcast_ref::<CliError>() {
         let (title, detail, hint) = match cli_err {
             CliError::Auth { detail, hint } => (cli_err.to_string(), detail, hint),
+            CliError::Forbidden { detail, hint } => (cli_err.to_string(), detail, hint),
             CliError::Connection { detail, hint } => (cli_err.to_string(), detail, hint),
             CliError::Config { detail, hint } => (cli_err.to_string(), detail, hint),
             CliError::NotFound { detail, hint } => (cli_err.to_string(), detail, hint),

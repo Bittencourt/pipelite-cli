@@ -26,6 +26,62 @@ pub struct PipeliteClient {
     api_key: String,
 }
 
+/// Extract a human-readable message from an RFC 7807 problem body.
+///
+/// Locked parse order (08-CONTEXT):
+/// 1. `errors` array non-empty → items joined `"{field}: {message} ({code})"`
+///    with `"; "` (422 case — `detail` is the generic "Request validation
+///    failed" there, so errors[] wins even when detail exists). Items missing
+///    `field` or `message` are skipped; a missing `code` renders `(invalid)`.
+/// 2. `detail` as string (409/404/500 case)
+/// 3. `title` (degenerate bodies)
+/// 4. legacy `error` key (tolerance for non-v1 endpoints)
+/// 5. legacy `message` key
+/// 6. `"HTTP {status}"` — the function is total: a non-JSON or malformed
+///    body can only degrade to this (T-08-01).
+///
+/// All string extraction goes through `as_str()` — never `Value::to_string()`,
+/// which JSON-quotes strings (Pitfall 2).
+fn parse_rfc7807(body: &str, status: u16) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            if let Some(errs) = v.get("errors").and_then(|e| e.as_array()) {
+                if !errs.is_empty() {
+                    let joined = errs
+                        .iter()
+                        .filter_map(|e| {
+                            let field = e.get("field")?.as_str()?;
+                            let message = e.get("message")?.as_str()?;
+                            let code = e
+                                .get("code")
+                                .and_then(|c| c.as_str())
+                                .unwrap_or("invalid");
+                            Some(format!("{field}: {message} ({code})"))
+                        })
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    // Non-empty array whose items were all skipped degrades
+                    // to the detail chain rather than rendering "".
+                    if !joined.is_empty() {
+                        return Some(joined);
+                    }
+                }
+            }
+            v.get("detail")
+                .and_then(|d| d.as_str())
+                .map(str::to_string)
+                .or_else(|| v.get("title").and_then(|t| t.as_str()).map(str::to_string))
+                .or_else(|| v.get("error").and_then(|e| e.as_str()).map(str::to_string))
+                .or_else(|| {
+                    v.get("message")
+                        .and_then(|m| m.as_str())
+                        .map(str::to_string)
+                })
+        })
+        .unwrap_or_else(|| format!("HTTP {status}"))
+}
+
 impl PipeliteClient {
     /// Create a client from an existing AppConfig.
     pub fn new(config: &AppConfig) -> Result<Self> {
