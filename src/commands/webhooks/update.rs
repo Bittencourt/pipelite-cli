@@ -123,13 +123,9 @@ async fn execute(
     }
 
     if matches!(ctx.output_format, crate::output::OutputFormat::Json) {
-        let mut value = serde_json::to_value(&updated)?;
-        if let serde_json::Value::Object(ref mut map) = value {
-            map.insert(
-                "secret".to_string(),
-                serde_json::Value::String("(shown once at creation)".to_string()),
-            );
-        }
+        // Rendered VERBATIM: no secret exists anywhere in this flow — PUT
+        // responses never carry it, so none is injected (IN-03).
+        let value = serde_json::to_value(&updated)?;
         let config = webhooks_table_config();
         let columns: Vec<String> = config
             .default_columns
