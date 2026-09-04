@@ -42,8 +42,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Custom Fields
 
 - [x] **CFLD-01**: User can list, get, create, update, and delete custom field definitions (`custom-fields` group, `--entity-type` filter on list)
-- [ ] **CFLD-02**: `--custom-field key=value` writes type-correct JSON (number/boolean/date/array/select) resolved from cached definitions instead of always storing strings
-- [ ] **CFLD-03**: User can bypass type inference with `--custom-field-json '{"key": ...}'`
+- [x] **CFLD-02**: `--custom-field key=value` writes type-correct JSON (number/boolean/date/array/select) resolved from cached definitions instead of always storing strings
+- [x] **CFLD-03**: User can bypass type inference with `--custom-field-json '{"key": ...}'`
 
 ### Workflow Templates
 
@@ -129,8 +129,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUDT-01 | Phase 11 | Complete |
 | AUDT-02 | Phase 11 | Complete |
 | CFLD-01 | Phase 12 | Complete |
-| CFLD-02 | Phase 12 | Pending |
-| CFLD-03 | Phase 12 | Pending |
+| CFLD-02 | Phase 12 | Complete |
+| CFLD-03 | Phase 12 | Complete |
 
 Phase 13 (Integration Hardening & Docs) carries no exclusive requirements — it cross-verifies all 30 above end-to-end.
 

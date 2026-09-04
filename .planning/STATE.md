@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: executing
+status: verifying
 stopped_at: Completed 12-01-PLAN.md (custom-fields definitions CRUD — 33 stub tests, 543 passing)
-last_updated: "2026-09-04T10:42:05.487Z"
+last_updated: "2026-09-04T11:25:45.993Z"
 last_activity: 2026-09-04
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 16
-  completed_plans: 15
-  percent: 71
+  completed_plans: 16
+  percent: 86
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 Phase: 12
 Plan: 2 of 2
-Status: In progress — 12-01 complete, 12-02 next
+Status: Phase complete — ready for verification
 Last activity: 2026-09-04
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [█████████░] 94%
 | Phase 11 P02 | 15min | 3 tasks | 13 files |
 | 11 | 3 | - | - |
 | Phase 12 P01 | 25min | 3 tasks | 16 files |
+| Phase 12 P02 | 32min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 12]: definitions create maps --key to the wire 'name' (blob keys are definition names); POST body is exactly {name, entity_type, type, required, show_in_list}(+config.options) — no position key ever (server auto-assigns max+10000, PUT-only)
 - [Phase 12]: select is a CLI alias normalized to single_select; --options required for the select family, rejected for all other types; 9 entity aliases normalize to the 4 server tokens pre-HTTP (exit 2)
 - [Phase 12]: definition create/update/delete all invalidate the custom_fields_ cache prefix (two-run stub-proven); filtered lists warm KEY_CUSTOM_FIELDS_<token> — the 12-02 resolver interface
+- [Phase 12]: typed writing runs through ONE shared resolver (src/custom_fields.rs) consumed by all 8 create/update handlers — number i64-first (price=4 stores JSON number 4, wire-pinned), strict boolean, option-validated select/multi_select, formula writes refused exit 2, unknown names sent as strings with one aggregated quiet-suppressible warning
+- [Phase 12]: --custom-field-json gives verbatim raw-object passthrough; it and --custom-field are mutually exclusive with each other and --stdin at exit 2 pre-HTTP across all 8 handlers (create exclusivity normalized Validation->InvalidInput); batch::parse_custom_fields deleted; --dry-run is cache-only (zero HTTP, strings + note when cold, typed when warm)
 
 ### Pending Todos
 
@@ -117,6 +120,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-04T10:42:05.459Z
+Last session: 2026-09-04T11:25:45.964Z
 Stopped at: Completed 12-01-PLAN.md (custom-fields definitions CRUD — 33 stub tests, 543 passing)
 Resume file: None

@@ -30,7 +30,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch (completed 2026-09-03)
 - [x] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities (completed 2026-09-03)
 - [x] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer (completed 2026-09-04)
-- [ ] **Phase 12: Custom Fields** - Definitions CRUD + type-aware `--custom-field` writing
+- [x] **Phase 12: Custom Fields** - Definitions CRUD + type-aware `--custom-field` writing (completed 2026-09-04)
 - [ ] **Phase 13: Integration Hardening & Docs** - Cross-phase verification of global-flag/convention contracts + docs refresh
 
 ## Phase Details
@@ -163,5 +163,5 @@ Plans:
 | 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete    | 2026-09-03 |
 | 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
 | 11. Webhooks, Trash & Audit | v1.1 | 3/3 | Complete    | 2026-09-04 |
-| 12. Custom Fields — Definitions & Typed Writing | v1.1 | 1/2 | In Progress|  |
+| 12. Custom Fields — Definitions & Typed Writing | v1.1 | 2/2 | Complete   | 2026-09-04 |
 | 13. Integration Hardening & Docs | v1.1 | 0/TBD | Not started | - |
