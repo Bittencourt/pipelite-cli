@@ -29,9 +29,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Webhooks
 
-- [ ] **WHOK-01**: User can list, get, create, update (PUT), and delete webhooks
-- [ ] **WHOK-02**: Webhook event names are validated client-side against the 13 supported events with an actionable error on mismatch
-- [ ] **WHOK-03**: The signing secret is displayed exactly once on create — full, untruncated, on its own line with a save-it-now warning; never cached, never shown in list/get output
+- [x] **WHOK-01**: User can list, get, create, update (PUT), and delete webhooks
+- [x] **WHOK-02**: Webhook event names are validated client-side against the 13 supported events with an actionable error on mismatch
+- [x] **WHOK-03**: The signing secret is displayed exactly once on create — full, untruncated, on its own line with a save-it-now warning; never cached, never shown in list/get output
 
 ### Trash
 
@@ -120,9 +120,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOTE-02 | Phase 10 | Complete |
 | NOTE-03 | Phase 10 | Complete |
 | NOTE-04 | Phase 10 | Complete |
-| WHOK-01 | Phase 11 | Pending |
-| WHOK-02 | Phase 11 | Pending |
-| WHOK-03 | Phase 11 | Pending |
+| WHOK-01 | Phase 11 | Complete |
+| WHOK-02 | Phase 11 | Complete |
+| WHOK-03 | Phase 11 | Complete |
 | TRSH-01 | Phase 11 | Pending |
 | TRSH-02 | Phase 11 | Pending |
 | TRSH-03 | Phase 11 | Pending |
