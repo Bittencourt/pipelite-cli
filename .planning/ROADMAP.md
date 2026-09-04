@@ -115,7 +115,12 @@ Plans:
   4. Purge is permanent and admin-only with the strongest confirmation in the codebase (`--force` bypass); under `--no-input` without `--force` it refuses with exit 2 and zero HTTP calls
   5. User can list audit entries with all four filters (`--entity-type`, `--entity-id`, `--actor-kind`, `--workflow-run-id`); non-admin keys get a first-class Forbidden hint on every admin-gated surface
 **Notes**: Webhooks ∥ trash ∥ audit are internally parallelizable. Write the 64-char-secret truncation test FIRST. Research flags to resolve during planning: webhook PUT semantics (full object vs omitted-keys-as-no-op), trash `linked_parents` table rendering.
-**Plans**: TBD
+**Plans**: 3 plans — 11-01 (webhooks), 11-02 (trash), 11-03 (audit); sequential waves (shared wiring files). Amendments applied from research: `--description` dropped (no server field), https mirrored client-side, purge = CLI fan-out with exit-2 zero-HTTP refusal, `--all` on trash only.
+
+Plans:
+- [ ] 11-01-PLAN.md — `webhooks` group: serializer-exact models (no secret in list/get — create-response carries it), 6 client methods, 13-event + https pre-HTTP validation (exit 2), show-once secret rendering (truncation test FIRST), KEY_WEBHOOKS (id/url only) + invalidation, get→merge→PUT update, standard delete contract, foreign-403 hint probes (WHOK-01, WHOK-02, WHOK-03)
+- [ ] 11-02-PLAN.md — `trash` group: TrashRow/DeletedBy models, 3 client methods, singular/plural type normalization, list (--type + bounded --all fan-out, offset cap 10,000), restore (no confirm, 404 re-wrap, general 403 hint), purge (scope-validated pre-HTTP fan-out, strongest confirm, exit-2 zero-HTTP refusal pinned, continue-on-error N ok / M failed) (TRSH-01, TRSH-02, TRSH-03)
+- [ ] 11-03-PLAN.md — `audit` group: AuditEntry model, 1 client method (non-empty filters only, limit clamped ≤100), 4 passthrough filters + --limit/--offset (no --all), default ts/actor/action/entity columns, --json changes payload, admin-403 hint probes incl. gate-before-validation ordering (AUDT-01, AUDT-02)
 
 ### Phase 12: Custom Fields — Definitions & Typed Writing
 **Goal**: Users can define custom fields per entity and write correctly-typed values to them (fixes the "stores `\"4\"` not `4`" data-correctness bug)
@@ -157,6 +162,6 @@ Plans:
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete    | 2026-09-03 |
 | 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
-| 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |
+| 11. Webhooks, Trash & Audit | v1.1 | 0/3 | Not started | - |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |
 | 13. Integration Hardening & Docs | v1.1 | 0/TBD | Not started | - |
