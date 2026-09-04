@@ -361,10 +361,18 @@ fn is_select_family(def_type: &str) -> bool {
 }
 
 /// The definition's configured options as strings, when the config shape
-/// allows a membership check (config.options present AND an array).
+/// allows a membership check: `config.options` present AND an array AND —
+/// when non-empty — containing ONLY strings. An empty array is genuinely
+/// empty (strict rejection is correct); a non-empty array with no strings
+/// is MALFORMED (the server never validates config shape) → `None`: the
+/// caller notes it and sends, per the never-hard-block contract.
 fn options_of(config: Option<&Value>) -> Option<Vec<&str>> {
-    let options = config?.get("options")?.as_array()?;
-    Some(options.iter().filter_map(|o| o.as_str()).collect())
+    let arr = config?.get("options")?.as_array()?;
+    if arr.is_empty() {
+        return Some(Vec::new());
+    }
+    // None when ANY element is a non-string → malformed → note-and-send.
+    arr.iter().map(|o| o.as_str()).collect()
 }
 
 /// Client-side option membership: the server validates nothing on the v1
@@ -511,6 +519,32 @@ mod tests {
         let v = infer_typed_value("status", "single_select", config.as_ref(), "whatever")
             .expect("membership impossible — send");
         assert_eq!(v, Value::String("whatever".to_string()));
+    }
+
+    // -- WR-01: a non-string options array is MALFORMED, not empty --
+
+    #[test]
+    fn options_non_string_array_is_malformed_sends_without_block() {
+        let config = Some(json!({ "options": [{ "value": "a" }] }));
+        assert!(
+            options_of(config.as_ref()).is_none(),
+            "non-empty array with no strings must be malformed (None), not Some(empty)"
+        );
+        // Never-hard-block contract: the value still sends as a string, and
+        // the caller's no-options note fires (options_of → None).
+        let v = infer_typed_value("status", "single_select", config.as_ref(), "whatever")
+            .expect("malformed options must NOT hard-block every value");
+        assert_eq!(v, Value::String("whatever".to_string()));
+    }
+
+    #[test]
+    fn options_empty_array_is_genuinely_empty_strict() {
+        let config = Some(json!({ "options": [] }));
+        assert_eq!(options_of(config.as_ref()), Some(Vec::<&str>::new()));
+        assert!(
+            infer_typed_value("status", "single_select", config.as_ref(), "x").is_err(),
+            "a genuinely empty options list still validates strictly"
+        );
     }
 
     // -- multi_select: comma-split array, every element validated --
