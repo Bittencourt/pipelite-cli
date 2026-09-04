@@ -593,6 +593,41 @@ pipelite trash purge --dry-run
 
 ---
 
+## `pipelite audit`
+
+The audit log answers "who changed what" — a read-only record of every create/update/delete/merge across entities. **Admin-gated**: non-admin keys receive 403 for every audit command, and the server checks the key BEFORE validating the query — so the "The audit log requires an admin API key." hint appears whatever the filters (absent, valid, or invalid).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/audit?entity_type&entity_id&actor_kind&workflow_run_id&offset&limit` | List audit entries (newest first, server-fixed sort) |
+
+### `audit list`
+
+All four filters are passed through **verbatim** — the server validates the values and 422s invalid ones (the message renders untouched). Empty flag values are ignored (never sent). Results are newest first (server-fixed order).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--entity-type` | string | | Filter by entity type — `organization`, `person`, `deal`, `activity`, `import_session`, `export` |
+| `--entity-id` | string | | Filter by entity ID |
+| `--actor-kind` | string | | Filter by actor kind — `user`, `workflow_run`, `api_key`, `import`, `system` |
+| `--workflow-run-id` | string | | Filter by workflow run ID |
+| `--limit` | u64 | `50` | Entries per page — clamped to the server's 1..=100 range client-side |
+| `--offset` | u64 | `0` | Pagination offset |
+| `--fields` | string[] | | Select columns |
+
+There is deliberately **no `--all`**: pages are capped at 100 and the server has no trash-style low offset cap, so iterate `--offset` to page deeper into history.
+
+Default columns: timestamp (`created_at`), actor (kind + id), action (`created` \| `updated` \| `deleted` \| `merged`), entity (type/id). The `changes` payload is **visible via `--format json` only** — it carries per-field `{from, to}` pairs (`{}` for create/delete entries) and never renders in the table; field-level diff rendering is a deferred future feature.
+
+```bash
+pipelite audit list
+pipelite audit list --entity-type deal --format json
+pipelite audit list --actor-kind workflow_run --workflow-run-id wr9
+pipelite audit list --offset 100   # next page — iterate --offset to page deeper
+```
+
+---
+
 ## Error Codes
 
 | Code | Category | Description |

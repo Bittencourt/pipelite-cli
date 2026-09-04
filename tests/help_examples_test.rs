@@ -329,3 +329,79 @@ fn trash_subcommands_have_examples() {
             .stdout(predicate::str::contains("Examples:"));
     }
 }
+
+// The audit group help must state the admin gating, carry Examples, list
+// the `list` subcommand — and NOT advertise an --all flag (audit pages are
+// capped at 100; deep history is reached by iterating --offset).
+#[test]
+fn audit_help_truthful() {
+    let output = Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["audit", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Examples:"), "help: {stdout}");
+    assert!(stdout.contains("admin"), "help must state the admin gating: {stdout}");
+    assert!(
+        stdout.lines().any(|l| l.trim().starts_with("list")),
+        "audit --help must list the list subcommand:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("--all"),
+        "audit --help must not advertise an --all flag:\n{stdout}"
+    );
+}
+
+// The audit list help must document all four filter flags, every enum
+// value (6 entity types incl. import_session + export; 5 actor kinds; the
+// merged action), and the no---all/iterate---offset paging note.
+#[test]
+fn audit_list_help_specifics() {
+    let output = Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["audit", "list", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    for flag in [
+        "--entity-type",
+        "--entity-id",
+        "--actor-kind",
+        "--workflow-run-id",
+    ] {
+        assert!(stdout.contains(flag), "list help must document {flag}:\n{stdout}");
+    }
+    for value in [
+        "import_session", "export", "api_key", "system", "workflow_run", "merged",
+    ] {
+        assert!(
+            stdout.contains(value),
+            "list help must document the '{value}' enum value:\n{stdout}"
+        );
+    }
+    assert!(
+        stdout.contains("iterate --offset") || stdout.contains("no --all"),
+        "list help must explain paging without --all:\n{stdout}"
+    );
+}
+
+// Every audit help page (group + subcommand) carries Examples (after_help).
+#[test]
+fn audit_subcommands_have_examples() {
+    for args in [vec!["audit"], vec!["audit", "list"]] {
+        Command::cargo_bin("pipelite")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Examples:"));
+    }
+}
