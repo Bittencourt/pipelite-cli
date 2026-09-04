@@ -10,6 +10,7 @@ mod cli;
 mod commands;
 mod config;
 mod context;
+mod custom_fields;
 mod dry_run;
 mod error;
 mod output;

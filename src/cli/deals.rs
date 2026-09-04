@@ -65,13 +65,13 @@ pub enum DealsCommands {
 
     /// Create a new deal
     #[command(
-        after_help = "Examples:\n  pipelite deals create --title \"Big Deal\" --stage stg_abc123\n  pipelite deals create --title \"Deal\" --stage stg_001 --value 50000\n  pipelite deals create --title \"Deal\" --stage stg_001 --custom-field industry=Tech\n  echo '[{\"title\":\"A\",\"stage_id\":\"stg_001\"}]' | pipelite deals create --stdin"
+        after_help = "Examples:\n  pipelite deals create --title \"Big Deal\" --stage stg_abc123\n  pipelite deals create --title \"Deal\" --stage stg_001 --value 50000\n  pipelite deals create --title \"Deal\" --stage stg_001 --custom-field industry=Tech\n  pipelite deals create --title \"Deal\" --stage stg_001 --custom-field price=4  # number definitions store JSON numbers\n  echo '[{\"title\":\"A\",\"stage_id\":\"stg_001\"}]' | pipelite deals create --stdin"
     )]
     Create(DealsCreateArgs),
 
     /// Update an existing deal
     #[command(
-        after_help = "Examples:\n  pipelite deals update deal_abc123 --title \"New Title\"\n  pipelite deals update deal_abc123 --value 75000 --stage stg_002\n  pipelite deals update deal_abc123 --custom-field priority=high\n  echo '[{\"id\":\"deal_1\",\"title\":\"New\"}]' | pipelite deals update --stdin"
+        after_help = "Examples:\n  pipelite deals update deal_abc123 --title \"New Title\"\n  pipelite deals update deal_abc123 --value 75000 --stage stg_002\n  pipelite deals update deal_abc123 --custom-field priority=high\n  pipelite deals update deal_abc123 --custom-field price=4  # number definitions store JSON numbers\n  echo '[{\"id\":\"deal_1\",\"title\":\"New\"}]' | pipelite deals update --stdin"
     )]
     Update(DealsUpdateArgs),
 
@@ -166,6 +166,11 @@ pub struct DealsCreateArgs {
     #[arg(long = "custom-field")]
     pub custom_field: Vec<String>,
 
+    /// Raw JSON object written verbatim as custom_fields — bypasses type
+    /// inference; mutually exclusive with --custom-field and --stdin
+    #[arg(long = "custom-field-json", value_name = "JSON")]
+    pub custom_field_json: Option<String>,
+
     /// Read JSON array from stdin for batch create
     #[arg(long)]
     pub stdin: bool,
@@ -212,6 +217,11 @@ pub struct DealsUpdateArgs {
     /// Custom field (key=value, repeatable)
     #[arg(long = "custom-field")]
     pub custom_field: Vec<String>,
+
+    /// Raw JSON object written verbatim as custom_fields — bypasses type
+    /// inference; mutually exclusive with --custom-field and --stdin
+    #[arg(long = "custom-field-json", value_name = "JSON")]
+    pub custom_field_json: Option<String>,
 }
 
 #[derive(Args)]
