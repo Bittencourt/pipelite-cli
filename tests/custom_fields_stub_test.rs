@@ -563,6 +563,397 @@ fn create_dry_run() {
     );
 }
 
+// -- update: partial PUT, immutable guard (CFLD-01) --
+
+/// --position sends ONLY position on the PUT body, as a real f64 — and
+/// NEVER carries the immutable entity_type/type keys.
+#[test]
+fn update_position_f64() {
+    let (url, counter, heads, bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--position", "10000.5", "--format", "json"])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    let head = captured_head(&heads, 0);
+    assert!(
+        head.contains("put /api/v1/custom-field-definitions/cf1"),
+        "update must PUT /api/v1/custom-field-definitions/{{id}}: {head}"
+    );
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("PUT body parses");
+    assert_eq!(
+        body["position"].as_f64(),
+        Some(10000.5),
+        "position must round-trip as f64: {raw}"
+    );
+    assert!(
+        !raw.contains("entity_type"),
+        "entity_type is immutable and must NEVER be sent: {raw}"
+    );
+    assert!(
+        !raw.contains("\"type\""),
+        "type is immutable and must NEVER be sent: {raw}"
+    );
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "exactly ONE request (the PUT)");
+}
+
+/// A single flag produces a body with EXACTLY that key — partial PUT,
+/// nothing else (the server merges only what arrives).
+#[test]
+fn update_partial_body() {
+    let (url, _counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &created_envelope(definition_json("cf1", "deal", "newname", "text")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--name", "newname"])
+        .assert()
+        .code(0);
+
+    let body: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("PUT body parses");
+    assert_eq!(
+        body,
+        serde_json::json!({"name": "newname"}),
+        "the PUT body must carry exactly the provided keys"
+    );
+}
+
+/// Tri-state required: --no-required → false, --required → true, no flag →
+/// the key is absent entirely (three invocations).
+#[test]
+fn update_required_tri_state() {
+    let env = created_envelope(definition_json("cf1", "deal", "price", "number"));
+    let (url, counter, _heads, bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &env), (200, &env), (200, &env)]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--no-required"])
+        .assert()
+        .code(0);
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--required"])
+        .assert()
+        .code(0);
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--name", "x"])
+        .assert()
+        .code(0);
+
+    let body0: serde_json::Value =
+        serde_json::from_str(&captured_body(&bodies, 0)).expect("body 0 parses");
+    let body1: serde_json::Value =
+        serde_json::from_str(&captured_body(&bodies, 1)).expect("body 1 parses");
+    let raw2 = captured_body(&bodies, 2);
+    let body2: serde_json::Value = serde_json::from_str(&raw2).expect("body 2 parses");
+
+    assert_eq!(body0, serde_json::json!({"required": false}));
+    assert_eq!(body1, serde_json::json!({"required": true}));
+    assert!(
+        body2.get("required").is_none() && !raw2.contains("\"required\""),
+        "no tri-state flag given → the key must not be sent: {raw2}"
+    );
+    assert_eq!(counter.load(Ordering::SeqCst), 3);
+}
+
+/// Tri-state show_in_list mirrors required.
+#[test]
+fn update_show_in_list_tri_state() {
+    let env = created_envelope(definition_json("cf1", "deal", "price", "number"));
+    let (url, _counter, _heads, bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &env), (200, &env)]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--show-in-list"])
+        .assert()
+        .code(0);
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--no-show-in-list"])
+        .assert()
+        .code(0);
+
+    let body0: serde_json::Value =
+        serde_json::from_str(&captured_body(&bodies, 0)).expect("body 0 parses");
+    let body1: serde_json::Value =
+        serde_json::from_str(&captured_body(&bodies, 1)).expect("body 1 parses");
+    assert_eq!(body0, serde_json::json!({"show_in_list": true}));
+    assert_eq!(body1, serde_json::json!({"show_in_list": false}));
+}
+
+/// --config must be a JSON OBJECT and passes through verbatim; arrays are
+/// rejected pre-HTTP (exit 2, zero HTTP for the bad run).
+#[test]
+fn update_config_object() {
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &created_envelope(definition_json("cf2", "deal", "stage_sel", "single_select")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "update",
+            "cf2",
+            "--config",
+            r#"{"options":["a","b"]}"#,
+        ])
+        .assert()
+        .code(0);
+
+    let body: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("PUT body parses");
+    assert_eq!(
+        body["config"],
+        serde_json::json!({"options": ["a", "b"]}),
+        "config must pass through verbatim"
+    );
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf2", "--config", "[1,2]"])
+        .assert()
+        .code(2);
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "the non-object config run must be zero HTTP"
+    );
+}
+
+/// Update with no flags at all refuses (exit 2, zero HTTP) — never an
+/// empty-body PUT.
+#[test]
+fn update_no_flags() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("nothing to update"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+/// --stdin strips immutable entity_type/type keys with ONE stderr warning
+/// and PUTs the rest verbatim — exactly ONE request (no GET first).
+#[test]
+fn update_stdin_strips_immutable() {
+    let (url, counter, heads, bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &created_envelope(definition_json("cf1", "deal", "x", "number")),
+    )]);
+
+    let output = common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--stdin", "--format", "json"])
+        .write_stdin(r#"{"type":"number","name":"x"}"#)
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    assert!(
+        stderr.contains("immutable"),
+        "the strip must warn on stderr:\n{stderr}"
+    );
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "exactly ONE request (the PUT — stdin never GETs first)"
+    );
+    let head = captured_head(&heads, 0);
+    assert!(
+        head.contains("put /api/v1/custom-field-definitions/cf1"),
+        "single request must be the PUT: {head}"
+    );
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("PUT body parses");
+    assert_eq!(body["name"], "x", "the non-immutable key must survive: {raw}");
+    assert!(
+        !raw.contains("\"type\""),
+        "the immutable type key must be stripped: {raw}"
+    );
+}
+
+/// --stdin together with update flags is mutually exclusive (exit 2, zero
+/// HTTP).
+#[test]
+fn update_stdin_flag_mix() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        200,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "update", "cf1", "--stdin", "--name", "x"])
+        .write_stdin(r#"{"name":"y"}"#)
+        .assert()
+        .code(2);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+// -- delete: the standard confirm contract (dry-run → TTY → --force →
+//    non-TTY Validation exit-1 refusal) --
+
+#[test]
+fn delete_force() {
+    let (url, counter, heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1", "--force"])
+        .assert()
+        .code(0);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+    let head = captured_head(&heads, 0);
+    assert!(
+        head.contains("delete /api/v1/custom-field-definitions/cf1"),
+        "delete must DELETE /api/v1/custom-field-definitions/{{id}}: {head}"
+    );
+}
+
+/// Non-TTY without --force refuses BEFORE any HTTP (exit 1 Validation —
+/// the STANDARD delete contract, deliberately distinct from trash purge's
+/// exit-2 refusal).
+#[test]
+fn delete_non_tty_refusal() {
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("--force"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "refusal must precede any HTTP");
+}
+
+#[test]
+fn delete_dry_run() {
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    let output = common::cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1", "--dry-run", "--format", "json"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "dry-run must be zero HTTP");
+    assert!(
+        stdout.contains("/api/v1/custom-field-definitions/cf1"),
+        "preview must carry the endpoint URL:\n{stdout}"
+    );
+}
+
+/// Soft delete: the first delete 204s; re-deleting the SAME definition
+/// 404s through the STANDARD NotFound path (exit 1, no special casing).
+#[test]
+fn delete_then_redelete_404() {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, ""), (404, &not_found_body())]);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1", "--force"])
+        .assert()
+        .code(0);
+
+    common::cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1", "--force"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("not found"));
+}
+
+/// list --entity-type deals warms the custom_fields_deal cache file;
+/// delete --force invalidates the whole custom_fields_ prefix (two runs
+/// against ONE stub server, HOME redirected for cache hermeticity).
+#[test]
+fn delete_invalidates_cache() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let list_body = definitions_list_body(vec![definition_json("cf1", "deal", "price", "number")]);
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &list_body), (204, "")]);
+
+    let cache_file = tmp.path().join(".pipelite/cache/custom_fields_deal.json");
+    assert!(!cache_file.exists(), "cache file must not pre-exist");
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["custom-fields", "list", "--entity-type", "deals", "--format", "json"])
+        .assert()
+        .code(0);
+    assert!(
+        cache_file.exists(),
+        "a filtered list must warm the per-entity cache file"
+    );
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["custom-fields", "delete", "cf1", "--force"])
+        .assert()
+        .code(0);
+    assert!(
+        !cache_file.exists(),
+        "delete must invalidate (remove) the custom_fields_deal cache file"
+    );
+}
+
+/// create also invalidates the whole custom_fields_ prefix (two runs, one
+/// stub server).
+#[test]
+fn create_invalidates_cache() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let list_body = definitions_list_body(vec![definition_json("cf1", "deal", "price", "number")]);
+    let created = created_envelope(definition_json("cf9", "deal", "x", "text"));
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &list_body), (201, &created)]);
+
+    let cache_file = tmp.path().join(".pipelite/cache/custom_fields_deal.json");
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["custom-fields", "list", "--entity-type", "deals", "--format", "json"])
+        .assert()
+        .code(0);
+    assert!(cache_file.exists(), "seed run must warm the cache file");
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "deals",
+            "--key",
+            "x",
+            "--type",
+            "text",
+        ])
+        .assert()
+        .code(0);
+    assert!(
+        !cache_file.exists(),
+        "create must invalidate (remove) the custom_fields_deal cache file"
+    );
+}
+
 // -- helpers (kept BELOW the body-shape tests: the task-order contract pins
 //    the first fn in this file to create_body_shape) --
 
@@ -623,4 +1014,11 @@ fn captured_head(heads: &std::sync::Mutex<Vec<String>>, idx: usize) -> String {
         .get(idx)
         .expect("captured head")
         .clone()
+}
+
+/// The raw body of the request at `idx` (split at the first \r\n\r\n).
+fn captured_body(bodies: &std::sync::Mutex<Vec<String>>, idx: usize) -> String {
+    let guard = bodies.lock().expect("bodies lock");
+    let body = guard.get(idx).expect("captured body");
+    body.split("\r\n\r\n").nth(1).unwrap_or("").to_string()
 }

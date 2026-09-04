@@ -405,3 +405,98 @@ fn audit_subcommands_have_examples() {
             .stdout(predicate::str::contains("Examples:"));
     }
 }
+
+// The `custom-fields` help pages must be truthful (CFLD-01, Phase 12):
+// the group help carries examples + the tombstone note and does NOT
+// advertise a `--description` flag (no such server field exists anywhere
+// on the model/serializer/schemas); create help advertises --key/--options
+// and the max+10000 auto-position; update help advertises --position and
+// the nothing-to-update refusal but NOT the immutable --entity-type/--type
+// flags; delete help advertises --force + the tombstone note; list help
+// documents the entity filter with the 4 server tokens.
+#[test]
+fn custom_fields_help_truthful() {
+    let run_help = |args: &[&str]| {
+        let output = Command::cargo_bin("pipelite")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .get_output()
+            .clone();
+        String::from_utf8_lossy(&output.stdout).to_string()
+    };
+
+    let group = run_help(&["custom-fields"]);
+    assert!(group.contains("Examples:"), "group help: {group}");
+    assert!(
+        group.contains("does not mark them"),
+        "group help must carry the tombstone note: {group}"
+    );
+    assert!(
+        !group.contains("--description"),
+        "group help must not advertise a --description flag:\n{group}"
+    );
+
+    let create = run_help(&["custom-fields", "create"]);
+    for flag in ["--key", "--options", "--entity-type", "--stdin"] {
+        assert!(create.contains(flag), "create help must document {flag}:\n{create}");
+    }
+    assert!(
+        create.contains("max+10000"),
+        "create help must state the auto-assigned position:\n{create}"
+    );
+
+    let update = run_help(&["custom-fields", "update"]);
+    for flag in ["--position", "--config"] {
+        assert!(update.contains(flag), "update help must document {flag}:\n{update}");
+    }
+    assert!(
+        update.contains("nothing to update"),
+        "update help must state the nothing-to-update refusal:\n{update}"
+    );
+    assert!(
+        !update.contains("--entity-type") && !update.contains("--type"),
+        "update help must NOT advertise the immutable --entity-type/--type flags:\n{update}"
+    );
+
+    let delete = run_help(&["custom-fields", "delete"]);
+    assert!(delete.contains("--force"), "delete help must document --force:\n{delete}");
+    assert!(
+        delete.contains("does not mark them"),
+        "delete help must carry the tombstone note:\n{delete}"
+    );
+
+    let list = run_help(&["custom-fields", "list"]);
+    assert!(
+        list.contains("--entity-type"),
+        "list help must document the entity filter:\n{list}"
+    );
+    for token in ["deal", "organization", "person", "activity"] {
+        assert!(
+            list.contains(token),
+            "list help must document the server token '{token}':\n{list}"
+        );
+    }
+}
+
+// Every custom-fields subcommand help page carries Examples (after_help).
+#[test]
+fn custom_fields_subcommands_have_examples() {
+    for args in [
+        ["custom-fields", "list"],
+        ["custom-fields", "get"],
+        ["custom-fields", "create"],
+        ["custom-fields", "update"],
+        ["custom-fields", "delete"],
+    ] {
+        Command::cargo_bin("pipelite")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Examples:"));
+    }
+}

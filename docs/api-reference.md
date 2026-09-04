@@ -628,6 +628,67 @@ pipelite audit list --offset 100   # next page — iterate --offset to page deep
 
 ---
 
+## `pipelite custom-fields`
+
+Custom field definitions are the type source for `--custom-field <key>=<value>` writing on deals, organizations, people, and activities: each definition names a field, pins it to an entity, and declares its type. The server validates nothing on this surface beyond the JSON shape — the CLI checks every enum and config shape client-side and refuses (exit 2) before any request.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/custom-field-definitions?entity_type&offset&limit` | List definitions (optionally per entity; includes soft-deleted rows) |
+| POST | `/api/v1/custom-field-definitions` | Create a definition (position auto-assigned) |
+| GET | `/api/v1/custom-field-definitions/{id}` | Get one definition |
+| PUT | `/api/v1/custom-field-definitions/{id}` | Partial update (only provided keys are sent) |
+| DELETE | `/api/v1/custom-field-definitions/{id}` | Soft delete (204; re-delete → 404) |
+
+**Tombstone honesty:** the list deliberately includes soft-deleted definitions, but the server does not mark them — no response field distinguishes a deleted definition from a live one, so there is no deleted column anywhere in the CLI.
+
+### `custom-fields list [--entity-type <t>]`
+
+`--entity-type` accepts 9 aliases normalized to the server tokens before any request: `deal`/`deals` → `deal`, `organization`/`organizations`/`orgs` → `organization`, `person`/`people` → `person`, `activity`/`activities` → `activity`. Unknown values exit 2 with the valid vocabulary. Pages are capped at 100 — there is no `--all`, iterate `--offset`.
+
+Default columns: `id`, `entity_type`, `name`, `type`, `position`, `required`, `show_in_list`.
+
+```bash
+pipelite custom-fields list
+pipelite custom-fields list --entity-type deals
+pipelite custom-fields list --limit 100 --format json
+```
+
+### `custom-fields create --entity-type <t> --key <name> --type <t>`
+
+`--key` becomes the definition **NAME** — that name is the key used in `--custom-field <key>=<value>` on records. Accepted `--type` tokens (wire-exact): `text`, `number`, `boolean`, `date`, `single_select`, `multi_select`, `file`, `url`, `lookup`, `formula` — `select` is accepted as an alias for `single_select`. For `single_select`/`multi_select` (and the `select` alias), `--options a,b,c` is REQUIRED and builds `config.options` as a JSON array; for every other type `--options` is rejected. `--required` and `--show-in-list` default to false.
+
+Position is assigned automatically server-side (max+10000) and is NOT settable at create time — a create request never carries a position key. Use `update --position` to reorder.
+
+```bash
+pipelite custom-fields create --entity-type deals --key price --type number
+pipelite custom-fields create --entity-type deals --key stage --type select --options a,b,c
+echo '{"name":"price","entity_type":"deal","type":"number"}' | pipelite custom-fields create --stdin
+```
+
+### `custom-fields update <id> [--name|--config <json>|--required/--no-required|--show-in-list/--no-show-in-list|--position <f64>]`
+
+Partial update — ONLY the flags you pass are sent; everything else is unchanged. `entity_type` and `type` are immutable: no flags exist for them, and `--stdin` bodies carrying them are stripped with a warning. `--config` must be a JSON object (e.g. `'{"options":["a","b"]}'`). `--position` is a decimal number and the ONLY way to set position. With no flags the command refuses (`nothing to update`) rather than send an empty body.
+
+```bash
+pipelite custom-fields update cf_abc123 --name revenue
+pipelite custom-fields update cf_abc123 --position 20000
+pipelite custom-fields update cf_abc123 --required
+echo '{"name":"price"}' | pipelite custom-fields update cf_abc123 --stdin
+```
+
+### `custom-fields delete <id> [--force]`
+
+Soft delete: values already stored on records remain. Confirmation is required unless `--force` is given (confirmation is impossible without a TTY, so scripts must pass `--force`). Re-deleting an already-deleted definition 404s through the standard not-found path.
+
+```bash
+pipelite custom-fields delete cf_abc123
+pipelite custom-fields delete cf_abc123 --force
+pipelite custom-fields delete cf_abc123 --dry-run
+```
+
+---
+
 ## Error Codes
 
 | Code | Category | Description |
