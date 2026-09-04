@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
 status: executing
-stopped_at: Completed 10-01-PLAN.md (notes surface — 25 stub tests, 402 passing)
-last_updated: "2026-09-04T02:31:03.703Z"
+stopped_at: Completed 11-02-PLAN.md (trash surface — 24 stub tests, 474 passing)
+last_updated: "2026-09-04T02:58:25.468Z"
 last_activity: 2026-09-04
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 57
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 ## Current Position
 
 Phase: 11 (webhooks-trash-audit) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-09-04
 
-Progress: [█████████░] 86%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 86%
 | 9 | 3 | - | - |
 | Phase 10 P01 | 23min | 3 tasks | 16 files |
 | 10 | 1 | - | - |
+| Phase 11 P02 | 15min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 10]: notes is the first parent-scoped sub-resource — collection routes carry the parent segment, item routes (PATCH/DELETE) carry ONLY the note ID; parent args are grammar-locked (validated then unused)
 - [Phase 10]: resolve_body locks the input precedence (--body > @file/@- > --stdin > prompt); XOR explicit-source guard BEFORE any read — @- + --stdin is two sources exit 2; prompting suppressed under --dry-run
 - [Phase 10]: table-only truncation (flatten newlines + ~80-char truncate_with_ellipsis in the table value builder); json/plain/csv keep full raw text; mutation success output keys on resolved format (json → render_single, else confirmation line)
+- [Phase 11]: Trash type tokens are dual-vocabulary — entity_type (singular, display) vs type (plural, URL round-trip); only normalized plural tabs ever reach a URL; trash is never cached
+- [Phase 11]: Purge non-TTY no-force refusal is InvalidInput exit 2 BEFORE the fan-out (zero HTTP, pinned on unreachable server) — stricter than webhooks delete's Validation exit-1; restore 403 keeps surface 'general' (P6); 404 re-wrap preserves server detail + not-in-trash hint
+- [Phase 11]: --all and purge victim fan-out break on all four conditions (empty page, partial page, accumulated>=total, offset>10000) — trust page emptiness, never total reachability (P3/S6)
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-04T02:31:03.677Z
-Stopped at: Completed 10-01-PLAN.md (notes surface — 25 stub tests, 402 passing)
+Last session: 2026-09-04T02:58:25.437Z
+Stopped at: Completed 11-02-PLAN.md (trash surface — 24 stub tests, 474 passing)
 Resume file: None

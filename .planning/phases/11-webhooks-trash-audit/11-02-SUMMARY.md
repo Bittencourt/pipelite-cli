@@ -87,7 +87,7 @@ Each task was committed atomically (TDD: RED then GREEN for tasks 1-2):
 
 1. **Task 1: TrashRow/DeletedBy models, 3 client methods, normalize_trash_type, trash list + --all fan-out + wiring** — `72bd6d6` (test, RED: 11 failing list tests) + `1a2c2ca` (feat, GREEN: 11 stub tests + 5 unit tests)
 2. **Task 2: restore (no confirm) + purge (zero-HTTP exit-2 refusal, strongest confirm, fan-out, N ok / M failed)** — `6dc0eec` (test, RED: 13 failing) + `c3dfabd` (feat, GREEN: 24 stub tests total)
-3. **Task 3: Help truthfulness tests + docs/api-reference.md Trash section + full-suite gate** — `5056795` (feat)
+3. **Task 3: Help truthfulness tests + docs/api-reference.md Trash section + full-suite gate** — `5056795` (feat) + `5225ae8` (fix: staged the missed group/purge after_help extensions the committed tests require)
 
 ## Files Created/Modified
 
@@ -146,9 +146,17 @@ Each task was committed atomically (TDD: RED then GREEN for tasks 1-2):
 - **Verification:** cargo test --test help_examples_test 16/16 green
 - **Committed in:** 5056795
 
+**4. [Rule 3 - Blocking] Task 2 group/purge after_help extensions missed their commit staging**
+- **Found during:** Close-out `git status` review
+- **Issue:** The Task 2 group after_help extension (src/cli/mod.rs) and the Task 3 purge-help rewording (src/cli/trash.rs) were left unstaged — the committed tests (trash_help_truthful, trash_subcommand_help_specifics) reference exactly that help text, so a clean checkout would fail them
+- **Fix:** Dedicated fix commit staging both files (same pattern as 11-01's 9dac80b)
+- **Files modified:** src/cli/mod.rs, src/cli/trash.rs
+- **Verification:** full suite re-run from the clean tree: 31 suites ok / 0 failed
+- **Committed in:** 5225ae8
+
 ---
 
-**Total deviations:** 4 auto-fixed (1 test-hardening for RED integrity, 3 gate/test-mechanics corrections)
+**Total deviations:** 5 auto-fixed (1 test-hardening for RED integrity, 4 gate/test-mechanics corrections)
 **Impact on plan:** All four were mechanical test/mechanics corrections — no behavior or contract changes. Every must_have, pinned gate, and success criterion met as written.
 
 ## Issues Encountered
@@ -179,4 +187,4 @@ None — no placeholder data paths; every rendered value comes from the wire or 
 
 ## Self-Check: PASSED
 
-All 6 created files exist on disk; all 5 commits (72bd6d6, 1a2c2ca, 6dc0eec, c3dfabd, 5056795) present in git log. Full suite 474 passed / 0 failed; trash_stub_test 24/24; help_examples_test 16/16.
+All 6 created files exist on disk; all 6 commits (72bd6d6, 1a2c2ca, 6dc0eec, c3dfabd, 5056795, 5225ae8) present in git log. Full suite 474 passed / 0 failed (31 suites ok) re-verified from the clean committed tree; trash_stub_test 24/24; help_examples_test 16/16.

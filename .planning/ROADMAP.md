@@ -119,7 +119,7 @@ Plans:
 
 Plans:
 - [x] 11-01-PLAN.md — `webhooks` group: serializer-exact models (no secret in list/get — create-response carries it), 6 client methods, 13-event + https pre-HTTP validation (exit 2), show-once secret rendering (truncation test FIRST), KEY_WEBHOOKS (id/url only) + invalidation, get→merge→PUT update, standard delete contract, foreign-403 hint probes (WHOK-01, WHOK-02, WHOK-03)
-- [ ] 11-02-PLAN.md — `trash` group: TrashRow/DeletedBy models, 3 client methods, singular/plural type normalization, list (--type + bounded --all fan-out, offset cap 10,000), restore (no confirm, 404 re-wrap, general 403 hint), purge (scope-validated pre-HTTP fan-out, strongest confirm, exit-2 zero-HTTP refusal pinned, continue-on-error N ok / M failed) (TRSH-01, TRSH-02, TRSH-03)
+- [x] 11-02-PLAN.md — `trash` group: TrashRow/DeletedBy models, 3 client methods, singular/plural type normalization, list (--type + bounded --all fan-out, offset cap 10,000), restore (no confirm, 404 re-wrap, general 403 hint), purge (scope-validated pre-HTTP fan-out, strongest confirm, exit-2 zero-HTTP refusal pinned, continue-on-error N ok / M failed) (TRSH-01, TRSH-02, TRSH-03)
 - [ ] 11-03-PLAN.md — `audit` group: AuditEntry model, 1 client method (non-empty filters only, limit clamped ≤100), 4 passthrough filters + --limit/--offset (no --all), default ts/actor/action/entity columns, --json changes payload, admin-403 hint probes incl. gate-before-validation ordering (AUDT-01, AUDT-02)
 
 ### Phase 12: Custom Fields — Definitions & Typed Writing
@@ -162,6 +162,6 @@ Plans:
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete    | 2026-09-03 |
 | 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
-| 11. Webhooks, Trash & Audit | v1.1 | 1/3 | In Progress|  |
+| 11. Webhooks, Trash & Audit | v1.1 | 2/3 | In Progress|  |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |
 | 13. Integration Hardening & Docs | v1.1 | 0/TBD | Not started | - |

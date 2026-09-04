@@ -35,9 +35,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Trash
 
-- [ ] **TRSH-01**: User can list trashed records with `--type` filter (deals/people/organizations/activities)
-- [ ] **TRSH-02**: User can restore a trashed record by type and ID
-- [ ] **TRSH-03**: User can permanently purge a trashed record — admin-only, strongest confirmation in the codebase, `--force` bypass, refuses under `--no-input` without `--force` (exit 2, zero HTTP), and normalizes singular/plural type names so piped round-trips work
+- [x] **TRSH-01**: User can list trashed records with `--type` filter (deals/people/organizations/activities)
+- [x] **TRSH-02**: User can restore a trashed record by type and ID
+- [x] **TRSH-03**: User can permanently purge a trashed record — admin-only, strongest confirmation in the codebase, `--force` bypass, refuses under `--no-input` without `--force` (exit 2, zero HTTP), and normalizes singular/plural type names so piped round-trips work
 
 ### Custom Fields
 
@@ -123,9 +123,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WHOK-01 | Phase 11 | Complete |
 | WHOK-02 | Phase 11 | Complete |
 | WHOK-03 | Phase 11 | Complete |
-| TRSH-01 | Phase 11 | Pending |
-| TRSH-02 | Phase 11 | Pending |
-| TRSH-03 | Phase 11 | Pending |
+| TRSH-01 | Phase 11 | Complete |
+| TRSH-02 | Phase 11 | Complete |
+| TRSH-03 | Phase 11 | Complete |
 | AUDT-01 | Phase 11 | Pending |
 | AUDT-02 | Phase 11 | Pending |
 | CFLD-01 | Phase 12 | Pending |
