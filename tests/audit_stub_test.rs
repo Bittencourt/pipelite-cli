@@ -101,12 +101,14 @@ fn captured_head(heads: &Mutex<Vec<String>>, idx: usize) -> String {
 
 /// The default list: limit=50&offset=0 on the wire, and the table renders
 /// the entity cell (type/id), the actor kind, the action, and the
-/// timestamp.
+/// timestamp. The table layer renders `*_at` fields as relative time
+/// (pre-existing format.rs convention), so the exact timestamp value is
+/// asserted via --json.
 #[test]
 fn list_default() {
     let body = list_body(vec![audit_entry_user("a1", "deal", "d1", "updated")], 1);
     let (url, _counter, heads, _bodies) =
-        common::spawn_head_capturing_stub_server(&[(200, &body)]);
+        common::spawn_head_capturing_stub_server(&[(200, &body), (200, &body)]);
 
     common::cmd_with_server(&url)
         .args(["audit", "list", "--format", "table"])
@@ -116,13 +118,20 @@ fn list_default() {
         .stdout(predicate::str::contains("deal/d1"))
         .stdout(predicate::str::contains("user"))
         .stdout(predicate::str::contains("updated"))
-        .stdout(predicate::str::contains("2026-09-01T12:00:00.000Z"));
+        .stdout(predicate::str::contains("ago"));
 
     let head = captured_head(&heads, 0);
     assert!(
         head.contains("get /api/v1/audit?limit=50&offset=0"),
         "default pagination must reach the wire on /api/v1/audit:\n{head}"
     );
+
+    // The created_at value itself is visible verbatim in json output.
+    common::cmd_with_server(&url)
+        .args(["audit", "list", "--format", "json"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("2026-09-01T12:00:00.000Z"));
 }
 
 /// All four filters pass through VERBATIM as the server's snake_case query
