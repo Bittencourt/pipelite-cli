@@ -1,4 +1,6 @@
 pub mod list;
+pub mod purge;
+pub mod restore;
 
 use anyhow::Result;
 
@@ -69,6 +71,8 @@ pub fn deleted_by_label(d: &DeletedBy) -> String {
 pub async fn run(ctx: &AppContext, cmd: &TrashCommands) -> Result<()> {
     match cmd {
         TrashCommands::List(args) => list::run(ctx, args).await,
+        TrashCommands::Restore(args) => restore::run(ctx, args).await,
+        TrashCommands::Purge(args) => purge::run(ctx, args).await,
     }
 }
 
