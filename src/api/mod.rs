@@ -13,7 +13,7 @@ use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
     DealUpdate, Note, NoteCreate, NoteUpdate, Organization, OrganizationCreate, OrganizationUpdate,
     Person, PersonCreate, PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse,
-    Stage, StageCreate, StageUpdate, Webhook, WebhookCreate, WebhookCreated, Workflow,
+    Stage, StageCreate, StageUpdate, TrashRow, Webhook, WebhookCreate, WebhookCreated, Workflow,
     WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse, WorkflowTemplate,
     WorkflowTemplateCreate, WorkflowUpdate,
 };
@@ -1182,6 +1182,66 @@ impl PipeliteClient {
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
         self.handle_delete_response(response, "webhooks").await
+    }
+
+    // -- Trash --
+
+    /// List trashed records. GETs `/api/v1/trash?limit&offset[&type]`.
+    ///
+    /// The `type` query param is added ONLY when `trash_type` is Some —
+    /// omitting it lets the server default to the deals tab. The value MUST
+    /// be the PLURAL tab (deals|people|organizations|activities,
+    /// caller-normalized); the server 422s anything else. The list is
+    /// owner-or-admin scoped server-side (members see their own rows,
+    /// admins see all) and its offset is clamped to ≤ 10,000 (past-cap
+    /// pages return empty data + a truthful meta.total). 403s render the
+    /// general wording — this route is NOT admin-only.
+    pub async fn list_trash(
+        &self,
+        trash_type: Option<&str>,
+        limit: u64,
+        offset: u64,
+    ) -> Result<ApiListResponse<TrashRow>> {
+        let url = format!("{}/api/v1/trash", self.base_url);
+        let mut query = vec![
+            ("limit", limit.to_string()),
+            ("offset", offset.to_string()),
+        ];
+        if let Some(t) = trash_type {
+            query.push(("type", t.to_string()));
+        }
+        let request = self.client.get(&url).query(&query);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "general").await
+    }
+
+    /// Restore one trashed record. POSTs
+    /// `/api/v1/trash/{type}/{id}/restore` (NO trailing slash; 204 → Ok).
+    ///
+    /// `{type}` is ALWAYS the plural tab — caller-normalized, never the
+    /// row's singular entity_type (the server 422s singular). Restore is
+    /// owner-or-admin (NOT admin-only): a member restoring another user's
+    /// record gets 403 with the GENERAL hint, not the purge hint (P6).
+    /// A record that is not in the trash anymore 404s.
+    pub async fn restore_trash(&self, trash_type: &str, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/trash/{}/{}/restore", self.base_url, trash_type, id);
+        let request = self.client.post(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_delete_response(response, "general").await
+    }
+
+    /// Purge (permanently destroy) one trashed record. DELETEs
+    /// `/api/v1/trash/{type}/{id}` (204 → Ok).
+    ///
+    /// ADMIN-ONLY — the server gates BEFORE record lookup, so a non-admin
+    /// key always 403s regardless of the id (anti-enumeration) and the
+    /// pre-registered "trash" hint renders. `{type}` is ALWAYS the plural
+    /// tab (caller-normalized); a record not in the trash 404s.
+    pub async fn purge_trash(&self, trash_type: &str, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/trash/{}/{}", self.base_url, trash_type, id);
+        let request = self.client.delete(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_delete_response(response, "trash").await
     }
 
     // -- Docs --

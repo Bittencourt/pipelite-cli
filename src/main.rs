@@ -107,6 +107,10 @@ async fn run(cli: Cli) -> Result<()> {
             let ctx = AppContext::build(&cli)?;
             commands::webhooks::run(&ctx, cmd).await
         }
+        Commands::Trash(ref cmd) => {
+            let ctx = AppContext::build(&cli)?;
+            commands::trash::run(&ctx, cmd).await
+        }
         Commands::Docs(ref args) => {
             let ctx = AppContext::build(&cli)?;
             commands::docs::run(&ctx, args).await

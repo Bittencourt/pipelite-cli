@@ -12,6 +12,7 @@ pub mod people;
 pub mod pipelines;
 pub mod stages;
 pub mod templates;
+pub mod trash;
 pub mod webhooks;
 pub mod workflows;
 
@@ -32,6 +33,7 @@ use people::PeopleCommands;
 use pipelines::PipelinesCommands;
 use stages::StagesCommands;
 use templates::TemplatesCommands;
+use trash::TrashCommands;
 use webhooks::WebhooksCommands;
 use workflows::WorkflowsCommands;
 
@@ -173,6 +175,13 @@ pub enum Commands {
         after_help = "Webhooks push CRM events to external automations.\nThe signing secret is shown exactly once at creation — save it when you create the webhook.\nA webhook belonging to another user always 403s — even with an admin key.\n\nExamples:\n  pipelite webhooks create --url https://example.com/hook --events deal.created,deal.updated\n  pipelite webhooks list\n  pipelite webhooks get wh_abc123\n  pipelite webhooks update wh_abc123 --inactive\n  pipelite webhooks delete wh_abc123 --force"
     )]
     Webhooks(WebhooksCommands),
+
+    /// List, restore, and permanently purge soft-deleted records
+    #[command(
+        subcommand,
+        after_help = "Trash holds soft-deleted records — list, restore, or purge them.\n\nExamples:\n  pipelite trash list\n  pipelite trash list --type deals --format json"
+    )]
+    Trash(TrashCommands),
 
     /// Fetch the server's OpenAPI 3.1 spec (public route — no API key sent)
     #[command(

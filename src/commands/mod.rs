@@ -13,5 +13,6 @@ pub mod ping;
 pub mod pipelines;
 pub mod stages;
 pub mod templates;
+pub mod trash;
 pub mod webhooks;
 pub mod workflows;

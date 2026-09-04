@@ -830,6 +830,71 @@ pub fn webhooks_table_config() -> TableConfig {
     }
 }
 
+// -- Trash entity --
+
+/// A trashed record from the Pipelite CRM API (GET /api/v1/trash).
+///
+/// Carries BOTH type tokens: `entity_type` is the SINGULAR
+/// display/correlation vocabulary ("deal"), while `tab` (wire key `"type"`)
+/// is the PLURAL server tab ("deals") — the ONLY token that may ever appear
+/// in a trash URL (the server 422s singular). Never swap them (P5).
+/// `linked_parents` holds the names of parent records that are ALSO in the
+/// trash (always empty for organizations); it defaults to an empty vec when
+/// the server omits the key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrashRow {
+    pub id: String,
+    pub entity_type: String,
+    #[serde(rename = "type")]
+    pub tab: String,
+    pub name: String,
+    pub secondary: Option<String>,
+    pub deleted_at: String,
+    #[serde(default)]
+    pub linked_parents: Vec<String>,
+    pub deleted_by: DeletedBy,
+}
+
+/// Who deleted the record — a CLOSED union discriminated by the wire's
+/// `"kind"` tag. `ApiKey` deliberately carries NO name: the server never
+/// stores one for API-key deletions, so none exists to render (S6).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+pub enum DeletedBy {
+    #[serde(rename = "not_recorded")]
+    NotRecorded,
+    #[serde(rename = "user")]
+    User {
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        email: Option<String>,
+    },
+    #[serde(rename = "unknown_user")]
+    UnknownUser,
+    #[serde(rename = "workflow_run")]
+    WorkflowRun {
+        #[serde(default)]
+        workflow_name: Option<String>,
+    },
+    #[serde(rename = "api_key")]
+    ApiKey,
+    #[serde(rename = "import")]
+    Import,
+    #[serde(rename = "system")]
+    System,
+}
+
+/// Default table columns for trash list display: the human name, the
+/// PLURAL tab (`type` — the round-trip token), when it was deleted, who
+/// deleted it (kind label), and the linked parent names (truncated cell —
+/// `--json` keeps the full array/object).
+pub fn trash_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["name", "type", "deleted_at", "deleted_by", "linked_parents"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1906,5 +1971,51 @@ mod tests {
         );
         assert_eq!(create.as_object().unwrap().len(), 2, "exactly two keys");
         assert!(create.get("description").is_none());
+    }
+
+    /// TrashRow carries BOTH type tokens: entity_type stays SINGULAR
+    /// (display vocabulary) while `tab` deserializes from the wire key
+    /// "type" and holds the PLURAL tab (URL round-trip token). The
+    /// linked_parents key is optional and defaults to [].
+    #[test]
+    fn trash_row_parses_both_type_tokens_and_defaults_linked_parents() {
+        let row: TrashRow = serde_json::from_value(json!({
+            "id": "t1",
+            "entity_type": "deal",
+            "type": "deals",
+            "name": "Acme deal",
+            "secondary": null,
+            "deleted_at": "2026-09-01T12:00:00.000Z",
+            "deleted_by": {"kind": "user", "name": "Jane", "email": "jane@x.com"}
+        }))
+        .expect("row without linked_parents must parse");
+        assert_eq!(row.id, "t1");
+        assert_eq!(row.entity_type, "deal", "entity_type is SINGULAR");
+        assert_eq!(row.tab, "deals", "tab is the PLURAL tab");
+        assert!(row.linked_parents.is_empty(), "absent linked_parents → []");
+    }
+
+    /// DeletedBy is a CLOSED union on the "kind" tag: api_key parses with NO
+    /// name key (deliberate server design), user tolerates null
+    /// name/email, workflow_run carries workflow_name — and any unknown
+    /// kind is a deserialize error.
+    #[test]
+    fn deleted_by_closed_union_parses_known_kinds_and_rejects_unknown() {
+        let api: DeletedBy =
+            serde_json::from_value(json!({"kind": "api_key"})).expect("api_key (no name key)");
+        assert!(matches!(api, DeletedBy::ApiKey));
+
+        let user: DeletedBy = serde_json::from_value(json!({"kind": "user", "name": null, "email": null}))
+            .expect("user with null name/email");
+        assert!(matches!(user, DeletedBy::User { name: None, email: None }));
+
+        let wf: DeletedBy = serde_json::from_value(json!({
+            "kind": "workflow_run", "workflow_name": "Nightly"
+        }))
+        .expect("workflow_run");
+        assert!(matches!(wf, DeletedBy::WorkflowRun { .. }));
+
+        let unknown = serde_json::from_value::<DeletedBy>(json!({"kind": "alien"}));
+        assert!(unknown.is_err(), "closed union must reject unknown kinds");
     }
 }
