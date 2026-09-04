@@ -122,6 +122,186 @@ fn create_select_alias_body() {
     );
 }
 
+// -- create validation & vocabulary (pre-HTTP: the server validates nothing) --
+
+/// multi_select shares the SelectConfig shape: config.options is a flat
+/// string array with every segment in order.
+#[test]
+fn create_multi_select_body() {
+    let (url, _counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[(
+        201,
+        &created_envelope(definition_json("cf3", "deal", "tags", "multi_select")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "deals",
+            "--key",
+            "tags",
+            "--type",
+            "multi_select",
+            "--options",
+            "x,y,z",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    let body: serde_json::Value =
+        serde_json::from_str(&last_captured_body(&bodies)).expect("captured body parses");
+    assert_eq!(body["type"], "multi_select");
+    assert_eq!(
+        body["config"],
+        serde_json::json!({"options": ["x", "y", "z"]})
+    );
+}
+
+/// Unknown --type tokens are rejected BEFORE any request (exit 2, counter
+/// == 0) with the accepted vocabulary in the hint — the server would
+/// silently accept "string" and store a dead definition.
+#[test]
+fn create_unknown_type() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        201,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    let output = common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "deals",
+            "--key",
+            "price",
+            "--type",
+            "string",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("single_select"))
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("Connection failed"),
+        "type rejection must be pre-HTTP:\n{stderr}"
+    );
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "zero HTTP on unknown type");
+}
+
+/// Unknown --entity-type values are rejected BEFORE any request (exit 2,
+/// counter == 0) with the four server tokens in the hint — the server
+/// would 422, but the CLI refuses earlier with a better message.
+#[test]
+fn create_unknown_entity() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        201,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "bogus",
+            "--key",
+            "price",
+            "--type",
+            "number",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("organization"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "zero HTTP on unknown entity type");
+}
+
+/// A missing --key is a MissingInput (exit 2, zero HTTP) naming the flag.
+#[test]
+fn create_missing_key() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        201,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "deal",
+            "--type",
+            "number",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("--key"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+/// --options on a non-select type is rejected (exit 2, zero HTTP) — a
+/// silently-ignored flag is the exact dead-value bug class this milestone
+/// removes.
+#[test]
+fn create_options_on_text() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        201,
+        &created_envelope(definition_json("cf1", "deal", "price", "number")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "deals",
+            "--key",
+            "price",
+            "--type",
+            "text",
+            "--options",
+            "a",
+        ])
+        .assert()
+        .code(2);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+/// A select-family type WITHOUT --options is rejected (exit 2, zero HTTP)
+/// — an options-less select definition would render an empty dropdown.
+#[test]
+fn create_select_without_options() {
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[(
+        201,
+        &created_envelope(definition_json("cf2", "deal", "stage_sel", "single_select")),
+    )]);
+
+    common::cmd_with_server(&url)
+        .args([
+            "custom-fields",
+            "create",
+            "--entity-type",
+            "deals",
+            "--key",
+            "stage_sel",
+            "--type",
+            "select",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("--options"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
 // -- helpers (kept BELOW the body-shape tests: the task-order contract pins
 //    the first fn in this file to create_body_shape) --
 

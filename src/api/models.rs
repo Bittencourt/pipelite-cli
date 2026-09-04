@@ -830,6 +830,74 @@ pub fn webhooks_table_config() -> TableConfig {
     }
 }
 
+// -- Custom field definition entity --
+
+/// A custom field definition from the Pipelite CRM API.
+///
+/// Serializer-exact (serialize.ts:143-156): id, entity_type, name, type,
+/// config, required, position, show_in_list, created_at, updated_at. The
+/// serializer has NO deleted_at — soft-deleted definitions are listed
+/// (route.ts includes them deliberately "for API completeness") but
+/// indistinguishable from live ones. `position` is a numeric(20,10) column
+/// surfaced via parseFloat — a JSON float or null, so `Option<f64>` FROM
+/// BIRTH (the Phase 8 `Deal.position` failure class; whole positions render
+/// as `10000.0`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomFieldDefinition {
+    pub id: String,
+    pub entity_type: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+    #[serde(default)]
+    pub config: Option<serde_json::Value>,
+    #[serde(default)]
+    pub required: bool,
+    pub position: Option<f64>,
+    #[serde(default)]
+    pub show_in_list: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Payload for creating a custom field definition.
+///
+/// Wire body: exactly {name, entity_type, type, required, show_in_list}
+/// (+ config when options are given) — `name` carries the CLI's `--key`
+/// value (blob keys are definition NAMES). Deliberately NO `position`
+/// (the POST schema has none — zod strips it and the server auto-assigns
+/// max+10000; position is writable only via PUT) and NO `description`
+/// (no such field exists anywhere on the model, serializer, or either
+/// zod schema). `required`/`show_in_list` always serialize (booleans,
+/// defaulting false — matching the server's `required || false`
+/// materialization) so the flag-path body shape is deterministic.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomFieldDefinitionCreate {
+    pub name: String,
+    pub entity_type: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub required: bool,
+    pub show_in_list: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<serde_json::Value>,
+}
+
+/// Default table columns for custom-field-definition list display.
+pub fn custom_fields_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec![
+            "id",
+            "entity_type",
+            "name",
+            "type",
+            "position",
+            "required",
+            "show_in_list",
+        ],
+    }
+}
+
 // -- Trash entity --
 
 /// A trashed record from the Pipelite CRM API (GET /api/v1/trash).
@@ -2124,6 +2192,152 @@ mod tests {
                 "actor".to_string(),
                 "action".to_string(),
                 "entity".to_string()
+            ]
+        );
+    }
+
+    // -- Custom field definitions (Phase 12, CFLD-01) --
+
+    /// Serializer-exact fixture with a FRACTIONAL position parses — position
+    /// is numeric(20,10) + parseFloat, so `Option<f64>` from birth (the
+    /// Phase 8 Deal.position failure class; an integer type would fail here).
+    #[test]
+    fn custom_field_definition_fractional_position_parses() {
+        let def: CustomFieldDefinition = serde_json::from_value(json!({
+            "id": "cf1",
+            "entity_type": "deal",
+            "name": "price",
+            "type": "number",
+            "config": null,
+            "required": false,
+            "position": 10000.5,
+            "show_in_list": false,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }))
+        .expect("serializer-exact fixture with fractional position must parse");
+
+        assert_eq!(def.position, Some(10000.5), "fractional position MUST NOT fail");
+        assert_eq!(def.type_, "number", "the wire 'type' key renames to type_");
+        assert!(!def.required);
+        assert!(!def.show_in_list);
+        assert!(def.config.is_none());
+    }
+
+    /// position null parses to None (the serializer emits parseFloat(... OR
+    /// null) — never a missing-key error).
+    #[test]
+    fn custom_field_definition_null_position_parses_to_none() {
+        let def: CustomFieldDefinition = serde_json::from_value(json!({
+            "id": "cf2",
+            "entity_type": "organization",
+            "name": "tier",
+            "type": "single_select",
+            "config": {"options": ["a", "b"]},
+            "required": true,
+            "position": null,
+            "show_in_list": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }))
+        .expect("fixture with null position must parse");
+
+        assert_eq!(def.position, None);
+        assert_eq!(def.config, Some(json!({"options": ["a", "b"]})));
+        assert!(def.required);
+        assert!(def.show_in_list);
+    }
+
+    /// The struct is serializer-EXACT: a fixture with NO deleted_at key (the
+    /// serializer omits it — soft-deleted rows are indistinguishable) parses
+    /// cleanly, proving no tombstone marker field exists on the model.
+    #[test]
+    fn custom_field_definition_serializer_exact_without_deleted_at_parses() {
+        let def: CustomFieldDefinition = serde_json::from_value(json!({
+            "id": "cf3",
+            "entity_type": "person",
+            "name": "nickname",
+            "type": "text",
+            "config": null,
+            "required": false,
+            "position": null,
+            "show_in_list": false,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }))
+        .expect("fixture without deleted_at must parse (serializer has no such key)");
+
+        assert_eq!(def.name, "nickname");
+    }
+
+    /// The create payload serializes to a deterministic key set — the wire
+    /// body is EXACTLY {name, entity_type, type, required, show_in_list}
+    /// (+config when present): NO "position" key can ever exist (the POST
+    /// schema has none — the server strips it and auto-assigns max+10000)
+    /// and NO "description" key can ever exist (no such server field).
+    #[test]
+    fn custom_field_definition_create_serializes_wire_exact_without_position_or_description() {
+        let create = CustomFieldDefinitionCreate {
+            name: "price".to_string(),
+            entity_type: "deal".to_string(),
+            type_: "number".to_string(),
+            required: false,
+            show_in_list: false,
+            config: Some(json!({"options": ["a", "b"]})),
+        };
+        let obj = serde_json::to_value(&create)
+            .expect("create serializes")
+            .as_object()
+            .expect("create serializes to an object")
+            .clone();
+
+        let mut keys: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            vec!["config", "entity_type", "name", "required", "show_in_list", "type"],
+            "wire body keys must be exactly the server POST schema vocabulary"
+        );
+        assert!(obj.get("position").is_none(), "NO position key on the create body");
+        assert!(obj.get("description").is_none(), "NO description key on the create body");
+    }
+
+    /// Without options the config key is skipped entirely — the body carries
+    /// exactly the five schema keys.
+    #[test]
+    fn custom_field_definition_create_without_config_omits_the_key() {
+        let create = CustomFieldDefinitionCreate {
+            name: "price".to_string(),
+            entity_type: "deal".to_string(),
+            type_: "number".to_string(),
+            required: true,
+            show_in_list: false,
+            config: None,
+        };
+        let obj = serde_json::to_value(&create)
+            .expect("create serializes")
+            .as_object()
+            .expect("create serializes to an object")
+            .clone();
+        assert!(!obj.contains_key("config"), "config must be skipped when None");
+        assert_eq!(obj.len(), 5);
+    }
+
+    /// Table columns pinned: id, entity_type, name, type, position,
+    /// required, show_in_list (research-pinned; no tombstone column — the
+    /// server provides no marker to render).
+    #[test]
+    fn definition_table_config_pins_default_columns() {
+        assert_eq!(
+            custom_fields_table_config().default_columns,
+            vec![
+                "id",
+                "entity_type",
+                "name",
+                "type",
+                "position",
+                "required",
+                "show_in_list",
             ]
         );
     }

@@ -3,6 +3,7 @@ pub mod audit;
 pub mod cache;
 pub mod completions;
 pub mod config;
+pub mod custom_fields;
 pub mod dashboard;
 pub mod deals;
 pub mod docs;

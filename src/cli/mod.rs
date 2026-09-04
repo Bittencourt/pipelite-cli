@@ -3,6 +3,7 @@ pub mod audit;
 pub mod cache;
 pub mod completions;
 pub mod config;
+pub mod custom_fields;
 pub mod dashboard;
 pub mod deals;
 pub mod docs;
@@ -25,6 +26,7 @@ use audit::AuditCommands;
 use cache::CacheCommands;
 use completions::CompletionsArgs;
 use config::ConfigCommands;
+use custom_fields::CustomFieldsCommands;
 use dashboard::DashboardArgs;
 use deals::DealsCommands;
 use docs::DocsArgs;
@@ -191,6 +193,13 @@ pub enum Commands {
         after_help = "The audit log is read-only and admin-gated — it requires an admin API key.\nNon-admin keys receive 403 for every audit command, whatever the filters.\n\nExamples:\n  pipelite audit list\n  pipelite audit list --entity-type deal --format json\n  pipelite audit list --actor-kind workflow_run"
     )]
     Audit(AuditCommands),
+
+    /// Define and manage custom fields (the type source for --custom-field writing)
+    #[command(
+        subcommand,
+        after_help = "Custom field definitions name typed fields per entity — they are the type source for --custom-field <key>=<value> writing.\nDeleted definitions remain in custom-fields list output; the server does not mark them.\n\nExamples:\n  pipelite custom-fields create --entity-type deals --key price --type number"
+    )]
+    CustomFields(CustomFieldsCommands),
 
     /// Fetch the server's OpenAPI 3.1 spec (public route — no API key sent)
     #[command(

@@ -10,12 +10,13 @@ use crate::config::AppConfig;
 use crate::error::CliError;
 
 use models::{
-    Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, AuditEntry, Deal,
-    DealCreate, DealUpdate, Note, NoteCreate, NoteUpdate, Organization, OrganizationCreate,
-    OrganizationUpdate, Person, PersonCreate, PersonUpdate, Pipeline, PipelineCreate,
-    PipelineUpdate, PingResponse, Stage, StageCreate, StageUpdate, TrashRow, Webhook,
-    WebhookCreate, WebhookCreated, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail,
-    WorkflowRunResponse, WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
+    Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, AuditEntry,
+    CustomFieldDefinition, CustomFieldDefinitionCreate, Deal, DealCreate, DealUpdate, Note,
+    NoteCreate, NoteUpdate, Organization, OrganizationCreate, OrganizationUpdate, Person,
+    PersonCreate, PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse, Stage,
+    StageCreate, StageUpdate, TrashRow, Webhook, WebhookCreate, WebhookCreated, Workflow,
+    WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse, WorkflowTemplate,
+    WorkflowTemplateCreate, WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -1182,6 +1183,123 @@ impl PipeliteClient {
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
         self.handle_delete_response(response, "webhooks").await
+    }
+
+    // -- Custom field definitions --
+
+    /// List custom field definitions.
+    ///
+    /// GETs `/api/v1/custom-field-definitions?limit&offset` (+ `entity_type`
+    /// ONLY when `entity_type` is Some — the value MUST already be a
+    /// normalized server token (deal|organization|person|activity); the
+    /// server 422s anything else). The list DELIBERATELY INCLUDES
+    /// soft-deleted rows and no response field marks them (the serializer
+    /// omits deleted_at) — tombstones are indistinguishable by design.
+    pub async fn list_custom_field_definitions(
+        &self,
+        entity_type: Option<&str>,
+        limit: u64,
+        offset: u64,
+    ) -> Result<ApiListResponse<CustomFieldDefinition>> {
+        let url = format!("{}/api/v1/custom-field-definitions", self.base_url);
+        let mut query = vec![
+            ("limit", limit.to_string()),
+            ("offset", offset.to_string()),
+        ];
+        if let Some(t) = entity_type {
+            query.push(("entity_type", t.to_string()));
+        }
+        let request = self.client.get(&url).query(&query);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "general").await
+    }
+
+    /// Get a single custom field definition by ID.
+    ///
+    /// GETs `/api/v1/custom-field-definitions/{id}`. Soft-deleted rows
+    /// return too (no deletedAt filter on the lookup); an absent ID → 404
+    /// (the standard NotFound path — no special casing for tombstones).
+    pub async fn get_custom_field_definition(&self, id: &str) -> Result<CustomFieldDefinition> {
+        let url = format!("{}/api/v1/custom-field-definitions/{}", self.base_url, id);
+        let request = self.client.get(&url);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<CustomFieldDefinition> =
+            self.handle_response(response, "general").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a custom field definition from the typed payload.
+    ///
+    /// POSTs `/api/v1/custom-field-definitions` (201 {data}). The server
+    /// validates NOTHING beyond the zod schema on the v1 path, and
+    /// auto-assigns `position` = max+10000 (a position key in the POST body
+    /// is stripped by zod — the typed payload carries none). For `--stdin`
+    /// bodies that must pass through VERBATIM, use
+    /// [`PipeliteClient::create_custom_field_definition_raw`] instead.
+    pub async fn create_custom_field_definition(
+        &self,
+        data: &CustomFieldDefinitionCreate,
+    ) -> Result<CustomFieldDefinition> {
+        let url = format!("{}/api/v1/custom-field-definitions", self.base_url);
+        let request = self.client.post(&url).json(data);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<CustomFieldDefinition> =
+            self.handle_response(response, "general").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a custom field definition from a raw JSON body.
+    ///
+    /// The `--stdin` create path must pass the body through VERBATIM (full
+    /// control), so this posts the Value unchanged and parses only the
+    /// response envelope.
+    pub async fn create_custom_field_definition_raw(
+        &self,
+        body: &serde_json::Value,
+    ) -> Result<CustomFieldDefinition> {
+        let url = format!("{}/api/v1/custom-field-definitions", self.base_url);
+        let request = self.client.post(&url).json(body);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<CustomFieldDefinition> =
+            self.handle_response(response, "general").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update a custom field definition with a raw (partial or verbatim)
+    /// JSON body.
+    ///
+    /// PUTs `/api/v1/custom-field-definitions/{id}` — the server merges only
+    /// provided keys, so partial bodies (only the explicitly provided flags)
+    /// and verbatim `--stdin` bodies are both expressible; that is why this
+    /// takes a Value, not a typed struct. `entity_type` and `type` are
+    /// immutable (absent from the PUT schema → silently ignored) and
+    /// `position` (a decimal) is writable ONLY here. A PUT on a soft-deleted
+    /// definition silently succeeds (no guard server-side).
+    pub async fn update_custom_field_definition(
+        &self,
+        id: &str,
+        body: &serde_json::Value,
+    ) -> Result<CustomFieldDefinition> {
+        let url = format!("{}/api/v1/custom-field-definitions/{}", self.base_url, id);
+        let request = self.client.put(&url).json(body);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<CustomFieldDefinition> =
+            self.handle_response(response, "general").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a custom field definition by ID (SOFT delete).
+    ///
+    /// DELETEs `/api/v1/custom-field-definitions/{id}` (204 No Content,
+    /// handled by `handle_delete_response`). The delete only sets
+    /// deletedAt — values already stored on records remain — and the
+    /// definition stays in list output with no marker. Deleting an
+    /// ALREADY-deleted definition → 404 (the standard NotFound path).
+    pub async fn delete_custom_field_definition(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/custom-field-definitions/{}", self.base_url, id);
+        let request = self.client.delete(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_delete_response(response, "general").await
     }
 
     // -- Trash --

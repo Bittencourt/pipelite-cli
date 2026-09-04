@@ -39,6 +39,16 @@ pub const TTL_TEMPLATES: u64 = 3600;
 pub const KEY_WEBHOOKS: &str = "webhooks";
 /// Webhooks change rarely -- 1 hour cache (mirrors TTL_WORKFLOWS).
 pub const TTL_WEBHOOKS: u64 = 3600;
+/// Per-entity custom field definition lists -- the type source for typed
+/// --custom-field writing (Phase 12). Mutating ANY definition invalidates
+/// the whole custom_fields_ prefix (definitions are global per entity
+/// type; there is no surgical per-key invalidation).
+pub const KEY_CUSTOM_FIELDS_DEAL: &str = "custom_fields_deal";
+pub const KEY_CUSTOM_FIELDS_ORG: &str = "custom_fields_organization";
+pub const KEY_CUSTOM_FIELDS_PEOPLE: &str = "custom_fields_person";
+pub const KEY_CUSTOM_FIELDS_ACTIVITY: &str = "custom_fields_activity";
+/// Definitions change rarely -- 1 hour cache (mirrors pipelines/stages).
+pub const TTL_CUSTOM_FIELDS: u64 = 3600;
 
 /// A cached entry with embedded timestamp and TTL for expiry checks.
 #[derive(Debug, Serialize, Deserialize)]
