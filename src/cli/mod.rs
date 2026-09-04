@@ -12,6 +12,7 @@ pub mod people;
 pub mod pipelines;
 pub mod stages;
 pub mod templates;
+pub mod webhooks;
 pub mod workflows;
 
 use clap::{Parser, Subcommand};
@@ -31,6 +32,7 @@ use people::PeopleCommands;
 use pipelines::PipelinesCommands;
 use stages::StagesCommands;
 use templates::TemplatesCommands;
+use webhooks::WebhooksCommands;
 use workflows::WorkflowsCommands;
 
 /// Build a rich version string with rustc version and platform info.
@@ -164,6 +166,13 @@ pub enum Commands {
         after_help = "Notes annotate deals, organizations, people, and activities.\nThe server exposes no single-note GET — use `notes list <type> <id> --json` to read a note before editing.\n\nExamples:\n  pipelite notes list deals d1\n  pipelite notes add deals d1 --body \"Followed up\"\n  pipelite notes edit deals d1 n1 --body \"Updated text\"\n  pipelite notes delete deals d1 n1 --force"
     )]
     Notes(NotesCommands),
+
+    /// Manage webhooks (push CRM events to external automations)
+    #[command(
+        subcommand,
+        after_help = "Webhooks push CRM events to external automations.\nThe signing secret is shown exactly once at creation — save it when you create the webhook.\n\nExamples:\n  pipelite webhooks create --url https://example.com/hook --events deal.created,deal.updated\n  pipelite webhooks list\n  pipelite webhooks get wh_abc123"
+    )]
+    Webhooks(WebhooksCommands),
 
     /// Fetch the server's OpenAPI 3.1 spec (public route — no API key sent)
     #[command(

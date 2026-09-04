@@ -13,8 +13,9 @@ use models::{
     Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
     DealUpdate, Note, NoteCreate, NoteUpdate, Organization, OrganizationCreate, OrganizationUpdate,
     Person, PersonCreate, PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse,
-    Stage, StageCreate, StageUpdate, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail,
-    WorkflowRunResponse, WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
+    Stage, StageCreate, StageUpdate, Webhook, WebhookCreate, WebhookCreated, Workflow,
+    WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse, WorkflowTemplate,
+    WorkflowTemplateCreate, WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -1088,6 +1089,99 @@ impl PipeliteClient {
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
         self.handle_delete_response(response, "notes").await
+    }
+
+    // -- Webhooks --
+
+    /// List webhooks owned by the API key.
+    ///
+    /// GETs `/api/v1/webhooks?limit&offset` (owner-scoped server-side; any
+    /// valid key can list/create). The server NEVER returns the signing
+    /// secret on this route — list/get/PUT serializers exclude it; the
+    /// secret is emitted exactly once by the POST create response only.
+    pub async fn list_webhooks(&self, limit: u64, offset: u64) -> Result<ApiListResponse<Webhook>> {
+        let url = format!("{}/api/v1/webhooks", self.base_url);
+        let request = self.client.get(&url).query(&[
+            ("limit", limit.to_string()),
+            ("offset", offset.to_string()),
+        ]);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "webhooks").await
+    }
+
+    /// Get a single webhook by ID.
+    ///
+    /// GETs `/api/v1/webhooks/{id}` (no secret in the response). A webhook
+    /// belonging to another user 403s EVEN WITH AN ADMIN KEY — webhooks are
+    /// ownership-exclusive, deliberately unlike trash/audit admin powers
+    /// (no role bypass in the route); the pre-registered "webhooks" hint
+    /// renders. Missing webhooks 404.
+    pub async fn get_webhook(&self, id: &str) -> Result<Webhook> {
+        let url = format!("{}/api/v1/webhooks/{}", self.base_url, id);
+        let request = self.client.get(&url);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<Webhook> =
+            self.handle_response(response, "webhooks").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a webhook from the typed payload.
+    ///
+    /// POSTs `/api/v1/webhooks` (201 {data}). The server accepts ONLY
+    /// https:// URLs and forces `active` true; the response is the ONLY one
+    /// carrying the 64-hex signing secret — callers must render it exactly
+    /// once and never persist it. For `--stdin` bodies that must pass
+    /// through VERBATIM, use [`PipeliteClient::create_webhook_raw`] instead.
+    pub async fn create_webhook(&self, data: &WebhookCreate) -> Result<WebhookCreated> {
+        let url = format!("{}/api/v1/webhooks", self.base_url);
+        let request = self.client.post(&url).json(data);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<WebhookCreated> =
+            self.handle_response(response, "webhooks").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Create a webhook from a raw JSON body.
+    ///
+    /// The `--stdin` create path must pass the body through VERBATIM (full
+    /// control: unknown keys survive the trip to be stripped server-side),
+    /// so this posts the Value unchanged and parses only the response
+    /// envelope. The response carries the signing secret exactly like the
+    /// typed create.
+    pub async fn create_webhook_raw(&self, body: &serde_json::Value) -> Result<WebhookCreated> {
+        let url = format!("{}/api/v1/webhooks", self.base_url);
+        let request = self.client.post(&url).json(body);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<WebhookCreated> =
+            self.handle_response(response, "webhooks").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Update a webhook with a raw (merged or verbatim) JSON body.
+    ///
+    /// PUTs `/api/v1/webhooks/{id}` — the server merges only provided keys,
+    /// so both the get→merge→PUT full object and a verbatim `--stdin` body
+    /// are safe. The response NEVER contains the secret (no regeneration
+    /// endpoint exists). Foreign webhooks 403 even for admins.
+    pub async fn update_webhook(&self, id: &str, body: &serde_json::Value) -> Result<Webhook> {
+        let url = format!("{}/api/v1/webhooks/{}", self.base_url, id);
+        let request = self.client.put(&url).json(body);
+        let response = self.send_with_retry(request).await?;
+        let wrapper: ApiSingleResponse<Webhook> =
+            self.handle_response(response, "webhooks").await?;
+        Ok(wrapper.data)
+    }
+
+    /// Delete a webhook by ID (hard delete).
+    ///
+    /// DELETEs `/api/v1/webhooks/{id}` (204 No Content, handled by
+    /// `handle_delete_response`). Foreign webhooks 403 even for admins —
+    /// the pre-registered "webhooks" hint renders.
+    pub async fn delete_webhook(&self, id: &str) -> Result<()> {
+        let url = format!("{}/api/v1/webhooks/{}", self.base_url, id);
+        let request = self.client.delete(&url);
+        let response = self.send_with_retry(request).await?;
+        self.handle_delete_response(response, "webhooks").await
     }
 
     // -- Docs --

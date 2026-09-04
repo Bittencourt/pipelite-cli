@@ -33,6 +33,12 @@ pub const TTL_WORKFLOWS: u64 = 3600;
 pub const KEY_TEMPLATES: &str = "templates";
 /// Templates change rarely -- 1 hour cache (mirrors TTL_WORKFLOWS).
 pub const TTL_TEMPLATES: u64 = 3600;
+/// Webhooks cache (id, url) pairs -- completion candidates for webhook
+/// get/update/delete. Values under this key are built ONLY from list
+/// responses (which never carry any create-only response payload).
+pub const KEY_WEBHOOKS: &str = "webhooks";
+/// Webhooks change rarely -- 1 hour cache (mirrors TTL_WORKFLOWS).
+pub const TTL_WEBHOOKS: u64 = 3600;
 
 /// A cached entry with embedded timestamp and TTL for expiry checks.
 #[derive(Debug, Serialize, Deserialize)]

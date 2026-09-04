@@ -775,6 +775,61 @@ pub struct NoteUpdate {
     pub content: String,
 }
 
+// -- Webhook entity --
+
+/// A webhook from the Pipelite CRM API (list/get/PUT serializers).
+///
+/// Serializer-exact: id, url, events, active, created_at, updated_at. NO
+/// `secret` field — the server returns the signing secret ONLY in the POST
+/// create response ([`WebhookCreated`] carries it); NO `description` field —
+/// the server has no such column (DB schema + both zod schemas contain only
+/// {url, events, active}) and silently strips unknown keys.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Webhook {
+    pub id: String,
+    pub url: String,
+    pub events: Vec<String>,
+    pub active: bool,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+}
+
+/// The POST /api/v1/webhooks create response payload — the ONLY server
+/// response containing the signing secret.
+///
+/// The secret arrives flattened alongside the webhook fields (Webhook &
+/// {secret}): 64 lowercase hex chars (32 random bytes). It is never returned
+/// again — list/get/PUT serializers exclude it — so the CLI must render it
+/// exactly once, full, on its own output line.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookCreated {
+    #[serde(flatten)]
+    pub webhook: Webhook,
+    pub secret: String,
+}
+
+/// Payload for creating a webhook: exactly {"url", "events"}.
+///
+/// The server has NO description field — it would silently strip one, so
+/// neither the model nor the CLI carries one (the --stdin escape hatch
+/// exists for full control). `active` is forced true server-side on create.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookCreate {
+    pub url: String,
+    pub events: Vec<String>,
+}
+
+/// Default table columns for webhook list display. The `secret` column
+/// renders the `(shown once at creation)` placeholder — the real signing
+/// secret is displayed exactly once on create and never again anywhere.
+pub fn webhooks_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["id", "url", "events", "active", "secret"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1785,5 +1840,71 @@ mod tests {
         .unwrap();
         assert_eq!(update, json!({"content": "new"}));
         assert_eq!(update.as_object().unwrap().len(), 1, "exactly one key");
+    }
+
+    // -- Webhooks --
+
+    /// Verified wire shape: list/get/PUT serializers emit NO secret and NO
+    /// description — the fixture omits both keys and must parse.
+    #[test]
+    fn webhook_parses_from_serializer_shape_without_secret_key() {
+        let webhook: Webhook = serde_json::from_value(json!({
+            "id": "wh1",
+            "url": "https://example.com/hook",
+            "events": ["deal.created", "deal.updated"],
+            "active": true,
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z"
+        }))
+        .unwrap();
+        assert_eq!(webhook.id, "wh1");
+        assert_eq!(webhook.url, "https://example.com/hook");
+        assert_eq!(webhook.events, vec!["deal.created", "deal.updated"]);
+        assert!(webhook.active);
+        assert_eq!(webhook.created_at.as_deref(), Some("2026-09-01T10:00:00.000Z"));
+
+        // Serializer must NOT add a secret or description key on re-render.
+        let rendered = serde_json::to_value(&webhook).unwrap();
+        assert!(rendered.get("secret").is_none());
+        assert!(rendered.get("description").is_none());
+    }
+
+    #[test]
+    fn webhook_created_parses_secret_and_flattened_fields() {
+        let created: WebhookCreated = serde_json::from_value(json!({
+            "id": "wh1",
+            "url": "https://example.com/hook",
+            "events": ["deal.created"],
+            "active": true,
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z",
+            "secret": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2"
+        }))
+        .unwrap();
+        assert_eq!(
+            created.secret,
+            "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2"
+        );
+        assert_eq!(created.webhook.id, "wh1");
+        assert_eq!(created.webhook.url, "https://example.com/hook");
+        assert_eq!(created.webhook.events, vec!["deal.created"]);
+    }
+
+    /// Amendment pin: WebhookCreate serializes to EXACTLY two keys
+    /// {"url", "events"} — no "description" key can exist (the server has no
+    /// such field and would silently strip it).
+    #[test]
+    fn webhook_create_serializes_exactly_url_and_events() {
+        let create = serde_json::to_value(WebhookCreate {
+            url: "https://example.com/hook".to_string(),
+            events: vec!["deal.created".to_string()],
+        })
+        .unwrap();
+        assert_eq!(
+            create,
+            json!({"url": "https://example.com/hook", "events": ["deal.created"]})
+        );
+        assert_eq!(create.as_object().unwrap().len(), 2, "exactly two keys");
+        assert!(create.get("description").is_none());
     }
 }
