@@ -1,4 +1,6 @@
 pub mod create;
+pub mod get;
+pub mod list;
 
 use anyhow::Result;
 
@@ -89,9 +91,28 @@ pub fn build_options_config(options: &[String]) -> serde_json::Value {
     serde_json::json!({ "options": opts })
 }
 
+/// Validate the raw `--stdin` create body's vocabulary when the keys are
+/// present.
+///
+/// Permissive otherwise: unknown keys are left for the server to strip —
+/// full control passes through verbatim, but the entity_type/type
+/// allow-lists still fire (exit 2, zero HTTP) so a mistyped vocabulary
+/// cannot be injected even over the full-control path.
+pub fn validate_stdin_definition(body: &serde_json::Value) -> Result<()> {
+    if let Some(t) = body.get("entity_type").and_then(|v| v.as_str()) {
+        normalize_entity_type(t)?;
+    }
+    if let Some(t) = body.get("type").and_then(|v| v.as_str()) {
+        normalize_definition_type(t)?;
+    }
+    Ok(())
+}
+
 /// Dispatch custom-fields subcommands to their handlers.
 pub async fn run(ctx: &AppContext, cmd: &CustomFieldsCommands) -> Result<()> {
     match cmd {
+        CustomFieldsCommands::List(args) => list::run(ctx, args).await,
+        CustomFieldsCommands::Get(args) => get::run(ctx, args).await,
         CustomFieldsCommands::Create(args) => create::run(ctx, args).await,
     }
 }

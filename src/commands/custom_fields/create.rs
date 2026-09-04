@@ -119,6 +119,12 @@ pub async fn run(ctx: &AppContext, args: &CustomFieldsCreateArgs) -> Result<()> 
         ctx.client.create_custom_field_definition_raw(&body).await?
     };
 
+    // Invalidate ALL per-entity definition caches — the type source for
+    // typed --custom-field writing must never go stale after a mutation.
+    if let Some(ref cache) = ctx.cache {
+        cache.invalidate_prefix("custom_fields_");
+    }
+
     // Render: json IS the output (render_single); other formats render a
     // quiet-suppressed confirmation line.
     if matches!(ctx.output_format, OutputFormat::Json) {
@@ -160,22 +166,6 @@ fn read_stdin_body() -> Result<serde_json::Value> {
             .to_string(),
     })?;
 
-    validate_stdin_definition(&body)?;
+    custom_fields::validate_stdin_definition(&body)?;
     Ok(body)
-}
-
-/// Validate the raw `--stdin` body's vocabulary when the keys are present.
-///
-/// Permissive otherwise: unknown keys are left for the server to strip —
-/// full control passes through verbatim, but the entity_type/type
-/// allow-lists still fire (exit 2, zero HTTP) so a mistyped vocabulary
-/// cannot be injected even over the full-control path.
-fn validate_stdin_definition(body: &serde_json::Value) -> Result<()> {
-    if let Some(t) = body.get("entity_type").and_then(|v| v.as_str()) {
-        custom_fields::normalize_entity_type(t)?;
-    }
-    if let Some(t) = body.get("type").and_then(|v| v.as_str()) {
-        custom_fields::normalize_definition_type(t)?;
-    }
-    Ok(())
 }

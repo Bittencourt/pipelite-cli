@@ -4,11 +4,52 @@ use clap::{Args, Subcommand};
 /// writing (each definition names a field, its entity, and its type).
 #[derive(Subcommand)]
 pub enum CustomFieldsCommands {
+    /// List custom field definitions
+    #[command(
+        after_help = "Examples:\n  pipelite custom-fields list --entity-type orgs\n  pipelite custom-fields list --limit 100 --format json\n\nPage cap 100 — iterate --offset, there is no --all.\nDeleted definitions remain in custom-fields list output; the server does not mark them."
+    )]
+    List(CustomFieldsListArgs),
+
+    /// Get a single custom field definition by ID
+    #[command(
+        after_help = "Examples:\n  pipelite custom-fields get cf_abc123\n  pipelite custom-fields get cf_abc123 --fields id,name,type,config\n\nSoft-deleted definitions still resolve here — the server does not mark them."
+    )]
+    Get(CustomFieldsGetArgs),
+
     /// Create a custom field definition (position is assigned automatically)
     #[command(
         after_help = "Examples:\n  pipelite custom-fields create --entity-type deals --key price --type number\n  pipelite custom-fields create --entity-type deals --key stage --type select --options a,b,c\n  echo '{\"name\":\"price\",\"entity_type\":\"deal\",\"type\":\"number\"}' | pipelite custom-fields create --stdin\n\nThe --key value is the definition NAME: it becomes the key used in --custom-field <key>=<value> on deals/orgs/people/activities.\nPosition is assigned automatically (max+10000) — reorder with update --position.\nFor select/single_select/multi_select, --options is required and becomes config.options; for every other type it is rejected."
     )]
     Create(CustomFieldsCreateArgs),
+}
+
+#[derive(Args)]
+pub struct CustomFieldsListArgs {
+    /// Filter by entity — deal(s), organization(s)/orgs, person/people, activity/activities
+    #[arg(long)]
+    pub entity_type: Option<String>,
+
+    /// Maximum number of definitions (default: 50; server caps pages at 100)
+    #[arg(long, default_value = "50")]
+    pub limit: u64,
+
+    /// Pagination offset (default: 0)
+    #[arg(long, default_value = "0")]
+    pub offset: u64,
+
+    /// Select specific fields (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub fields: Option<Vec<String>>,
+}
+
+#[derive(Args)]
+pub struct CustomFieldsGetArgs {
+    /// Definition ID (from `custom-fields list`)
+    pub definition_id: String,
+
+    /// Select specific fields (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    pub fields: Option<Vec<String>>,
 }
 
 #[derive(Args)]
