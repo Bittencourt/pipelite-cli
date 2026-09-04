@@ -144,7 +144,9 @@ fn pipelines_create_missing_name() {
 
 #[test]
 fn stdin_and_flags_mutually_exclusive() {
-    // --stdin + --title should fail with mutual exclusivity error
+    // --stdin + --title fail with the mutual exclusivity error at exit 2
+    // (InvalidInput — normalized from the old Validation exit 1 so all 8
+    // create/update handlers share one structural exit code).
     cmd()
         .write_stdin(r#"[{"title":"A","stage_id":"stg_001"}]"#)
         .arg("deals")
@@ -153,6 +155,6 @@ fn stdin_and_flags_mutually_exclusive() {
         .arg("--title")
         .arg("Test")
         .assert()
-        .failure()
+        .code(2)
         .stderr(predicate::str::contains("mutually exclusive"));
 }

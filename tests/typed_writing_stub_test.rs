@@ -10,6 +10,7 @@
 
 mod common;
 
+use predicates::prelude::*;
 use std::sync::atomic::Ordering;
 
 /// The canonical bug fix (SC-2): `--custom-field price=4` on a number
@@ -353,8 +354,397 @@ fn update_typed_body() {
     );
 }
 
+// -- Task 2: fan-out (orgs / people / activities + the 8th call site) --
+
+/// orgs create resolves through the same resolver: a number definition on
+/// entity_type "organization" stores JSON number 7 (2 requests, cold).
+#[test]
+fn orgs_create_typed() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &definitions_list(vec![definition("co1", "organization", "employees", "number", None)])),
+        (201, &created_org_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "orgs",
+            "create",
+            "--name",
+            "N",
+            "--custom-field",
+            "employees=7",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "defs GET + POST");
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("captured body parses");
+    assert_eq!(
+        body["custom_fields"]["employees"].as_i64(),
+        Some(7),
+        "org number field stores a JSON number: {raw}"
+    );
+}
+
+/// people create: number definition on entity_type "person" → as_i64 == 9.
+#[test]
+fn people_create_typed() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &definitions_list(vec![definition("cp1", "person", "salary", "number", None)])),
+        (201, &created_person_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "people",
+            "create",
+            "--first-name",
+            "F",
+            "--last-name",
+            "L",
+            "--custom-field",
+            "salary=9",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "defs GET + POST");
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("captured body parses");
+    assert_eq!(
+        body["custom_fields"]["salary"].as_i64(),
+        Some(9),
+        "person number field stores a JSON number: {raw}"
+    );
+}
+
+/// activities create: boolean definition → JSON Bool(true) on the wire.
+#[test]
+fn activities_create_typed() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (
+            200,
+            &definitions_list(vec![definition(
+                "ca1",
+                "activity",
+                "follow_up",
+                "boolean",
+                None,
+            )]),
+        ),
+        (201, &created_activity_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "activities",
+            "create",
+            "--title",
+            "S",
+            "--type",
+            "call",
+            "--custom-field",
+            "follow_up=true",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "defs GET + POST");
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("captured body parses");
+    assert_eq!(
+        body["custom_fields"]["follow_up"], serde_json::Value::Bool(true),
+        "activity boolean field stores a JSON bool: {raw}"
+    );
+}
+
+/// The 8th call site (Pitfall 6): --mark-undone resolves ONCE at the top of
+/// activities update and the typed value is carried into the RAW payload —
+/// the same body carries "completed_at":null AND the typed custom_fields
+/// value, inserted exactly once (not dropped, not doubled).
+#[test]
+fn activities_mark_undone_raw_path() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (
+            200,
+            &definitions_list(vec![definition(
+                "ca1",
+                "activity",
+                "follow_up",
+                "boolean",
+                None,
+            )]),
+        ),
+        (200, &created_activity_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "activities",
+            "update",
+            "a1",
+            "--mark-undone",
+            "--custom-field",
+            "follow_up=true",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "defs GET + raw PUT");
+    let raw = last_captured_body(&bodies);
+    assert!(
+        raw.contains("\"completed_at\":null"),
+        "the raw payload must clear completed_at: {raw}"
+    );
+    assert!(
+        raw.contains("\"follow_up\":true"),
+        "the raw payload must carry the TYPED boolean: {raw}"
+    );
+    assert_eq!(
+        raw.matches("\"custom_fields\"").count(),
+        1,
+        "custom_fields must be inserted exactly once (never doubled): {raw}"
+    );
+}
+
+/// --custom-field-json joins every --stdin exclusivity rule: exit 2 with
+/// ZERO HTTP (the check precedes any request and any stdin read).
+#[test]
+fn exclusivity_json_stdin() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--stdin",
+            "--custom-field-json",
+            "{}",
+        ])
+        .env("NO_COLOR", "1")
+        .write_stdin(r#"[{"title":"A","stage_id":"s1"}]"#)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("mutually exclusive"));
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        0,
+        "exclusivity refusal is pre-HTTP"
+    );
+}
+
+/// Both custom-field flags together → exit 2 BEFORE the definitions fetch:
+/// on a warm cache the failing run adds ZERO requests (required flags are
+/// present so check_missing cannot be the exit source — the both-flags
+/// check is).
+#[test]
+fn both_flags_zero_http_warm() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, DEAL_DEFS)]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["custom-fields", "list", "--entity-type", "deals"])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "warm-up list GET");
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "a=1",
+            "--custom-field-json",
+            "{}",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .get_output()
+        .clone();
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "the both-flags refusal must add ZERO requests (fires before the fetch)"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        stderr.contains("mutually exclusive"),
+        "both-flags detail must say mutually exclusive: {stderr}"
+    );
+}
+
+/// The update no-flags gate counts --custom-field-json as "has flags":
+/// the flag alone proceeds to the resolver and PUTs the verbatim object
+/// (NOT rejected as "nothing to update").
+#[test]
+fn update_no_flags_gate_counts_json() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, heads, bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &created_deal_envelope())]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "update",
+            "d1",
+            "--custom-field-json",
+            "{\"score\":1}",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    let head = captured_head(&heads, 0);
+    assert!(
+        head.contains("put /api/v1/deals/d1"),
+        "json alone counts as has-flags and PUTs: {head}"
+    );
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "the json bypass needs NO definitions fetch"
+    );
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("captured body parses");
+    assert_eq!(
+        body["custom_fields"],
+        serde_json::json!({"score": 1}),
+        "verbatim object passes through untouched: {raw}"
+    );
+}
+
 // -- fixtures (kept BELOW the tests: the task-order contract pins the first
 //    fn in this file to number_int_body) --
+
+/// One verified CustomFieldDefinition wire row (serialize.ts shape):
+/// position is a JSON float, NO deleted_at, NO description.
+fn definition(
+    id: &str,
+    entity_type: &str,
+    name: &str,
+    type_: &str,
+    config: Option<serde_json::Value>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "id": id,
+        "entity_type": entity_type,
+        "name": name,
+        "type": type_,
+        "config": config,
+        "required": false,
+        "position": 10000.0,
+        "show_in_list": false,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+    })
+}
+
+/// Verified list envelope: {data: [...], meta: {total, offset, limit}}.
+fn definitions_list(defs: Vec<serde_json::Value>) -> String {
+    let total = defs.len();
+    serde_json::json!({
+        "data": defs,
+        "meta": {"total": total, "offset": 0, "limit": 100}
+    })
+    .to_string()
+}
+
+/// Verified organization create/update response envelope.
+fn created_org_envelope() -> String {
+    serde_json::json!({
+        "data": {
+            "id": "o1",
+            "name": "N",
+            "website": null,
+            "industry": null,
+            "notes": null,
+            "owner_id": "u1",
+            "custom_fields": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }
+    })
+    .to_string()
+}
+
+/// Verified person create/update response envelope.
+fn created_person_envelope() -> String {
+    serde_json::json!({
+        "data": {
+            "id": "p1",
+            "first_name": "F",
+            "last_name": "L",
+            "full_name": null,
+            "email": null,
+            "phone": null,
+            "notes": null,
+            "organization_id": null,
+            "owner_id": "u1",
+            "custom_fields": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }
+    })
+    .to_string()
+}
+
+/// Verified activity create/update response envelope.
+fn created_activity_envelope() -> String {
+    serde_json::json!({
+        "data": {
+            "id": "a1",
+            "title": "S",
+            "type_id": "call",
+            "deal_id": null,
+            "owner_id": "u1",
+            "due_at": null,
+            "completed_at": null,
+            "notes": null,
+            "custom_fields": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }
+    })
+    .to_string()
+}
 
 /// Six-definition deal fixture (verified serializer shape, entity_type
 /// "deal"): number, boolean, single_select with options, multi_select with
