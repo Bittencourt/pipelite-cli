@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod audit;
 pub mod cache;
 pub mod completions;
 pub mod config;

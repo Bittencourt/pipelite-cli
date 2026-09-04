@@ -10,12 +10,12 @@ use crate::config::AppConfig;
 use crate::error::CliError;
 
 use models::{
-    Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, Deal, DealCreate,
-    DealUpdate, Note, NoteCreate, NoteUpdate, Organization, OrganizationCreate, OrganizationUpdate,
-    Person, PersonCreate, PersonUpdate, Pipeline, PipelineCreate, PipelineUpdate, PingResponse,
-    Stage, StageCreate, StageUpdate, TrashRow, Webhook, WebhookCreate, WebhookCreated, Workflow,
-    WorkflowCreate, WorkflowRun, WorkflowRunDetail, WorkflowRunResponse, WorkflowTemplate,
-    WorkflowTemplateCreate, WorkflowUpdate,
+    Activity, ActivityCreate, ActivityUpdate, ApiListResponse, ApiSingleResponse, AuditEntry, Deal,
+    DealCreate, DealUpdate, Note, NoteCreate, NoteUpdate, Organization, OrganizationCreate,
+    OrganizationUpdate, Person, PersonCreate, PersonUpdate, Pipeline, PipelineCreate,
+    PipelineUpdate, PingResponse, Stage, StageCreate, StageUpdate, TrashRow, Webhook,
+    WebhookCreate, WebhookCreated, Workflow, WorkflowCreate, WorkflowRun, WorkflowRunDetail,
+    WorkflowRunResponse, WorkflowTemplate, WorkflowTemplateCreate, WorkflowUpdate,
 };
 
 /// HTTP client for the Pipelite CRM API.
@@ -1242,6 +1242,56 @@ impl PipeliteClient {
         let request = self.client.delete(&url);
         let response = self.send_with_retry(request).await?;
         self.handle_delete_response(response, "trash").await
+    }
+
+    // -- Audit --
+
+    /// List audit-log entries. GETs
+    /// `/api/v1/audit?entity_type&entity_id&actor_kind&workflow_run_id&offset&limit`.
+    ///
+    /// The four filters pass through VERBATIM — the server owns filter
+    /// validation (invalid enum values 422 and flow through the Phase 8
+    /// error layer untouched); the CLI pre-validates nothing. A query pair
+    /// is appended ONLY when the filter is Some AND non-empty (P4): the
+    /// server 422s `entity_id=` (min length 1), so an empty flag value must
+    /// never reach the wire. limit/offset are ALWAYS sent, with limit
+    /// pre-clamped by the caller into 1..=100 (matching the server's
+    /// parsePagination; offset's server clamp is the global 1e6 — not a
+    /// practical bound, hence the CLI's no-`--all` stance). ADMIN-ONLY: the
+    /// server gates BEFORE query-string validation, so a non-admin key 403s
+    /// regardless of the filters and the pre-registered "audit" hint renders
+    /// identically for absent, valid, or invalid filter values. Sort is
+    /// server-fixed (createdAt DESC, id DESC — newest first, not
+    /// configurable).
+    pub async fn list_audit(
+        &self,
+        entity_type: Option<&str>,
+        entity_id: Option<&str>,
+        actor_kind: Option<&str>,
+        workflow_run_id: Option<&str>,
+        limit: u64,
+        offset: u64,
+    ) -> Result<ApiListResponse<AuditEntry>> {
+        let url = format!("{}/api/v1/audit", self.base_url);
+        let mut query = vec![
+            ("limit", limit.to_string()),
+            ("offset", offset.to_string()),
+        ];
+        for (key, value) in [
+            ("entity_type", entity_type),
+            ("entity_id", entity_id),
+            ("actor_kind", actor_kind),
+            ("workflow_run_id", workflow_run_id),
+        ] {
+            if let Some(v) = value {
+                if !v.is_empty() {
+                    query.push((key, v.to_string()));
+                }
+            }
+        }
+        let request = self.client.get(&url).query(&query);
+        let response = self.send_with_retry(request).await?;
+        self.handle_response(response, "audit").await
     }
 
     // -- Docs --

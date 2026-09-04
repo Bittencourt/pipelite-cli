@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod audit;
 pub mod cache;
 pub mod completions;
 pub mod config;
@@ -20,6 +21,7 @@ use clap::{Parser, Subcommand};
 
 use crate::output::OutputFormat;
 use activities::ActivitiesCommands;
+use audit::AuditCommands;
 use cache::CacheCommands;
 use completions::CompletionsArgs;
 use config::ConfigCommands;
@@ -182,6 +184,13 @@ pub enum Commands {
         after_help = "Trash holds soft-deleted records — list, restore, or purge them.\nrestore needs no confirmation; purge permanently destroys records and cannot be undone.\n\nExamples:\n  pipelite trash list\n  pipelite trash list --type deals --format json\n  pipelite trash restore deals t1\n  pipelite trash purge --type deals --force"
     )]
     Trash(TrashCommands),
+
+    /// Query the read-only audit log (who changed what)
+    #[command(
+        subcommand,
+        after_help = "The audit log is read-only and admin-gated — it requires an admin API key.\nNon-admin keys receive 403 for every audit command, whatever the filters.\n\nExamples:\n  pipelite audit list\n  pipelite audit list --entity-type deal --format json\n  pipelite audit list --actor-kind workflow_run"
+    )]
+    Audit(AuditCommands),
 
     /// Fetch the server's OpenAPI 3.1 spec (public route — no API key sent)
     #[command(

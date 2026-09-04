@@ -895,6 +895,46 @@ pub fn trash_table_config() -> TableConfig {
     }
 }
 
+/// One audit-log entry — who changed what, when.
+///
+/// `action` is a plain String: the server's closed 4-value union
+/// (created | updated | deleted | merged) must all render, and any future
+/// value must too — there is no client-side enum gate (the server 422s
+/// invalid filter values, but entry fields render verbatim). `changes` is
+/// kept as a verbatim [`serde_json::Value`] (`Record<field, {from, to}>`,
+/// `{}` legitimate): the from→to diff rendering is AUDT-03, deferred —
+/// this CLI never interprets the payload, it exposes it via `--format
+/// json` exactly as the server returned it. Exactly ONE actor id field is
+/// populated depending on `actor_kind` (user → `actor_user_id`,
+/// workflow_run → `workflow_run_id`, import → `import_session_id`); the
+/// others are null, defaulted via serde so an omitted key still parses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditEntry {
+    pub id: String,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub action: String,
+    pub changes: serde_json::Value,
+    pub actor_kind: String,
+    #[serde(default)]
+    pub actor_user_id: Option<String>,
+    #[serde(default)]
+    pub workflow_run_id: Option<String>,
+    #[serde(default)]
+    pub import_session_id: Option<String>,
+    pub created_at: String,
+}
+
+/// Default table columns for audit list display: the timestamp, the actor
+/// (kind + id), the action, and the entity (type/id). The `changes` payload
+/// is NEVER a table column — it is visible via `--format json` only
+/// (potentially sensitive from/to values; explicit user request to see them).
+pub fn audit_table_config() -> TableConfig {
+    TableConfig {
+        default_columns: vec!["created_at", "actor", "action", "entity"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2017,5 +2057,74 @@ mod tests {
 
         let unknown = serde_json::from_value::<DeletedBy>(json!({"kind": "alien"}));
         assert!(unknown.is_err(), "closed union must reject unknown kinds");
+    }
+
+    /// AuditEntry parses the verified stub fixture and the changes payload
+    /// stays a VERBATIM Value (never interpreted): changes.value.from == 100,
+    /// .to == 200; null actor ids → None.
+    #[test]
+    fn audit_entry_changes_payload_stays_verbatim() {
+        let entry: AuditEntry = serde_json::from_value(json!({
+            "id": "a1",
+            "entity_type": "deal",
+            "entity_id": "d1",
+            "action": "updated",
+            "changes": {"value": {"from": 100, "to": 200}},
+            "actor_kind": "user",
+            "actor_user_id": "u1",
+            "workflow_run_id": null,
+            "import_session_id": null,
+            "created_at": "2026-09-01T12:00:00.000Z"
+        }))
+        .expect("verified audit fixture must parse");
+
+        assert_eq!(entry.id, "a1");
+        assert_eq!(entry.action, "updated");
+        assert_eq!(entry.changes["value"]["from"], 100);
+        assert_eq!(entry.changes["value"]["to"], 200);
+        assert_eq!(entry.actor_kind, "user");
+        assert_eq!(entry.actor_user_id.as_deref(), Some("u1"));
+        assert!(entry.workflow_run_id.is_none());
+        assert!(entry.import_session_id.is_none());
+    }
+
+    /// A workflow-run actor (workflow_run_id set, actor_user_id null) parses,
+    /// and an OMITTED actor id key defaults to None via serde — the server
+    /// may leave the key out entirely.
+    #[test]
+    fn audit_entry_workflow_run_actor_parses_with_defaulted_null_ids() {
+        let entry: AuditEntry = serde_json::from_value(json!({
+            "id": "a2",
+            "entity_type": "deal",
+            "entity_id": "d1",
+            "action": "updated",
+            "changes": {},
+            "actor_kind": "workflow_run",
+            "actor_user_id": null,
+            "workflow_run_id": "wr9",
+            "created_at": "2026-09-01T12:00:00.000Z"
+        }))
+        .expect("workflow-run actor fixture (import_session_id omitted) must parse");
+
+        assert_eq!(entry.actor_kind, "workflow_run");
+        assert!(entry.actor_user_id.is_none());
+        assert_eq!(entry.workflow_run_id.as_deref(), Some("wr9"));
+        assert!(entry.import_session_id.is_none());
+        assert_eq!(entry.changes, json!({}), "empty changes is legitimate");
+    }
+
+    /// The audit table shows timestamp/actor/action/entity — the changes
+    /// payload is NEVER a table column (json-only display contract).
+    #[test]
+    fn table_config_pins_default_display_columns() {
+        assert_eq!(
+            audit_table_config().default_columns,
+            vec![
+                "created_at".to_string(),
+                "actor".to_string(),
+                "action".to_string(),
+                "entity".to_string()
+            ]
+        );
     }
 }
