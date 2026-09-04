@@ -428,6 +428,102 @@ pipelite notes delete deals d1 n1 --dry-run
 
 ---
 
+## `pipelite webhooks`
+
+Webhooks push CRM events to external automations — `pipelite webhooks` manages them. The signing secret is shown exactly once at creation; a webhook belonging to another user always 403s (even with an admin key — this is deliberate, unlike the trash/audit admin powers).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/webhooks?limit&offset` | List webhooks (owner-scoped) |
+| POST | `/api/v1/webhooks` | Create a webhook (201 — response carries the signing secret) |
+| GET | `/api/v1/webhooks/:id` | Get a webhook (never carries the secret) |
+| PUT | `/api/v1/webhooks/:id` | Update a webhook (merged body) |
+| DELETE | `/api/v1/webhooks/:id` | Delete a webhook (204 hard delete) |
+
+**No description field:** the server has no webhook description anywhere (DB schema + validation schemas accept only `{url, events, active}` and silently strip unknown keys) — the CLI offers no description option for webhooks; don't look for one. `--stdin` remains the full-control escape hatch.
+
+### `webhooks create`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--url` | string | Webhook endpoint URL — **must use https://** (rejected client-side, exit 2, zero requests otherwise) |
+| `--events` | string[] | Comma-separated event names to subscribe |
+| `--stdin` | flag | Read a raw JSON body from stdin (verbatim; a `url` key must be https:// and `events` must hold only valid names) |
+
+Valid events (13):
+
+```
+deal.created, deal.updated, deal.deleted, deal.stage_changed,
+person.created, person.updated, person.deleted,
+organization.created, organization.updated, organization.deleted,
+activity.created, activity.updated, activity.deleted
+```
+
+Unknown event names exit 2 **before any request** with all 13 listed — the server would silently accept them and never fire. THE SIGNING SECRET IS SHOWN EXACTLY ONCE: the warning line `Signing secret (save it now — shown only once):` is followed by the full 64-char secret alone on its own line (in `--format json` the secret is inside the rendered body and the warning goes to stderr, so `| jq` keeps working). Save it immediately — it cannot be retrieved later.
+
+```bash
+pipelite webhooks create --url https://example.com/hook --events deal.created,deal.updated
+echo '{"url":"https://example.com/hook","events":["deal.created"]}' | pipelite webhooks create --stdin
+```
+
+### `webhooks list`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--limit` | u64 | `50` | Maximum webhooks (server caps pages at 100 — iterate `--offset`; there is no `--all`) |
+| `--offset` | u64 | `0` | Pagination offset |
+| `--fields` | string[] | | Select columns |
+
+The `secret` column reads `(shown once at creation)` in every format — the real secret exists only in the create response. An empty list prints one stderr hint, suppressed by `--quiet`.
+
+```bash
+pipelite webhooks list
+pipelite webhooks list --limit 100 --format json
+```
+
+### `webhooks get <id>`
+
+Shows one webhook with the same `(shown once at creation)` secret placeholder. A webhook belonging to another user fails with 403 **even with an admin key** ("This webhook belongs to another user.") — webhooks are ownership-exclusive by design, unlike the trash purge / audit log admin powers.
+
+```bash
+pipelite webhooks get wh_abc123
+pipelite webhooks get wh_abc123 --format json
+```
+
+### `webhooks update <id>`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--url` | string | New endpoint URL (must be https://) |
+| `--events` | string[] | Comma-separated event names (replaces the current set) |
+| `--active` | flag | Activate the webhook |
+| `--inactive` | flag | Deactivate the webhook |
+| `--stdin` | flag | PUT a raw JSON body verbatim (server accepts `{url, events, active}`) — bypasses the fetch+merge |
+
+Update is a **get→merge→PUT**: the CLI fetches the webhook, merges your flags into it, and PUTs the full merged object — omitted keys are unchanged. Flags are validated before any request (unknown events / non-https URL exit 2 with zero HTTP); `--dry-run` previews the PUT with zero requests. The signing secret is never updatable and never shown on update.
+
+```bash
+pipelite webhooks update wh_abc123 --url https://example.com/new-hook
+pipelite webhooks update wh_abc123 --inactive
+echo '{"url":"https://example.com/hook","active":false}' | pipelite webhooks update wh_abc123 --stdin
+```
+
+### `webhooks delete <id>`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--force` | flag | Skip confirmation prompt (required in non-interactive mode) |
+
+Deletion is a hard delete and requires confirmation unless `--force` is given; without a TTY, `--force` is required (exit 1 refusal otherwise, before any request). `--dry-run` previews the request. Deleting another user's webhook 403s even with an admin key.
+
+```bash
+pipelite webhooks delete wh_abc123
+pipelite webhooks delete wh_abc123 --force
+pipelite webhooks delete wh_abc123 --dry-run
+```
+
+---
+
 ## Error Codes
 
 | Code | Category | Description |

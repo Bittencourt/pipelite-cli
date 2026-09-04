@@ -167,3 +167,88 @@ fn notes_subcommands_have_examples() {
             .stdout(predicate::str::contains("Examples:"));
     }
 }
+
+// The `webhooks` help page must be truthful (ROADMAP SC-1/SC-2): it carries
+// examples, mentions the show-once signing secret, lists all five
+// subcommands, and does NOT advertise a `--description` flag (the server has
+// no such field and would silently strip it) or an `--all` flag (server page
+// cap is 100 — iterate --offset).
+#[test]
+fn webhooks_help_truthful() {
+    let output = Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["webhooks", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Examples:"), "help: {stdout}");
+    assert!(stdout.contains("shown"), "help must mention the show-once secret: {stdout}");
+    for sub in ["list", "get", "create", "update", "delete"] {
+        assert!(
+            stdout.lines().any(|l| l.trim().starts_with(sub)),
+            "webhooks --help must list the {sub} subcommand:\n{stdout}"
+        );
+    }
+    assert!(
+        !stdout.contains("--description"),
+        "webhooks --help must not advertise a --description flag:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("--all"),
+        "webhooks --help must not advertise an --all flag:\n{stdout}"
+    );
+}
+
+// The create help must carry the full 13-event list, the https rule and the
+// --stdin escape hatch; update help must state the merge semantics and the
+// verbatim --stdin path; delete help must carry --force.
+#[test]
+fn webhooks_create_update_delete_help_specifics() {
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["webhooks", "create", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--url"))
+        .stdout(predicate::str::contains("--events"))
+        .stdout(predicate::str::contains("--stdin"))
+        .stdout(predicate::str::contains("deal.stage_changed"));
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["webhooks", "update", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--stdin"))
+        .stdout(predicate::str::contains("unchanged"));
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["webhooks", "delete", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--force"));
+}
+
+// Every webhooks subcommand help page carries Examples (after_help).
+#[test]
+fn webhooks_subcommands_have_examples() {
+    for args in [
+        ["webhooks", "list"],
+        ["webhooks", "get"],
+        ["webhooks", "create"],
+        ["webhooks", "update"],
+        ["webhooks", "delete"],
+    ] {
+        Command::cargo_bin("pipelite")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Examples:"));
+    }
+}
