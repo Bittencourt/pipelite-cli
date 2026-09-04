@@ -630,6 +630,40 @@ fn update_stdin_no_get() {
     );
 }
 
+/// --dry-run under --stdin ALSO previews with ZERO HTTP (CR-01: the stdin
+/// path previously returned execute() before the dry-run intercept and
+/// fired the real PUT). Mirrors update_dry_run_zero_http for stdin mode.
+#[test]
+fn update_stdin_dry_run_zero_http() {
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &get_envelope("https://example.com/hook", &["deal.created"], true))]);
+
+    let output = common::cmd_with_server(&url)
+        .args(["webhooks", "update", "wh1", "--stdin", "--dry-run"])
+        .write_stdin(r#"{"url":"https://example.com/hook","active":false}"#)
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0, "stdin dry-run must be zero HTTP");
+    assert!(
+        !stderr.contains("Connection failed"),
+        "no connection may be attempted under --dry-run:\n{stderr}"
+    );
+    assert!(stdout.contains("PUT"), "preview must name the method:\n{stdout}");
+    assert!(
+        stdout.contains("/api/v1/webhooks/wh1"),
+        "preview must target the webhook:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("\"active\": false"),
+        "preview must carry the verbatim stdin body:\n{stdout}"
+    );
+}
+
 /// --dry-run previews with ZERO HTTP (CLAUDE.md global contract).
 #[test]
 fn update_dry_run_zero_http() {

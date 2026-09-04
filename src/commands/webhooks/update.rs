@@ -23,6 +23,7 @@ use crate::output;
 /// - **--stdin**: the raw JSON body is PUT VERBATIM with NO GET first (full
 ///   control; the server accepts {url, events, active}). A `url` key must be
 ///   https:// and an `events` array must hold only the 13 valid events.
+///   `--dry-run` previews the verbatim PUT with ZERO HTTP in this mode too.
 ///
 /// No secret exists anywhere in this flow — PUT responses never carry it.
 pub async fn run(ctx: &AppContext, args: &WebhooksUpdateArgs) -> Result<()> {
@@ -40,6 +41,17 @@ pub async fn run(ctx: &AppContext, args: &WebhooksUpdateArgs) -> Result<()> {
 
     if args.stdin {
         let body = read_stdin_body()?;
+        // The dry-run intercept MUST cover stdin too: `--dry-run` previews
+        // the verbatim PUT with ZERO HTTP (same global contract as flags
+        // mode — CR-01).
+        if ctx.dry_run {
+            let item_url = format!(
+                "{}/api/v1/webhooks/{}",
+                ctx.client.base_url(),
+                args.webhook_id
+            );
+            return dry_run::render_dry_run("PUT", &item_url, &body, &ctx.output_format, ctx.color);
+        }
         return execute(ctx, args, &body).await;
     }
 
