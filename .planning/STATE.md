@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: ready_to_plan
-stopped_at: Phase 11 complete (3/3) — ready to discuss Phase 12
-last_updated: 2026-09-04T08:59:01.099Z
+status: executing
+stopped_at: Completed 12-01-PLAN.md (custom-fields definitions CRUD — 33 stub tests, 543 passing)
+last_updated: "2026-09-04T10:42:05.487Z"
 last_activity: 2026-09-04
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 16
+  completed_plans: 15
   percent: 71
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 ## Current Position
 
 Phase: 12
-Plan: Not started
-Status: Ready to plan
+Plan: 2 of 2
+Status: In progress — 12-01 complete, 12-02 next
 Last activity: 2026-09-04
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [██████████] 100%
 | 10 | 1 | - | - |
 | Phase 11 P02 | 15min | 3 tasks | 13 files |
 | 11 | 3 | - | - |
+| Phase 12 P01 | 25min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,9 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 11]: Trash type tokens are dual-vocabulary — entity_type (singular, display) vs type (plural, URL round-trip); only normalized plural tabs ever reach a URL; trash is never cached
 - [Phase 11]: Purge non-TTY no-force refusal is InvalidInput exit 2 BEFORE the fan-out (zero HTTP, pinned on unreachable server) — stricter than webhooks delete's Validation exit-1; restore 403 keeps surface 'general' (P6); 404 re-wrap preserves server detail + not-in-trash hint
 - [Phase 11]: --all and purge victim fan-out break on all four conditions (empty page, partial page, accumulated>=total, offset>10000) — trust page emptiness, never total reachability (P3/S6)
+- [Phase 12]: definitions create maps --key to the wire 'name' (blob keys are definition names); POST body is exactly {name, entity_type, type, required, show_in_list}(+config.options) — no position key ever (server auto-assigns max+10000, PUT-only)
+- [Phase 12]: select is a CLI alias normalized to single_select; --options required for the select family, rejected for all other types; 9 entity aliases normalize to the 4 server tokens pre-HTTP (exit 2)
+- [Phase 12]: definition create/update/delete all invalidate the custom_fields_ cache prefix (two-run stub-proven); filtered lists warm KEY_CUSTOM_FIELDS_<token> — the 12-02 resolver interface
 
 ### Pending Todos
 
@@ -113,6 +117,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-04T03:19:19.500Z
-Stopped at: Completed 11-02-PLAN.md (trash surface — 24 stub tests, 474 passing)
+Last session: 2026-09-04T10:42:05.459Z
+Stopped at: Completed 12-01-PLAN.md (custom-fields definitions CRUD — 33 stub tests, 543 passing)
 Resume file: None
