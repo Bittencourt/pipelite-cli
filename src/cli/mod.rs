@@ -197,7 +197,7 @@ pub enum Commands {
     /// Define and manage custom fields (the type source for --custom-field writing)
     #[command(
         subcommand,
-        after_help = "Custom field definitions name typed fields per entity — they are the type source for --custom-field <key>=<value> writing.\nDeleted definitions remain in custom-fields list output; the server does not mark them.\n\nExamples:\n  pipelite custom-fields create --entity-type deals --key price --type number"
+        after_help = "Custom field definitions name typed fields per entity — they are the type source for --custom-field <key>=<value> writing.\nDeleted definitions remain in custom-fields list output; the server does not mark them.\n\nExamples:\n  pipelite custom-fields list --entity-type deals\n  pipelite custom-fields create --entity-type deals --key price --type number\n  pipelite custom-fields get cf_abc123\n  pipelite custom-fields update cf_abc123 --position 20000\n  pipelite custom-fields delete cf_abc123 --force"
     )]
     CustomFields(CustomFieldsCommands),
 
