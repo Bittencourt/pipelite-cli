@@ -133,10 +133,10 @@ async fn fetch_definitions_cached(
     ctx: &AppContext,
     entity: CfEntityType,
 ) -> Result<Vec<CustomFieldDefinition>> {
-    if let Some(cache) = &ctx.cache {
-        if let Some(cached) = cache.get::<Vec<CustomFieldDefinition>>(entity.cache_key()) {
-            return Ok(cached);
-        }
+    if let Some(cache) = &ctx.cache
+        && let Some(cached) = cache.get::<Vec<CustomFieldDefinition>>(entity.cache_key())
+    {
+        return Ok(cached);
     }
 
     let mut all: Vec<CustomFieldDefinition> = Vec::new();
@@ -383,7 +383,7 @@ fn validate_option(field: &str, config: Option<&Value>, value: &str) -> Result<(
     let Some(valid) = options_of(config) else {
         return Ok(());
     };
-    if valid.iter().any(|o| *o == value) {
+    if valid.contains(&value) {
         return Ok(());
     }
     Err(CliError::InvalidInput {

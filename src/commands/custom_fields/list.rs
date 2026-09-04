@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::api::models::{custom_fields_table_config, CustomFieldDefinition};
+use crate::api::models::custom_fields_table_config;
 use crate::cache::{
     KEY_CUSTOM_FIELDS_ACTIVITY, KEY_CUSTOM_FIELDS_DEAL, KEY_CUSTOM_FIELDS_ORG,
     KEY_CUSTOM_FIELDS_PEOPLE, TTL_CUSTOM_FIELDS,
@@ -62,7 +62,7 @@ pub async fn run(ctx: &AppContext, args: &CustomFieldsListArgs) -> Result<()> {
     let items: Vec<serde_json::Value> = response
         .data
         .iter()
-        .map(|d| serde_json::to_value(d))
+        .map(serde_json::to_value)
         .collect::<Result<Vec<_>, _>>()?;
 
     let config = custom_fields_table_config();
