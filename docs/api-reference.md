@@ -117,7 +117,8 @@ pipelite config set display.no_color true
 | `--person` | string | No | Person ID |
 | `--expected-close-date` | string | No | ISO date format |
 | `--notes` | string | No | Notes |
-| `--custom-field` | string | No | `key=value` (repeatable) |
+| `--custom-field` | string | No | `key=value` (repeatable) — typed against cached definitions |
+| `--custom-field-json` | json | No | Raw JSON object written verbatim as `custom_fields`; mutually exclusive with `--custom-field` and `--stdin` (exit 2) |
 | `--stdin` | flag | No | Read JSON array from stdin for batch create |
 
 ### `deals update <id>`
@@ -160,7 +161,8 @@ Same options as `create` (all optional), plus `id` as positional argument.
 | `--industry` | string | No | Industry |
 | `--notes` | string | No | Notes |
 | `--owner` | string | No | Owner ID |
-| `--custom-field` | string | No | `key=value` (repeatable) |
+| `--custom-field` | string | No | `key=value` (repeatable) — typed against cached definitions |
+| `--custom-field-json` | json | No | Raw JSON object written verbatim as `custom_fields`; mutually exclusive with `--custom-field` and `--stdin` (exit 2) |
 
 ### `orgs update <id>`
 
@@ -191,7 +193,8 @@ Standard get options (`--fields`, `--expand`).
 | `--notes` | string | No | Notes |
 | `--org` | string | No | Organization ID |
 | `--owner` | string | No | Owner ID |
-| `--custom-field` | string | No | `key=value` (repeatable) |
+| `--custom-field` | string | No | `key=value` (repeatable) — typed against cached definitions |
+| `--custom-field-json` | json | No | Raw JSON object written verbatim as `custom_fields`; mutually exclusive with `--custom-field` and `--stdin` (exit 2) |
 
 ### `people update <id>`
 
@@ -222,7 +225,8 @@ Standard get options.
 | `--due-at` | string | No | Due date (ISO format) |
 | `--completed-at` | string | No | Completion date (ISO format) |
 | `--notes` | string | No | Notes |
-| `--custom-field` | string | No | `key=value` (repeatable) |
+| `--custom-field` | string | No | `key=value` (repeatable) — typed against cached definitions |
+| `--custom-field-json` | json | No | Raw JSON object written verbatim as `custom_fields`; mutually exclusive with `--custom-field` and `--stdin` (exit 2) |
 
 ### `activities update <id>`
 
@@ -686,6 +690,23 @@ pipelite custom-fields delete cf_abc123
 pipelite custom-fields delete cf_abc123 --force
 pipelite custom-fields delete cf_abc123 --dry-run
 ```
+
+### Typed custom-field writing
+
+`--custom-field key=value` on deals/orgs/people/activities is typed against the entity's cached field definitions (fetched once, cached for an hour, matched by definition NAME):
+
+- **number** → JSON number (i64 precision first, so `price=4` stores `4`, never `"4"` or `4.0`; `4.5` stores `4.5`). Non-numeric input is refused, exit 2, naming the field and its type.
+- **boolean** → `true`/`false` (strict lowercase). Anything else is refused, exit 2.
+- **date** → ISO string passthrough (no client-side date validation).
+- **single_select** → validated against the definition's `config.options`; an unknown option is refused, exit 2, listing the valid options. A definition with no configured options is sent without validation (with a note).
+- **multi_select** → comma-split JSON array (`tags=a,b` → `["a","b"]`); every element is validated like single_select.
+- **text/url/lookup/file** → sent as strings, never refused.
+- **formula** → writes are REFUSED, exit 2: the server strips values written to formula fields, so any "success" would be silent data loss.
+- **Unknown field names** are sent as raw strings with a one-line stderr warning (suppressed by `--quiet`).
+
+The server does NOT validate custom-field values on the API — this client-side validation is the only kind in existence. `--dry-run` never fetches definitions: with a cold cache it falls back to raw strings and prints a note (run once without `--dry-run` to warm the cache); with a warm cache it still writes typed values.
+
+`--custom-field-json '<object>'` bypasses inference entirely — the object is written verbatim (nested objects, arrays, nulls, floats untouched). It is mutually exclusive with `--custom-field` and `--stdin` (exit 2, before any HTTP), consistently across all 8 create/update commands.
 
 ---
 

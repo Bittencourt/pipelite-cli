@@ -135,7 +135,8 @@ fn deals_create_help_shows_required_flags() {
         .stdout(predicate::str::contains("--title"))
         .stdout(predicate::str::contains("--stage"))
         .stdout(predicate::str::contains("--stdin"))
-        .stdout(predicate::str::contains("--custom-field"));
+        .stdout(predicate::str::contains("--custom-field"))
+        .stdout(predicate::str::contains("--custom-field-json"));
 }
 
 #[test]
@@ -200,7 +201,8 @@ fn deals_update_help_shows_optional_flags() {
         .stdout(predicate::str::contains("--title"))
         .stdout(predicate::str::contains("--stage"))
         .stdout(predicate::str::contains("--value"))
-        .stdout(predicate::str::contains("--custom-field"));
+        .stdout(predicate::str::contains("--custom-field"))
+        .stdout(predicate::str::contains("--custom-field-json"));
 }
 
 #[test]

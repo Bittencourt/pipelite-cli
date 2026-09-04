@@ -43,6 +43,23 @@ below names what to use instead.
 Known limitations: `orgs list --owner` is also ignored by the server, but is
 out of scope for this release and remains unchanged.
 
+### Changed / Fixed
+
+- **`--custom-field` values are now type-correct** — numbers are stored as
+  JSON numbers (`price=4` → `4`, not `"4"`), booleans as `true`/`false`,
+  multi-select as JSON arrays — resolved from cached field definitions
+  (`pipelite custom-fields`) and matched by name. The server does not
+  validate custom-field values via the API, so the CLI now validates
+  client-side: select values must match the definition's options (exit 2
+  otherwise, listing the valid options) and formula fields refuse writes
+  (the server strips them). Unknown field names are sent as strings with a
+  warning. Adds `--custom-field-json` for verbatim raw objects; it is
+  mutually exclusive with `--custom-field` and `--stdin` (exit 2,
+  consistent across all 8 create/update commands — `--stdin` exclusivity
+  now always exits 2, previously exit 1 on the four create commands).
+  `--dry-run` never fetches definitions — it falls back to the local cache
+  and says so; with a warm cache it still writes typed values.
+
 ### Added
 
 - RFC 7807 error parsing: API errors now surface the server's real reason

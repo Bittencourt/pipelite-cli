@@ -37,7 +37,8 @@ fn orgs_create_help_shows_required_flags() {
         .success()
         .stdout(predicate::str::contains("--name"))
         .stdout(predicate::str::contains("--stdin"))
-        .stdout(predicate::str::contains("--custom-field"));
+        .stdout(predicate::str::contains("--custom-field"))
+        .stdout(predicate::str::contains("--custom-field-json"));
 }
 
 #[test]

@@ -651,8 +651,588 @@ fn update_no_flags_gate_counts_json() {
     );
 }
 
+// -- Task 3: full inference matrix (warm-cache unless stated, so every
+//    validation claim is zero-HTTP) --
+
+/// boolean: true/false land as JSON bools; anything else exits 2 with the
+/// "true or false" hint and ZERO HTTP on a warm cache.
+#[test]
+fn boolean_wire() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+        (201, &created_deal_envelope()),
+    ]);
+
+    warm_deal_cache(&url, tmp.path());
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "done=true",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(body["custom_fields"]["done"], serde_json::Value::Bool(true));
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "warm: POST only");
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "done=yes",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .get_output()
+        .clone();
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "boolean rejection adds ZERO requests on a warm cache"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(stderr.contains("true or false"), "{stderr}");
+}
+
+/// single_select: a valid option is sent as the string; an unknown option
+/// exits 2 listing every valid option — zero HTTP on a warm cache.
+#[test]
+fn select_valid_and_invalid() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+        (201, &created_deal_envelope()),
+    ]);
+
+    warm_deal_cache(&url, tmp.path());
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "status=new",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(
+        body["custom_fields"]["status"], "new",
+        "valid option sent as the string"
+    );
+    assert_eq!(counter.load(Ordering::SeqCst), 2);
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "status=bogus",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .get_output()
+        .clone();
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "option validation is zero-HTTP on a warm cache"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        stderr.contains("new") && stderr.contains("won") && stderr.contains("lost"),
+        "valid options must be listed: {stderr}"
+    );
+}
+
+/// A select definition whose config has NO options (server never validates
+/// config shape) is NOT hard-blocked: the string is sent with a one-line
+/// "no options configured" note.
+#[test]
+fn select_no_options_note() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let defs = definitions_list(vec![
+        definition("cf1", "deal", "price", "number", None),
+        definition("cf3", "deal", "status", "single_select", None),
+    ]);
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &defs),
+        (201, &created_deal_envelope()),
+    ]);
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "status=whatever",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "cold: defs GET + POST");
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(body["custom_fields"]["status"], "whatever");
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        stderr.contains("no options configured"),
+        "the missing-options note must be visible: {stderr}"
+    );
+}
+
+/// multi_select: comma-split JSON array; an invalid ELEMENT exits 2 listing
+/// the valid options — zero HTTP on a warm cache.
+#[test]
+fn multi_select_wire() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+        (201, &created_deal_envelope()),
+    ]);
+
+    warm_deal_cache(&url, tmp.path());
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "tags=a,c",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(
+        body["custom_fields"]["tags"],
+        serde_json::json!(["a", "c"]),
+        "comma-split array on the wire: {raw}"
+    );
+    assert_eq!(counter.load(Ordering::SeqCst), 2);
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "tags=a,bogus",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        stderr.contains("a") && stderr.contains("b") && stderr.contains("c"),
+        "valid options listed on element rejection: {stderr}"
+    );
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "zero-HTTP validation");
+}
+
+/// date: ISO string passthrough, never fails.
+#[test]
+fn date_passthrough() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, _counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "close_by=2026-01-31",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(body["custom_fields"]["close_by"], "2026-01-31");
+}
+
+/// text: values with spaces pass through whole — the split is on the FIRST
+/// '=' only.
+#[test]
+fn text_passthrough() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let defs = definitions_list(vec![
+        definition("cf1", "deal", "price", "number", None),
+        definition("cf7", "deal", "notes_str", "text", None),
+    ]);
+    let (url, _counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &defs),
+        (201, &created_deal_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "notes_str=hello world",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(
+        body["custom_fields"]["notes_str"], "hello world",
+        "spaces survive; value is the full text after the first '=': {raw}"
+    );
+}
+
+/// Unknown keys are sent as raw strings and announced by ONE aggregated
+/// stderr warning — suppressed by --quiet.
+#[test]
+fn unknown_key_warning() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+        (201, &created_deal_envelope()),
+    ]);
+
+    warm_deal_cache(&url, tmp.path());
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "mystery=1",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(
+        body["custom_fields"]["mystery"], "1",
+        "unknown keys are sent as strings"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        stderr.contains("not a defined field"),
+        "the unknown-key warning must be visible: {stderr}"
+    );
+
+    // --quiet suppresses exactly the advisory line.
+    let quiet_output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "mystery=1",
+            "--quiet",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let quiet_stderr = String::from_utf8_lossy(&quiet_output.stderr).to_string();
+    assert!(
+        !quiet_stderr.contains("not a defined field"),
+        "--quiet must suppress the unknown-key warning: {quiet_stderr}"
+    );
+    assert_eq!(counter.load(Ordering::SeqCst), 3);
+}
+
+/// formula definitions REFUSE writes: exit 2, zero HTTP on a warm cache,
+/// hint explains the server-computed stripping.
+#[test]
+fn formula_refused() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, DEAL_DEFS)]);
+
+    warm_deal_cache(&url, tmp.path());
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+    let output = common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "calc_total=99",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .get_output()
+        .clone();
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "formula refusal adds ZERO requests on a warm cache"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(stderr.contains("formula"), "{stderr}");
+    assert!(stderr.contains("server"), "hint names server stripping: {stderr}");
+}
+
+/// A pair without '=' exits 2 with the key=value hint — ZERO HTTP even on a
+/// COLD cache: the structural split of ALL pairs precedes the definitions
+/// fetch (BATCH-04 spirit).
+#[test]
+fn missing_equals_cold_zero_http() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "noequals",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("key=value"));
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        0,
+        "structural k=v failure is zero-HTTP even cold (split precedes fetch)"
+    );
+}
+
+/// --custom-field-json passes nested objects/arrays/null/floats through
+/// VERBATIM — deep-equal to the input, no definitions fetch needed.
+#[test]
+fn json_verbatim_nested() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) =
+        common::spawn_head_capturing_stub_server(&[(201, &created_deal_envelope())]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field-json",
+            "{\"score\":{\"nested\":[1,2,null]},\"ratio\":1.5}",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "the json bypass needs NO definitions fetch"
+    );
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("body parses");
+    assert_eq!(
+        body["custom_fields"],
+        serde_json::json!({"score": {"nested": [1, 2, null]}, "ratio": 1.5}),
+        "deep-equal: nested object, array, null, float all untouched: {raw}"
+    );
+    assert!(raw.contains("1.5"), "float form preserved on the wire: {raw}");
+}
+
+/// --custom-field-json with a non-object (array) exits 2 with zero HTTP.
+#[test]
+fn json_non_object() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field-json",
+            "[1,2]",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("object"));
+
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+/// Cache round trip: run 1 (cold) makes 2 requests (defs GET + POST); run 2
+/// (warm, same HOME) makes 1 (POST only).
+#[test]
+fn cache_round_trip_two_runs() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+        (201, &created_deal_envelope()),
+    ]);
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "price=4",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    assert_eq!(counter.load(Ordering::SeqCst), 2, "cold: defs GET + POST");
+
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T2",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "price=4",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    assert_eq!(counter.load(Ordering::SeqCst), 3, "warm: POST only");
+}
+
 // -- fixtures (kept BELOW the tests: the task-order contract pins the first
 //    fn in this file to number_int_body) --
+
+/// Warm the deal definitions cache with exactly ONE list GET.
+fn warm_deal_cache(url: &str, home: &std::path::Path) {
+    common::cmd_with_server(url)
+        .env("HOME", home)
+        .args(["custom-fields", "list", "--entity-type", "deals"])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+}
 
 /// One verified CustomFieldDefinition wire row (serialize.ts shape):
 /// position is a JSON float, NO deleted_at, NO description.
