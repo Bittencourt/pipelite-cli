@@ -524,6 +524,75 @@ pipelite webhooks delete wh_abc123 --dry-run
 
 ---
 
+## `pipelite trash`
+
+The trash holds soft-deleted records — `pipelite trash` lists, restores, or permanently purges them. `restore` needs no confirmation (restore IS the recovery act); `purge` is admin-only and permanently destroys records — it cannot be undone.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/trash?type&offset&limit` | List trashed records (owner-or-admin scoped; `?type` optional — the server defaults to the deals tab) |
+| POST | `/api/v1/trash/:type/:id/restore` | Restore one record (204; owner-or-admin; 404 if not in the trash) |
+| DELETE | `/api/v1/trash/:type/:id` | Permanently destroy one record (204; **ADMIN-ONLY** — gated before record lookup) |
+
+### Type aliases (9 → 4 tabs)
+
+All type arguments accept singular and plural aliases, normalized to the PLURAL tab used in every request URL (the server 422s singular tokens). List rows carry both tokens: `entity_type` (singular, display) and `type` (plural — the round-trip token that pipes directly into `restore`/`purge`).
+
+| You type | Tab used in URLs |
+|----------|------------------|
+| `deal` / `deals` | `deals` |
+| `organization` / `orgs` / `organizations` | `organizations` |
+| `person` / `people` | `people` |
+| `activity` / `activities` | `activities` |
+
+Unknown types are rejected **before any request** with exit 2 and the valid aliases in the hint.
+
+### `trash list`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--type` | string | (server default: deals tab) | Filter by one tab — any of the 9 aliases |
+| `--limit` | u64 | `50` | Rows per page (server caps pages at 100) |
+| `--offset` | u64 | `0` | Pagination offset |
+| `--all` | flag | | Fetch every page of the selected tab — stops at the server's 10,000 offset cap |
+| `--fields` | string[] | | Select columns |
+
+Table columns: name, type, deleted_at, deleted_by, linked_parents. Table cells truncate `linked_parents` (joined names, ~80 chars) and collapse `deleted_by` to a kind label (`user (Jane <jane@x.com>)`, `workflow_run (Nightly)`, bare `api_key`/`import`/`system`/`not_recorded`/`unknown_user` — api_key has no name by server design); `--format json` exposes the FULL array and the FULL deleted_by objects. An empty trash prints one stderr hint, suppressed by `--quiet`.
+
+```bash
+pipelite trash list
+pipelite trash list --type deals --format json | jq -r '.data[].id'   # round-trip: ids feed restore
+pipelite trash list --all
+```
+
+### `trash restore <type> <id>`
+
+Restores one record — **no confirmation**: restore IS the recovery act. `--dry-run` previews the POST. A 404 means the record is not in the trash anymore (already restored or purged, or never existed). Restoring another user's record with a member key fails with 403 and the general permission hint (restore is owner-or-admin, not admin-only).
+
+```bash
+pipelite trash restore deals t_abc123
+pipelite trash restore people per_abc123 --dry-run
+```
+
+### `trash purge [--type <t>]`
+
+Permanently destroys trashed records — **this cannot be undone. ADMIN-ONLY**: every per-record delete requires an admin API key (the server gates before record lookup; non-admin keys always 403 with "Permanent purge requires an admin API key."). There is no bulk endpoint — the CLI pages the scoped trash and issues one DELETE per record, continuing past per-item failures and reporting an "N permanently destroyed, M failed" summary (exit 1 if anything failed).
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--type` | string | Limit the purge to one tab's trash (any alias). Omit to purge ALL tabs |
+| `--force` | flag | Skip the confirmation prompt (required in non-interactive mode) |
+
+Interactive use confirms with the strongest prompt in the CLI, naming the scope, the record count, and the words "permanently destroys". Non-interactive use without `--force` refuses with **exit 2 and zero requests** — deliberately stricter than the standard delete's exit-1 refusal. `--dry-run` previews the victim list with list requests only (zero deletes).
+
+```bash
+pipelite trash purge --type deals
+pipelite trash purge --type deals --force
+pipelite trash purge --dry-run
+```
+
+---
+
 ## Error Codes
 
 | Code | Category | Description |

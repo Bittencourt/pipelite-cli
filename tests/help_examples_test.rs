@@ -252,3 +252,80 @@ fn webhooks_subcommands_have_examples() {
             .stdout(predicate::str::contains("Examples:"));
     }
 }
+
+// The `trash` help page must be truthful (ROADMAP SC-3/SC-4): it carries
+// examples, lists all three subcommands, and surfaces the purge warning at
+// GROUP level ("permanently destroys").
+#[test]
+fn trash_help_truthful() {
+    let output = Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["trash", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Examples:"), "help: {stdout}");
+    for sub in ["list", "restore", "purge"] {
+        assert!(
+            stdout.lines().any(|l| l.trim().starts_with(sub)),
+            "trash --help must list the {sub} subcommand:\n{stdout}"
+        );
+    }
+    assert!(
+        stdout.contains("permanently destroys"),
+        "the purge warning must surface at group level:\n{stdout}"
+    );
+}
+
+// The list help must advertise --all/--type, carry the 10,000 offset-cap
+// note and the jq round-trip example; restore help must carry the
+// no-confirmation semantics; purge help must carry --force and the
+// permanent-destruction warning.
+#[test]
+fn trash_subcommand_help_specifics() {
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["trash", "list", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--all"))
+        .stdout(predicate::str::contains("--type"))
+        .stdout(predicate::str::contains("10,000"))
+        .stdout(predicate::str::contains("jq"));
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["trash", "restore", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("no confirmation"));
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .args(["trash", "purge", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--force"))
+        .stdout(predicate::str::contains("permanently"));
+}
+
+// Every trash subcommand help page carries Examples (after_help).
+#[test]
+fn trash_subcommands_have_examples() {
+    for args in [
+        ["trash", "list"],
+        ["trash", "restore"],
+        ["trash", "purge"],
+    ] {
+        Command::cargo_bin("pipelite")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Examples:"));
+    }
+}
