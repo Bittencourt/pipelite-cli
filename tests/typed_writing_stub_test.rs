@@ -1221,6 +1221,123 @@ fn cache_round_trip_two_runs() {
     assert_eq!(counter.load(Ordering::SeqCst), 3, "warm: POST only");
 }
 
+// -- CR-01: a PARTIAL list page must never poison the resolver's cache --
+
+/// CR-01: `custom-fields list --entity-type deals --limit 1` on a
+/// two-definition entity fetches a PARTIAL page (1 row, meta.total 2).
+/// The resolver treats the per-entity key as the COMPLETE definition set,
+/// so caching that page would silently degrade the out-of-page field to a
+/// raw string for the TTL hour. The counter proves the create RE-FETCHES
+/// definitions (no poisoned cache hit), and the second-page field still
+/// stores a JSON number on the wire.
+#[test]
+fn partial_page_list_does_not_poison_cache() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let partial = partial_defs_page();
+    let full = definitions_list(vec![
+        definition("cp1", "deal", "price", "number", None),
+        definition("cp2", "deal", "revenue", "number", None),
+    ]);
+    // Scripted in order: (1) the list's 1-of-2 page, (2) the create's own
+    // auto-paginated defs fetch (full page), (3) the create POST.
+    let (url, counter, _heads, bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &partial), (200, &full), (201, &created_deal_envelope())]);
+
+    // Run 1: list a partial page (limit 1 < total 2) — must NOT cache.
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["custom-fields", "list", "--entity-type", "deals", "--limit", "1"])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "list is one GET");
+
+    // Run 2: the SECOND-PAGE field must be typed — a poisoned cache would
+    // send "revenue":"4" with an unknown-field warning instead.
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "revenue=4",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        3,
+        "create must RE-FETCH definitions — the partial list page must not cache"
+    );
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("captured POST body parses");
+    assert_eq!(
+        body["custom_fields"]["revenue"].as_i64(),
+        Some(4),
+        "out-of-page field must store a JSON number, never the string \"4\": {raw}"
+    );
+}
+
+/// The complementary half: a FULL single-page result (offset 0, rows ==
+/// meta.total) IS cached — the create that follows is warm (POST only).
+#[test]
+fn full_page_list_warms_cache() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let (url, counter, _heads, bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, DEAL_DEFS),
+        (201, &created_deal_envelope()),
+    ]);
+
+    // Run 1: complete first page (6 rows, meta.total 6, offset 0) → cached.
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["custom-fields", "list", "--entity-type", "deals"])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "list is one GET");
+
+    // Run 2: warm — POST only (the defs GET would prove a cache miss).
+    common::cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args([
+            "deals",
+            "create",
+            "--title",
+            "T",
+            "--stage",
+            "s1",
+            "--custom-field",
+            "price=4",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .assert()
+        .code(0);
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "a complete page MUST cache — the create hits the warm key (POST only)"
+    );
+    let raw = last_captured_body(&bodies);
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("captured POST body parses");
+    assert_eq!(
+        body["custom_fields"]["price"].as_i64(),
+        Some(4),
+        "typed value on the warm path: {raw}"
+    );
+}
+
 // -- fixtures (kept BELOW the tests: the task-order contract pins the first
 //    fn in this file to number_int_body) --
 
@@ -1263,6 +1380,16 @@ fn definitions_list(defs: Vec<serde_json::Value>) -> String {
     serde_json::json!({
         "data": defs,
         "meta": {"total": total, "offset": 0, "limit": 100}
+    })
+    .to_string()
+}
+
+/// A PARTIAL page: meta.total 2 but only ONE row present — exactly what the
+/// server returns for `list --limit 1` on a two-definition entity (CR-01).
+fn partial_defs_page() -> String {
+    serde_json::json!({
+        "data": [definition("cp1", "deal", "price", "number", None)],
+        "meta": {"total": 2, "offset": 0, "limit": 1}
     })
     .to_string()
 }

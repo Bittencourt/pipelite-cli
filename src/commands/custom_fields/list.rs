@@ -17,10 +17,13 @@ use crate::output;
 /// iterate `--offset`).
 ///
 /// Cache write: the full definition rows are stored under the per-entity
-/// key ONLY when `--entity-type` was given — this is the warm-cache source
-/// for Phase 12's typed-writing resolver. Unfiltered lists span all
-/// entities and would poison per-entity keys, so they store nothing (that
-/// is correct, not an omission).
+/// key ONLY when `--entity-type` was given AND the fetch returned a
+/// COMPLETE first page (`offset == 0` and rows == `meta.total`) — this is
+/// the warm-cache source for Phase 12's typed-writing resolver, which
+/// treats the key as the full definition universe. Unfiltered lists span
+/// all entities, and a partial page strands every out-of-page definition
+/// as untyped — both would poison the key, so they store nothing (that is
+/// correct, not an omission).
 pub async fn run(ctx: &AppContext, args: &CustomFieldsListArgs) -> Result<()> {
     let normalized = match &args.entity_type {
         Some(t) => Some(super::normalize_entity_type(t)?),
@@ -32,16 +35,22 @@ pub async fn run(ctx: &AppContext, args: &CustomFieldsListArgs) -> Result<()> {
         .list_custom_field_definitions(normalized, args.limit, args.offset)
         .await?;
 
-    if let Some(ref cache) = ctx.cache {
-        if let Some(token) = normalized {
-            let key = match token {
-                "deal" => KEY_CUSTOM_FIELDS_DEAL,
-                "organization" => KEY_CUSTOM_FIELDS_ORG,
-                "person" => KEY_CUSTOM_FIELDS_PEOPLE,
-                _ => KEY_CUSTOM_FIELDS_ACTIVITY,
-            };
-            let _ = cache.set(key, &response.data, TTL_CUSTOM_FIELDS);
-        }
+    // CR-01: cache ONLY a complete first page. The resolver reads this key
+    // as the FULL definition set, so a partial page (user `--limit` below
+    // `meta.total`, or any non-zero `--offset`) would silently degrade every
+    // out-of-page field to raw strings for the TTL hour.
+    if let Some(ref cache) = ctx.cache
+        && let Some(token) = normalized
+        && args.offset == 0
+        && response.data.len() as u64 == response.meta.total
+    {
+        let key = match token {
+            "deal" => KEY_CUSTOM_FIELDS_DEAL,
+            "organization" => KEY_CUSTOM_FIELDS_ORG,
+            "person" => KEY_CUSTOM_FIELDS_PEOPLE,
+            _ => KEY_CUSTOM_FIELDS_ACTIVITY,
+        };
+        let _ = cache.set(key, &response.data, TTL_CUSTOM_FIELDS);
     }
 
     if response.data.is_empty() && response.meta.total == 0 && !ctx.quiet {
