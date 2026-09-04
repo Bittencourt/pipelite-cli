@@ -73,20 +73,29 @@ pub fn validate_https_url(url: &str) -> Result<()> {
 /// Validate a raw `--stdin` JSON body for create/update.
 ///
 /// Permissive parse-then-validate: if a `url` key is present (and a string)
-/// it must be https://; if an `events` key is present (and an array) every
-/// string entry must be one of the 13. Unknown keys are left for the server
-/// to strip — full control does not include creating dead webhooks the
-/// server will silently never fire.
+/// it must be https://; if an `events` key is present (and an array) EVERY
+/// entry must be a string on the 13-event allow-list — non-string entries
+/// (e.g. numbers, null) are rejected with the same exit-2 tier as unknown
+/// names, never silently skipped (WR-01). Unknown keys are left for the
+/// server to strip — full control does not include creating dead webhooks
+/// the server will silently never fire.
 pub fn validate_stdin_body(body: &serde_json::Value) -> Result<()> {
     if let Some(url) = body.get("url").and_then(|v| v.as_str()) {
         validate_https_url(url)?;
     }
     if let Some(events) = body.get("events").and_then(|v| v.as_array()) {
-        let events: Vec<String> = events
-            .iter()
-            .filter_map(|e| e.as_str().map(str::to_string))
-            .collect();
-        validate_events(&events)?;
+        let mut names: Vec<String> = Vec::with_capacity(events.len());
+        for e in events {
+            let Some(name) = e.as_str() else {
+                return Err(CliError::InvalidInput {
+                    detail: format!("Webhook event entries must be strings (got {e})"),
+                    hint: format!("Valid events: {}", WEBHOOK_EVENTS.join(", ")),
+                }
+                .into());
+            };
+            names.push(name.to_string());
+        }
+        validate_events(&names)?;
     }
     Ok(())
 }
@@ -166,5 +175,36 @@ mod tests {
         ] {
             validate_stdin_body(&bad).expect_err("invalid stdin body must be rejected");
         }
+    }
+
+    /// WR-01: non-string entries inside `events` arrays must NOT be silently
+    /// skipped — they get the same exit-2 InvalidInput tier as unknown names.
+    #[test]
+    fn validate_stdin_body_rejects_non_string_event_entries() {
+        for bad in [
+            serde_json::json!({"url": "https://x/e", "events": [123]}),
+            serde_json::json!({"url": "https://x/e", "events": [null]}),
+            serde_json::json!({"url": "https://x/e", "events": ["deal.created", 42]}),
+        ] {
+            let err = validate_stdin_body(&bad)
+                .expect_err("non-string event entry must be rejected");
+            let cli_err = err.downcast_ref::<CliError>().expect("CliError");
+            match cli_err {
+                CliError::InvalidInput { detail, hint } => {
+                    assert!(
+                        detail.contains("must be strings"),
+                        "detail must name the type problem: {detail}"
+                    );
+                    assert!(
+                        hint.contains("deal.stage_changed") && hint.contains("activity.deleted"),
+                        "hint must list all 13 events: {hint}"
+                    );
+                }
+                other => panic!("expected InvalidInput, got {other:?}"),
+            }
+        }
+
+        validate_stdin_body(&serde_json::json!({"events": []}))
+            .expect("an EMPTY events array is still valid");
     }
 }

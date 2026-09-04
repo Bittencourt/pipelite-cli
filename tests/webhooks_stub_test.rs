@@ -288,6 +288,29 @@ fn create_stdin_bad_event() {
     assert_eq!(counter.load(Ordering::SeqCst), 0, "zero HTTP on bad stdin");
 }
 
+/// Non-string entries inside --stdin events arrays are rejected pre-HTTP
+/// (exit 2, counter == 0) — WR-01: they previously slipped past the
+/// allow-list via filter_map and reached the wire as-is.
+#[test]
+fn create_stdin_non_string_event() {
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(201, &create_body_json().to_string())]);
+
+    common::cmd_with_server(&url)
+        .args(["webhooks", "create", "--stdin"])
+        .write_stdin(r#"{"url":"https://x/e","events":[123]}"#)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("must be strings"))
+        .stderr(predicate::str::contains("deal.stage_changed"));
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        0,
+        "zero HTTP on non-string event entry"
+    );
+}
+
 #[test]
 fn create_missing_url() {
     let (url, counter, _heads, _bodies) =
