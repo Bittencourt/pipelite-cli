@@ -1,6 +1,8 @@
 pub mod create;
+pub mod delete;
 pub mod get;
 pub mod list;
+pub mod update;
 
 use anyhow::Result;
 
@@ -95,6 +97,8 @@ pub async fn run(ctx: &AppContext, cmd: &WebhooksCommands) -> Result<()> {
         WebhooksCommands::List(args) => list::run(ctx, args).await,
         WebhooksCommands::Get(args) => get::run(ctx, args).await,
         WebhooksCommands::Create(args) => create::run(ctx, args).await,
+        WebhooksCommands::Update(args) => update::run(ctx, args).await,
+        WebhooksCommands::Delete(args) => delete::run(ctx, args).await,
     }
 }
 
