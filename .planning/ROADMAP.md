@@ -156,7 +156,7 @@ Plans:
 | 7. Batch Operations | v1.1 | 5/5 | Complete    | 2026-09-03 |
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete    | 2026-09-03 |
-| 10. Notes | v1.1 | 1/1 | Complete   | 2026-09-03 |
+| 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
 | 11. Webhooks, Trash & Audit | v1.1 | 0/TBD | Not started | - |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |
 | 13. Integration Hardening & Docs | v1.1 | 0/TBD | Not started | - |
