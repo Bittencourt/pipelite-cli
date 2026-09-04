@@ -170,7 +170,7 @@ pub enum Commands {
     /// Manage webhooks (push CRM events to external automations)
     #[command(
         subcommand,
-        after_help = "Webhooks push CRM events to external automations.\nThe signing secret is shown exactly once at creation — save it when you create the webhook.\n\nExamples:\n  pipelite webhooks create --url https://example.com/hook --events deal.created,deal.updated\n  pipelite webhooks list\n  pipelite webhooks get wh_abc123"
+        after_help = "Webhooks push CRM events to external automations.\nThe signing secret is shown exactly once at creation — save it when you create the webhook.\nA webhook belonging to another user always 403s — even with an admin key.\n\nExamples:\n  pipelite webhooks create --url https://example.com/hook --events deal.created,deal.updated\n  pipelite webhooks list\n  pipelite webhooks get wh_abc123\n  pipelite webhooks update wh_abc123 --inactive\n  pipelite webhooks delete wh_abc123 --force"
     )]
     Webhooks(WebhooksCommands),
 
