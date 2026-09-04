@@ -132,7 +132,7 @@ Plans:
   3. User can bypass type inference entirely with `--custom-field-json '{"key": ...}'`
   4. `--dry-run` never triggers a definitions fetch — cache-only fallback with a visible note
 **Notes**: Touches 8 existing handlers (create+update × 4 entities) — widest blast radius of the milestone, hence last feature phase. Coordinate with FIX-01 (dead `--custom-field` flags), which lands in Phase 8. Research flag: verify definition soft-delete marker and `multi_select` config shape against server code during planning.
-**Plans**: TBD
+**Plans**: 2 plans, sequential waves — 12-01 (definitions CRUD group, CFLD-01) → 12-02 (typed-writing resolver rewiring the 8 handlers + --custom-field-json, CFLD-02/03)
 
 ### Phase 13: Integration Hardening & Docs Refresh
 **Goal**: The milestone holds together — every new surface honors the v1.0 global contract, cross-cutting behaviors are verified end-to-end, and documentation is current
