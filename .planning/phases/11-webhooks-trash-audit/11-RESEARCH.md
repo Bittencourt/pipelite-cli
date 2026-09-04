@@ -476,7 +476,7 @@ pub const WEBHOOK_EVENTS: [&str; 13] = [
 
 Everything else above is verified against server/CLI source with citations — no other assumptions.
 
-## Open Questions
+## Open Questions (RESOLVED — Q1: --description dropped per server facts, see CONTEXT AMENDMENT 1 + 11-01; Q2: purge = CONTEXT scope grammar `trash purge [--type]`, no per-ID purge, CLI fan-out per 11-02; Q3: restore 403 uses surface "general" per 11-02 P6)
 
 1. **`--description` removal (S1)** — amends a CONTEXT decision.
    - What we know: server schema + both zod schemas lack description; unknown keys silently stripped.
