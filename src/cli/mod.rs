@@ -179,7 +179,7 @@ pub enum Commands {
     /// List, restore, and permanently purge soft-deleted records
     #[command(
         subcommand,
-        after_help = "Trash holds soft-deleted records — list, restore, or purge them.\n\nExamples:\n  pipelite trash list\n  pipelite trash list --type deals --format json"
+        after_help = "Trash holds soft-deleted records — list, restore, or purge them.\nrestore needs no confirmation; purge permanently destroys records and cannot be undone.\n\nExamples:\n  pipelite trash list\n  pipelite trash list --type deals --format json\n  pipelite trash restore deals t1\n  pipelite trash purge --type deals --force"
     )]
     Trash(TrashCommands),
 

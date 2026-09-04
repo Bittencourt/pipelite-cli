@@ -17,7 +17,7 @@ pub enum TrashCommands {
 
     /// Permanently destroy trashed records (admin-only; cannot be undone)
     #[command(
-        after_help = "Examples:\n  pipelite trash purge --type deals\n  pipelite trash purge --type deals --force\n  pipelite trash purge --dry-run\n\nPERMANENTLY DESTROYS RECORDS. This cannot be undone. Admin-only: every delete needs an admin API key (non-admin keys 403).\nInteractive use confirms with the scope and record count; non-interactive use without --force refuses with exit 2 and zero requests. --force skips confirmation (for scripts). --dry-run previews the victim list with list requests only."
+        after_help = "Examples:\n  pipelite trash purge --type deals\n  pipelite trash purge --type deals --force\n  pipelite trash purge --dry-run\n\npurge permanently destroys records — this cannot be undone. Admin-only: every delete needs an admin API key (non-admin keys 403).\nInteractive use confirms with the scope and record count; non-interactive use without --force refuses with exit 2 and zero requests. --force skips confirmation (for scripts). --dry-run previews the victim list with list requests only."
     )]
     Purge(TrashPurgeArgs),
 }
