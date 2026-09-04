@@ -51,8 +51,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Audit Log
 
-- [ ] **AUDT-01**: User can list audit log entries filtered by `--entity-type`, `--entity-id`, `--actor-kind`, `--workflow-run-id`
-- [ ] **AUDT-02**: Non-admin keys get a first-class Forbidden hint (not a generic auth error) on audit and other admin-gated surfaces
+- [x] **AUDT-01**: User can list audit log entries filtered by `--entity-type`, `--entity-id`, `--actor-kind`, `--workflow-run-id`
+- [x] **AUDT-02**: Non-admin keys get a first-class Forbidden hint (not a generic auth error) on audit and other admin-gated surfaces
 
 ### Docs
 
@@ -126,8 +126,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRSH-01 | Phase 11 | Complete |
 | TRSH-02 | Phase 11 | Complete |
 | TRSH-03 | Phase 11 | Complete |
-| AUDT-01 | Phase 11 | Pending |
-| AUDT-02 | Phase 11 | Pending |
+| AUDT-01 | Phase 11 | Complete |
+| AUDT-02 | Phase 11 | Complete |
 | CFLD-01 | Phase 12 | Pending |
 | CFLD-02 | Phase 12 | Pending |
 | CFLD-03 | Phase 12 | Pending |

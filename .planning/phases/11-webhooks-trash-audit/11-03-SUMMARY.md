@@ -170,3 +170,7 @@ None — no placeholder data paths; every rendered value comes from the wire or 
 ---
 *Phase: 11-webhooks-trash-audit*
 *Completed: 2026-09-04*
+
+## Self-Check: PASSED
+
+All 4 created files exist on disk; all 5 commits (f862f52, 65f52eb, 14f32c0, ff6d7be, 9390303) present in git log. Full suite 493 passed / 0 failed (32 suites ok) re-verified from the clean committed tree; audit_stub_test 13/13; help_examples_test 19/19; bin unit tests 165/165.

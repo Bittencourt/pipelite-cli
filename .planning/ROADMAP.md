@@ -29,7 +29,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 8: Foundations** - Error layer (403/409/RFC 7807), model + pagination fixes, dead-flag removal — shared infrastructure every later phase consumes (completed 2026-09-03)
 - [x] **Phase 9: Workflow Runs, Templates & Docs** - Run list/detail/watch, template CRUD (no update), OpenAPI spec fetch (completed 2026-09-03)
 - [x] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities (completed 2026-09-03)
-- [ ] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer
+- [x] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer (completed 2026-09-04)
 - [ ] **Phase 12: Custom Fields** - Definitions CRUD + type-aware `--custom-field` writing
 - [ ] **Phase 13: Integration Hardening & Docs** - Cross-phase verification of global-flag/convention contracts + docs refresh
 
@@ -120,7 +120,7 @@ Plans:
 Plans:
 - [x] 11-01-PLAN.md — `webhooks` group: serializer-exact models (no secret in list/get — create-response carries it), 6 client methods, 13-event + https pre-HTTP validation (exit 2), show-once secret rendering (truncation test FIRST), KEY_WEBHOOKS (id/url only) + invalidation, get→merge→PUT update, standard delete contract, foreign-403 hint probes (WHOK-01, WHOK-02, WHOK-03)
 - [x] 11-02-PLAN.md — `trash` group: TrashRow/DeletedBy models, 3 client methods, singular/plural type normalization, list (--type + bounded --all fan-out, offset cap 10,000), restore (no confirm, 404 re-wrap, general 403 hint), purge (scope-validated pre-HTTP fan-out, strongest confirm, exit-2 zero-HTTP refusal pinned, continue-on-error N ok / M failed) (TRSH-01, TRSH-02, TRSH-03)
-- [ ] 11-03-PLAN.md — `audit` group: AuditEntry model, 1 client method (non-empty filters only, limit clamped ≤100), 4 passthrough filters + --limit/--offset (no --all), default ts/actor/action/entity columns, --json changes payload, admin-403 hint probes incl. gate-before-validation ordering (AUDT-01, AUDT-02)
+- [x] 11-03-PLAN.md — `audit` group: AuditEntry model, 1 client method (non-empty filters only, limit clamped ≤100), 4 passthrough filters + --limit/--offset (no --all), default ts/actor/action/entity columns, --json changes payload, admin-403 hint probes incl. gate-before-validation ordering (AUDT-01, AUDT-02)
 
 ### Phase 12: Custom Fields — Definitions & Typed Writing
 **Goal**: Users can define custom fields per entity and write correctly-typed values to them (fixes the "stores `\"4\"` not `4`" data-correctness bug)
@@ -162,6 +162,6 @@ Plans:
 | 8. Foundations — Error Layer, Models & Pagination | v1.1 | 2/2 | Complete    | 2026-09-03 |
 | 9. Workflow Runs, Templates & Docs | v1.1 | 3/3 | Complete    | 2026-09-03 |
 | 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
-| 11. Webhooks, Trash & Audit | v1.1 | 2/3 | In Progress|  |
+| 11. Webhooks, Trash & Audit | v1.1 | 3/3 | Complete   | 2026-09-04 |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 0/TBD | Not started | - |
 | 13. Integration Hardening & Docs | v1.1 | 0/TBD | Not started | - |
