@@ -428,7 +428,7 @@ Not a rename/refactor/migration phase — omitted. (Feature phase; no pre-existi
 | A4 | `TTL_CUSTOM_FIELDS = 3600` mirrors pipelines/stages precedent | Resolver design | Stale types up to 1h after out-of-band server changes; invalidation-on-mutation covers the CLI's own writes |
 | A5 | Dropping `--description` (no server field) and create-time `--position` (server strips) from flag set | Definitions CRUD | Deviation from CONTEXT wording — flagged for planner/user confirmation; trivially addable as no-op flags if desired |
 
-## Open Questions
+## Open Questions (RESOLVED — Q1 select strictness: STRICT exit 2 per orchestrator amendment, 12-02; Q2 formula keys: REFUSE exit 2, 12-02; Q3 --description/create-position omission: 12-01 amendments; Q4 select aliasing: normalize to single_select, 12-01)
 
 1. **Select-option validation: strict (exit 2) or warn?** *(NEEDS DECISION)*
    - What we know: server does NOT validate on the API path (custom-fields.ts:33 called only from UI save). CONTEXT's rationale is void.
