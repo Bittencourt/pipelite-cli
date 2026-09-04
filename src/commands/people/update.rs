@@ -7,6 +7,7 @@ use crate::batch;
 use crate::cache::KEY_PEOPLE;
 use crate::cli::people::PeopleUpdateArgs;
 use crate::context::AppContext;
+use crate::custom_fields;
 use crate::dry_run;
 use crate::error::CliError;
 use crate::output;
@@ -27,7 +28,8 @@ pub async fn run(ctx: &AppContext, args: &PeopleUpdateArgs) -> Result<()> {
             || args.phone.is_some()
             || args.notes.is_some()
             || args.org.is_some()
-            || !args.custom_field.is_empty();
+            || !args.custom_field.is_empty()
+            || args.custom_field_json.is_some();
 
         if has_flags {
             return Err(CliError::InvalidInput {
@@ -53,7 +55,8 @@ pub async fn run(ctx: &AppContext, args: &PeopleUpdateArgs) -> Result<()> {
         || args.phone.is_some()
         || args.notes.is_some()
         || args.org.is_some()
-        || !args.custom_field.is_empty();
+        || !args.custom_field.is_empty()
+        || args.custom_field_json.is_some();
 
     // If no flags provided in headless mode, error out
     if !has_flags && (ctx.no_input || !std::io::stdin().is_terminal()) {
@@ -101,7 +104,14 @@ pub async fn run(ctx: &AppContext, args: &PeopleUpdateArgs) -> Result<()> {
         prompt::optional_text(&args.org, "Organization ID", ctx.no_input)?
     };
 
-    let custom_fields = batch::parse_custom_fields(&args.custom_field)?;
+    let custom_fields = custom_fields::resolve_custom_fields(
+        ctx,
+        custom_fields::CfEntityType::Person,
+        &args.custom_field,
+        ctx.dry_run,
+        args.custom_field_json.as_deref(),
+    )
+    .await?;
 
     let data = PersonUpdate {
         first_name,

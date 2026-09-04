@@ -399,27 +399,6 @@ where
     outcome.finalize(entity, "update")
 }
 
-/// Parse --custom-field key=value pairs into a serde_json::Value object.
-///
-/// Shared by the entities that support custom fields; previously duplicated
-/// per entity with only the hint example differing.
-pub fn parse_custom_fields(pairs: &[String]) -> Result<Option<serde_json::Value>> {
-    if pairs.is_empty() {
-        return Ok(None);
-    }
-
-    let mut map = serde_json::Map::new();
-    for pair in pairs {
-        let (key, value) = pair.split_once('=').ok_or_else(|| CliError::Validation {
-            detail: format!("Invalid custom field format: '{}'", pair),
-            hint: "Use key=value format: --custom-field industry=Tech".to_string(),
-        })?;
-        map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
-    }
-
-    Ok(Some(serde_json::Value::Object(map)))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -456,25 +435,5 @@ mod tests {
             }
             other => panic!("expected Validation variant, got {:?}", other),
         }
-    }
-
-    #[test]
-    fn parse_custom_fields_rejects_missing_equals() {
-        let err = parse_custom_fields(&["oops".to_string()]);
-        assert!(err.is_err());
-    }
-
-    #[test]
-    fn parse_custom_fields_builds_object() {
-        let fields =
-            parse_custom_fields(&["industry=Tech".to_string(), "size=500".to_string()])
-                .expect("valid pairs");
-        let fields = fields.expect("expected Some object for non-empty pairs");
-        let map = fields.as_object().expect("expected JSON object");
-        assert_eq!(
-            map.get("industry").and_then(|v| v.as_str()),
-            Some("Tech")
-        );
-        assert_eq!(map.get("size").and_then(|v| v.as_str()), Some("500"));
     }
 }

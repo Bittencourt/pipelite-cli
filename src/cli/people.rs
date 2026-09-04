@@ -147,6 +147,11 @@ pub struct PeopleCreateArgs {
     #[arg(long = "custom-field")]
     pub custom_field: Vec<String>,
 
+    /// Raw JSON object written verbatim as custom_fields — bypasses type
+    /// inference; mutually exclusive with --custom-field and --stdin
+    #[arg(long = "custom-field-json", value_name = "JSON")]
+    pub custom_field_json: Option<String>,
+
     /// Read JSON array from stdin for batch create
     #[arg(long)]
     pub stdin: bool,
@@ -189,6 +194,11 @@ pub struct PeopleUpdateArgs {
     /// Custom field (key=value, repeatable)
     #[arg(long = "custom-field")]
     pub custom_field: Vec<String>,
+
+    /// Raw JSON object written verbatim as custom_fields — bypasses type
+    /// inference; mutually exclusive with --custom-field and --stdin
+    #[arg(long = "custom-field-json", value_name = "JSON")]
+    pub custom_field_json: Option<String>,
 }
 
 #[derive(Args)]

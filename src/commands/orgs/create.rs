@@ -3,10 +3,10 @@ use std::io::{self, IsTerminal, Read};
 use anyhow::Result;
 
 use crate::api::models::{OrganizationCreate, orgs_table_config};
-use crate::batch;
 use crate::cache::KEY_ORGS;
 use crate::cli::orgs::OrgsCreateArgs;
 use crate::context::AppContext;
+use crate::custom_fields;
 use crate::dry_run;
 use crate::error::CliError;
 use crate::output;
@@ -24,10 +24,11 @@ pub async fn run(ctx: &AppContext, args: &OrgsCreateArgs) -> Result<()> {
             || args.website.is_some()
             || args.industry.is_some()
             || args.notes.is_some()
-            || !args.custom_field.is_empty();
+            || !args.custom_field.is_empty()
+            || args.custom_field_json.is_some();
 
         if has_flags {
-            return Err(CliError::Validation {
+            return Err(CliError::InvalidInput {
                 detail: "--stdin and individual field flags are mutually exclusive".to_string(),
                 hint: "Use either --stdin or individual flags, not both.".to_string(),
             }
@@ -66,7 +67,14 @@ async fn single_create(ctx: &AppContext, args: &OrgsCreateArgs) -> Result<()> {
     let industry = prompt::optional_text(&args.industry, "Industry", ctx.no_input)?;
     let notes = prompt::optional_text(&args.notes, "Notes", ctx.no_input)?;
 
-    let custom_fields = batch::parse_custom_fields(&args.custom_field)?;
+    let custom_fields = custom_fields::resolve_custom_fields(
+        ctx,
+        custom_fields::CfEntityType::Organization,
+        &args.custom_field,
+        ctx.dry_run,
+        args.custom_field_json.as_deref(),
+    )
+    .await?;
 
     let data = OrganizationCreate {
         name,

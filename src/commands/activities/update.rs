@@ -8,6 +8,7 @@ use crate::batch;
 use crate::cache::KEY_ACTIVITIES;
 use crate::cli::activities::ActivitiesUpdateArgs;
 use crate::context::AppContext;
+use crate::custom_fields;
 use crate::dry_run;
 use crate::error::CliError;
 use crate::output;
@@ -33,7 +34,8 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
             || args.completed_at.is_some()
             || args.mark_done
             || args.mark_undone
-            || !args.custom_field.is_empty();
+            || !args.custom_field.is_empty()
+            || args.custom_field_json.is_some();
 
         if has_flags {
             return Err(CliError::InvalidInput {
@@ -61,7 +63,8 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
         || args.completed_at.is_some()
         || args.mark_done
         || args.mark_undone
-        || !args.custom_field.is_empty();
+        || !args.custom_field.is_empty()
+        || args.custom_field_json.is_some();
 
     // If no flags provided in headless mode, error out
     if !has_flags && (ctx.no_input || !std::io::stdin().is_terminal()) {
@@ -72,7 +75,17 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
         .into());
     }
 
-    let custom_fields = batch::parse_custom_fields(&args.custom_field)?;
+    // Resolve ONCE at the top: the typed Option<Value> flows through BOTH
+    // the normal path and update_with_null_completed's raw payload
+    // (Pitfall 6 — carried through untouched, never dropped, never doubled).
+    let custom_fields = custom_fields::resolve_custom_fields(
+        ctx,
+        custom_fields::CfEntityType::Activity,
+        &args.custom_field,
+        ctx.dry_run,
+        args.custom_field_json.as_deref(),
+    )
+    .await?;
 
     // Handle --mark-undone specially: need to send completed_at: null explicitly
     if args.mark_undone {

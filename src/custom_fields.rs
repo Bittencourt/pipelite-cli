@@ -186,9 +186,9 @@ fn resolve_cache_only(
 }
 
 /// Split `k=v` pairs. A pair without `=` is structural input (BATCH-04
-/// precedent): InvalidInput exit 2 — replaces the old
-/// `batch::parse_custom_fields` Validation-shaped error, which is deleted
-/// together with the function it belonged to.
+/// precedent): InvalidInput exit 2 — deliberately replaces the old shared
+/// parser's Validation-shaped error, which is deleted together with the
+/// function it belonged to.
 fn split_pairs(pairs: &[String]) -> Result<Vec<(String, String)>> {
     let mut out = Vec::with_capacity(pairs.len());
     for pair in pairs {
@@ -545,7 +545,7 @@ mod tests {
         assert!(msg.contains("formula"), "{msg}");
     }
 
-    // -- structural k=v split (replaces batch::parse_custom_fields) --
+    // -- structural k=v split (replaces the deleted batch parser) --
 
     #[test]
     fn missing_equals_is_exit_2_with_key_value_hint() {
