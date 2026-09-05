@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: ready_for_verification
-stopped_at: Phase 13 complete (13-01 + 13-02) — live E2E executed 2026-09-05 (21 PASS / 0 FAIL, 2 E2E-found bugs fixed in 30939ec); ready for milestone verification
-last_updated: "2026-09-05"
+status: milestone_complete
+stopped_at: Milestone complete (Phase 13 was final phase)
+last_updated: 2026-09-05T02:40:20.113Z
 last_activity: 2026-09-05
 progress:
   total_phases: 7
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-02)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal — fast, scriptable, and composable with other tools.
-**Current focus:** Phase 13 — integration-hardening-docs-refresh
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 13 (integration-hardening-docs-refresh) — COMPLETE (both plans)
-Plan: 2 of 2 done — 13-01 contract matrix + 13-02 docs/E2E (commits b0576ee, b61abcb, b408a61, 30939ec, b4bcf51)
-Status: ready_for_verification — milestone audit next; live E2E evidence in docs/e2e-v1.1-report.md (21 PASS / 0 FAIL)
+Phase: 13
+Plan: Not started
+Status: Milestone complete
 Last activity: 2026-09-05
 
 Progress: [██████████] 100%
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 34 (v1.0)
+- Total plans completed: 36 (v1.0)
 - Average duration: — (not tracked)
 - Total execution time: —
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | 12 | 2 | - | - |
 | Phase 13 P01 | 13min | 3 tasks | 1 files |
 | Phase 13 P02 | 20min | 3 tasks | 7 files |
+| 13 | 2 | - | - |
 
 ## Accumulated Context
 

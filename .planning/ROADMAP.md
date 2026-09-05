@@ -168,4 +168,4 @@ Plans:
 | 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
 | 11. Webhooks, Trash & Audit | v1.1 | 3/3 | Complete    | 2026-09-04 |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 2/2 | Complete    | 2026-09-04 |
-| 13. Integration Hardening & Docs | v1.1 | 2/2 | Complete   | 2026-09-05 |
+| 13. Integration Hardening & Docs | v1.1 | 2/2 | Complete    | 2026-09-05 |
