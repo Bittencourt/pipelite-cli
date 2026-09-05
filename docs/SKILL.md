@@ -18,8 +18,9 @@ when its row in the router below says so:
 ## 1. Connect (once per environment)
 
 ```bash
-pipelite ping                                  # connectivity check — exit 0 = reachable
-pipelite init                                  # or: pipelite config set server.url <URL> / set server.api_key <KEY>
+pipelite --version   # preflight: confirm you're running the build you think (v1.1 feature set; a stale binary on PATH silently lacks newer flags/commands)
+pipelite ping        # connectivity check — exit 0 = reachable
+pipelite init        # or: pipelite config set server.url <URL> / set server.api_key <KEY>
 ```
 
 Credentials resolve in order: env (`PIPELITE_SERVER_URL`, `PIPELITE_API_KEY`) >
@@ -59,7 +60,7 @@ retrying blind.
 |---|---|---|
 | Check connectivity | `pipelite ping` | — |
 | CRUD any of the 7 entities | `pipelite <deals\|orgs\|people\|activities\|pipelines\|stages\|workflows> list/get/create/update/delete …` | operations.md § Entities |
-| Create a deal (needs a stage ID) | `stages list` → `deals create --title X --stage <id>` | recipes.md § R1 |
+| Create a deal (needs a stage ID; `stages list` needs `--pipeline`) | `pipelines list` → `stages list --pipeline <id>` → `deals create --title X --stage <id>` | recipes.md § R1 |
 | Update/delete many records in one call | `deals update --stdin` / `deals delete id1 id2 --force` | recipes.md § R3 |
 | Attach notes to a record | `notes add deals <id> --body "text"` | operations.md § Notes |
 | Automate via webhooks | `webhooks create --url https://… --events deal.created` | recipes.md § R5 |

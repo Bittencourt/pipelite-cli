@@ -19,10 +19,12 @@ If `ping` fails: check `PIPELITE_SERVER_URL` reachability, then
 
 ## R1 — Create a deal (stage ID required)
 
-Deals must hang off a pipeline stage. Get one first:
+Deals must hang off a pipeline stage. `stages list` requires `--pipeline`,
+so chain from the pipeline list:
 
 ```bash
-STAGE=$(pipelite stages list --format json | jq -r '.[0].id')
+PIPE=$(pipelite pipelines list --format json | jq -r '.[0].id')
+STAGE=$(pipelite stages list --pipeline "$PIPE" --format json | jq -r '.[0].id')
 pipelite deals create --title "acme-onboarding" --stage "$STAGE" \
   --value 1500 --format json --no-input
 ```
