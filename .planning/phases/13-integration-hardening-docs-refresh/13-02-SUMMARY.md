@@ -10,7 +10,7 @@ provides:
   - "docs/SKILL.md v1.1 extension (9 surfaces + exit-code contract + batch/typed-writing patterns)"
   - "docs/api-reference.md complete for all 9 new groups (--help-verified)"
   - "README command enumeration + CHANGELOG v1.1 released-ready"
-  - "scripts/e2e-v1.1.sh (env-gated live E2E, 4 SC-2 scenarios) + docs/e2e-v1.1-report.md template"
+  - "scripts/e2e-v1.1.sh (env-gated live E2E, 4 SC-2 scenarios) + docs/e2e-v1.1-report.md (FILLED — live run 21 PASS / 0 FAIL)"
   - "deferred-items disposition roll-up for the milestone audit"
   - "api/mod.rs size decision: KEEP SINGLE FILE (1805 < ~2000)"
 affects:
@@ -29,6 +29,9 @@ key-files:
     - docs/api-reference.md
     - README.md
     - CHANGELOG.md
+    - src/api/mod.rs
+    - src/api/models.rs
+    - tests/deals_integration.rs
     - .planning/phases/07-batch-operations-for-all-entities/deferred-items.md
     - .planning/phases/08-foundations-error-layer-models-pagination/deferred-items.md
     - .planning/milestones/v1.0-phases/01-foundation/deferred-items.md
@@ -39,15 +42,15 @@ decisions:
   - "E2E all-ok-batch scenario asserts silent exit 0 (locked Phase 7 contract: summary prints on the failure path only), not the plan's 'exit 0 + summary present' shorthand"
   - "Env-dependent test trio marked RESOLVED via WR-03 hermetic env (PIPELITE_CONFIG override + unreachable endpoint), verified empirically with a real config present"
 metrics:
-  duration: 20 min
+  duration: 20 min (+ Task 4 live E2E executed by orchestrator)
   completed: 2026-09-05
-  tasks: 3
-  files: 7
+  tasks: 4
+  files: 9
 ---
 
 # Phase 13 Plan 02: Docs Refresh + E2E Authoring Summary
 
-**Docs brought current with the shipped v1.1 CLI (SKILL.md 9-surface extension, api-reference gap audit with --help-verified examples, README enumeration, CHANGELOG v1.1 released-ready), loose ends closed (api/mod.rs keep-single-file decision, evidence-based deferred-items audit), and the live-server E2E authored + safety-guarded with its report template — execution reserved for the human checkpoint.**
+**Docs brought current with the shipped v1.1 CLI (SKILL.md 9-surface extension, api-reference gap audit with --help-verified examples, README enumeration, CHANGELOG v1.1 released-ready), loose ends closed (api/mod.rs keep-single-file decision, evidence-based deferred-items audit), and the live-server E2E authored + safety-guarded + EXECUTED (21 PASS / 0 FAIL, 2 live-found bugs fixed with regression test).**
 
 ## What Was Built
 
@@ -126,13 +129,26 @@ sections untouched):
   covered by `tests/error_layer_stub_test.rs` stubs per 13-CONTEXT. Header states the
   filled report is the SC-2 evidence for the milestone audit.
 
-### Task 4: live E2E execution — HUMAN-ACTION CHECKPOINT
+### Task 4: live E2E execution — EXECUTED (2026-09-05)
 
-**Status: awaiting-executor-execution (not run by this agent — requires the user's admin
-credentials, session env only).** The orchestrator/human runs
-`export PIPELITE_SERVER_URL=... && export PIPELITE_API_KEY=<ADMIN key> && bash scripts/e2e-v1.1.sh`,
-then fills `docs/e2e-v1.1-report.md` from the output. This plan completes only after that
-checkpoint; the milestone audit reads the filled report.
+**Status: executed — the orchestrator ran
+`export PIPELITE_SERVER_URL=... && export PIPELITE_API_KEY=<ADMIN key> && bash scripts/e2e-v1.1.sh`
+with the user's admin credentials (session env): 4 scenarios, **21 PASS / 0 FAIL**.
+`docs/e2e-v1.1-report.md` is finalized from the live output (commit b4bcf51).**
+
+The live run surfaced 2 real bugs, both fixed immediately and covered by a regression
+test (commit 30939ec):
+
+1. **`batch_create_{deals,organizations,people}` unwrapped the `{data}` envelope twice** —
+   the server's batch-create response nests items under `{data}`, but the helpers already
+   returned the envelope-shaped payload, so items were silently dropped/misparsed.
+   Fixed in `src/api/mod.rs` (single unwrap at the correct layer).
+2. **`PaginationMeta` required all fields** — batch endpoints return partial meta
+   (no `total`/`total_pages` on `{entity}/batch`), which failed strict deserialization.
+   Fixed in `src/api/models.rs` with `#[serde(default)]` on the optional meta fields.
+
+Regression test added in `tests/deals_integration.rs` (partial-meta batch-create
+envelope shape); full suite after the fixes: **651 passed / 0 failed**.
 
 ## Deviations from Plan
 
@@ -189,6 +205,24 @@ checkpoint; the milestone audit reads the filled report.
 - **Files modified:** scripts/e2e-v1.1.sh
 - **Commit:** b408a61
 
+**6. [Rule 1 - Bug, live E2E] batch_create_{deals,organizations,people} double-unwrapped the `{data}` envelope**
+- **Found during:** Task 4 (orchestrator-run live E2E, 2026-09-05)
+- **Issue:** The batch-create helpers deserialized the server response as if items were
+  top-level, but the `{entity}/batch` response nests them under `{data}` — created items
+  were lost to the caller (live scenario caught the mismatch).
+- **Fix:** Single envelope unwrap at the correct layer in `src/api/mod.rs`.
+- **Files modified:** src/api/mod.rs
+- **Commit:** 30939ec
+
+**7. [Rule 1 - Bug, live E2E] PaginationMeta failed deserialization on partial batch meta**
+- **Found during:** Task 4 (same live run)
+- **Issue:** Batch endpoints return meta without `total`/`total_pages`; strict
+  deserialization rejected valid partial responses.
+- **Fix:** `#[serde(default)]` on optional meta fields in `src/api/models.rs` so partial
+  batch meta deserializes with sensible defaults.
+- **Files modified:** src/api/models.rs, tests/deals_integration.rs (regression test)
+- **Commit:** 30939ec
+
 ### --help Validation Checklist (T-13-02-03 mitigation)
 
 | Group | Sections verified | Drift found/fixed |
@@ -217,14 +251,17 @@ checkpoint; the milestone audit reads the filled report.
 - Credential guard smoke test: unset env → exit 2 with usage message
 - Structural dry run (unreachable server): guards PASS; scenarios fail honestly with
   observed-vs-expected; exit 1 — no false PASSes
-- Full `cargo test`: **650 passed, 0 failed** — no regressions against the 13-01 baseline
+- **Task 4 live E2E (orchestrator-run, 2026-09-05): 21 PASS / 0 FAIL** across all 4
+  SC-2 scenarios; report finalized (docs/e2e-v1.1-report.md, commit b4bcf51)
+- Full `cargo test` after the E2E-found bug fixes: **651 passed, 0 failed**
+  (650 baseline + 1 regression test for the batch-create envelope/partial-meta fix)
 
 ## Known Stubs
 
-`docs/e2e-v1.1-report.md` is intentionally a TEMPLATE (placeholders only) until Task 4's
-human run fills it — that is the plan's design, not an unfinished data path. The
-Forbidden (non-admin) live checks are SKIPPED by design (13-CONTEXT: no non-admin key
-available; stub-covered by `tests/error_layer_stub_test.rs`).
+None blocking. `docs/e2e-v1.1-report.md` was a TEMPLATE at authoring time by design and
+is now FILLED from the live run (Task 4, commit b4bcf51). The Forbidden (non-admin) live
+checks remain SKIPPED by design (13-CONTEXT: no non-admin key available; stub-covered by
+`tests/error_layer_stub_test.rs`) — recorded in the report.
 
 ## TDD Gate Compliance
 
@@ -237,7 +274,9 @@ Not applicable — this plan is type `execute` (docs/tooling, no `tdd="true"` ta
 - README.md (659 lines, all new groups enumerated + structure listing) — FOUND
 - CHANGELOG.md (121 lines, released header, zero "unreleased") — FOUND
 - scripts/e2e-v1.1.sh (executable, env-gated, guards, 4 scenarios) — FOUND
-- docs/e2e-v1.1-report.md (template, ## Results, SKIPPED note) — FOUND
+- docs/e2e-v1.1-report.md (FILLED from live run — 4 scenarios, Result: PASS) — FOUND
 - 3 deferred-items files annotated (RESOLVED 2026-09-04 / CARRIED) — FOUND
-- Commits b0576ee, b61abcb, b408a61 in git log — FOUND
-- cargo test 650/650 green — VERIFIED
+- Commits b0576ee, b61abcb, b408a61, 30939ec (E2E bug fixes + regression test), b4bcf51
+  (filled report) in git log — FOUND
+- cargo test 651/651 green (650 baseline + 1 E2E regression test) — VERIFIED
+- Live E2E 21 PASS / 0 FAIL (orchestrator-run, 2026-09-05) — VERIFIED via finalized report

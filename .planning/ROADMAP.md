@@ -31,7 +31,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 10: Notes** - Notes CRUD on deals/orgs/people/activities (completed 2026-09-03)
 - [x] **Phase 11: Webhooks, Trash & Audit** - Webhook CRUD with show-once secret, trash restore/purge, audit log viewer (completed 2026-09-04)
 - [x] **Phase 12: Custom Fields** - Definitions CRUD + type-aware `--custom-field` writing (completed 2026-09-04)
-- [ ] **Phase 13: Integration Hardening & Docs** - Cross-phase verification of global-flag/convention contracts + docs refresh
+- [x] **Phase 13: Integration Hardening & Docs** - Cross-phase verification of global-flag/convention contracts + docs refresh (completed 2026-09-05)
 
 ## Phase Details
 
@@ -147,7 +147,7 @@ Plans:
 
 Plans:
 - [x] 13-01-PLAN.md — Table-driven contract matrix (tests/contract_matrix_test.rs): every Phase 7-12 surface × global-flag axis (--dry-run zero-HTTP, --no-input locked refusals, --quiet data-survives, --no-color zero-ANSI) + csv/plain per list-bearing group + v1.0-surface smoke; violations fixed in-phase with pinning tests + deviation log; full-suite gate
-- [ ] 13-02-PLAN.md — Docs refresh (SKILL.md 9 new surfaces + exit-code contract + batch/cache/typed-writing patterns; api-reference.md gap audit vs --help; README enumeration; CHANGELOG v1.1 released-ready) + api/mod.rs keep-single-file decision + deferred-items audit + live E2E script/report template (human-run checkpoint, env-var credentials)
+- [x] 13-02-PLAN.md — Docs refresh (SKILL.md 9 new surfaces + exit-code contract + batch/cache/typed-writing patterns; api-reference.md gap audit vs --help; README enumeration; CHANGELOG v1.1 released-ready) + api/mod.rs keep-single-file decision + deferred-items audit + live E2E script/report template (human-run checkpoint, env-var credentials)
 
 ## Progress
 
@@ -168,4 +168,4 @@ Plans:
 | 10. Notes | v1.1 | 1/1 | Complete    | 2026-09-04 |
 | 11. Webhooks, Trash & Audit | v1.1 | 3/3 | Complete    | 2026-09-04 |
 | 12. Custom Fields — Definitions & Typed Writing | v1.1 | 2/2 | Complete    | 2026-09-04 |
-| 13. Integration Hardening & Docs | v1.1 | 1/2 | In Progress|  |
+| 13. Integration Hardening & Docs | v1.1 | 2/2 | Complete   | 2026-09-05 |

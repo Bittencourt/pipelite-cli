@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: executing
-stopped_at: 13-02 Tasks 1-3 complete; BLOCKED on human-action checkpoint — run scripts/e2e-v1.1.sh with session credentials, fill docs/e2e-v1.1-report.md, then resume
-last_updated: "2026-09-05T02:10:56.949Z"
+status: ready_for_verification
+stopped_at: Phase 13 complete (13-01 + 13-02) — live E2E executed 2026-09-05 (21 PASS / 0 FAIL, 2 E2E-found bugs fixed in 30939ec); ready for milestone verification
+last_updated: "2026-09-05"
 last_activity: 2026-09-05
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 18
-  completed_plans: 17
-  percent: 94
+  completed_plans: 18
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 ## Current Position
 
-Phase: 13 (integration-hardening-docs-refresh) — EXECUTING
-Plan: 2 of 2 — Tasks 1-3 done (commits b0576ee, b61abcb, b408a61); Task 4 = human-action checkpoint
-Status: Blocked on live E2E run (needs user's admin credentials, session env only)
+Phase: 13 (integration-hardening-docs-refresh) — COMPLETE (both plans)
+Plan: 2 of 2 done — 13-01 contract matrix + 13-02 docs/E2E (commits b0576ee, b61abcb, b408a61, 30939ec, b4bcf51)
+Status: ready_for_verification — milestone audit next; live E2E evidence in docs/e2e-v1.1-report.md (21 PASS / 0 FAIL)
 Last activity: 2026-09-05
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -104,7 +104,8 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 13]: Contract matrix (61 tests) proves all Phase 7-12 surfaces honor the v1.0 global contract - zero violations found, zero src changes; first fully-green hardening run
 - [Phase 13]: templates create --workflow dry-run GET is a read exempt from zero-mutation (Phase 9 pinned) - matrix row authored with --trigger for pure zero-HTTP; batch summary pinned on the locked Phase 7 failure-path shape (mixed batch under --quiet)
 - [Phase 13]: api/mod.rs is 1805 lines (< ~2000 threshold) — KEEP SINGLE FILE, no split; watch item closed for the milestone audit
-- [Phase 13]: E2E v1.1 authored but NOT executed — human-action checkpoint pending (PIPELITE_SERVER_URL/PIPELITE_API_KEY session env); docs/e2e-v1.1-report.md template awaits the live run
+- [Phase 13]: live E2E v1.1 EXECUTED by the orchestrator 2026-09-05 — 21 PASS / 0 FAIL across 4 SC-2 scenarios; report finalized (docs/e2e-v1.1-report.md, b4bcf51); Forbidden live checks SKIPPED by design (no non-admin key; stub-covered)
+- [Phase 13]: live E2E surfaced 2 real bugs, fixed in 30939ec + regression test — batch_create_{deals,orgs,people} double-unwrapped the {data} envelope (src/api/mod.rs); PaginationMeta rejected partial batch meta (#[serde(default)] in src/api/models.rs); suite 651/651 green
 - [Phase 13]: deferred-items dispositioned — env-dependent test trio RESOLVED via WR-03 hermetic env (verified with real config present); 3 build warnings CARRIED; config unit-test flake CARRIED (reproduced 4/20 runs live)
 - [Phase 13]: --continue-on-error documented as BUILT-IN batch semantics, not a flag (plan inventory said flag; --help/src prove unconditional continue + summary); batch stdin is JSON array only (no NDJSON)
 
@@ -114,7 +115,7 @@ None.
 
 ### Blockers/Concerns
 
-- **ACTIVE (13-02 Task 4):** live E2E run requires the user's admin credentials — `export PIPELITE_SERVER_URL=... && export PIPELITE_API_KEY=<ADMIN key> && bash scripts/e2e-v1.1.sh`, then fill `docs/e2e-v1.1-report.md` from its output; plan completes only after this checkpoint
+- ~~ACTIVE (13-02 Task 4):~~ RESOLVED 2026-09-05 — orchestrator ran the live E2E with session credentials (21 PASS / 0 FAIL), report finalized, 2 E2E-found bugs fixed (30939ec)
 - Orchestrator to rename `.planning/phases/01-batch-operations-for-all-entities/` → `07-*` (plans + context docs) after roadmap approval
 - Research flags to resolve during planning: webhook PUT semantics + trash `linked_parents` rendering (Phase 11), definition soft-delete marker + `multi_select` shape (Phase 12)
 - ~~`api/mod.rs` size watch item~~ DECIDED 2026-09-04: 1805 lines < ~2000 → keep single file
@@ -131,6 +132,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-05T02:10:56.919Z
-Stopped at: 13-02 Tasks 1-3 complete (b0576ee, b61abcb, b408a61); Task 4 checkpoint pending — human runs scripts/e2e-v1.1.sh with session credentials and fills docs/e2e-v1.1-report.md
+Last session: 2026-09-05
+Stopped at: Phase 13 complete (13-01 + 13-02) — live E2E executed 2026-09-05 (21 PASS / 0 FAIL); suite 651/651 green; ready for milestone verification
 Resume file: .planning/phases/13-integration-hardening-docs-refresh/13-02-SUMMARY.md
