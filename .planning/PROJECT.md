@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Rust command-line tool that connects to any Pipelite CRM server via API key, providing full CRUD operations on all CRM entities (deals, orgs, people, activities, pipelines, stages, workflows) plus workflow automation triggers. Designed for both interactive human use and headless scripting/agent workflows, with pipeable output in multiple formats and local caching for speed.
+A Rust command-line tool that connects to any Pipelite CRM server via API key, providing full CRUD operations on all CRM entities (deals, orgs, people, activities, pipelines, stages, workflows), batch operations, workflow runs observation, and the v1.1 server surfaces (notes, webhooks, trash, audit, custom fields, workflow templates, OpenAPI docs). Designed for both interactive human use and headless scripting/agent workflows, with pipeable output in multiple formats, an honest error layer (RFC 7807, Forbidden ≠ Auth), and local caching for speed.
 
 ## Core Value
 
@@ -115,4 +115,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-05 after Phase 13 (Integration Hardening & Docs Refresh) — all 7 v1.1 phases complete*
+*Last updated: 2026-09-05 after v1.1 Server v2 Parity milestone shipped (7 phases, 18 plans, 651 tests green)*
