@@ -115,4 +115,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-04 after Phase 12 (Custom Fields) completion*
+*Last updated: 2026-09-05 after Phase 13 (Integration Hardening & Docs Refresh) — all 7 v1.1 phases complete*
