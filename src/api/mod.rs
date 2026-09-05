@@ -490,7 +490,8 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/deals/batch", self.base_url);
         let request = self.client.post(&url).json(deals);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response, "deals").await
+        let wrapper: ApiListResponse<Deal> = self.handle_response(response, "deals").await?;
+        Ok(wrapper.data)
     }
 
     // ── Organizations ───────────────────────────────────────────────
@@ -554,7 +555,8 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/organizations/batch", self.base_url);
         let request = self.client.post(&url).json(orgs);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response, "orgs").await
+        let wrapper: ApiListResponse<Organization> = self.handle_response(response, "orgs").await?;
+        Ok(wrapper.data)
     }
 
     // ── People ──────────────────────────────────────────────────────
@@ -618,7 +620,8 @@ impl PipeliteClient {
         let url = format!("{}/api/v1/people/batch", self.base_url);
         let request = self.client.post(&url).json(people);
         let response = self.send_with_retry(request).await?;
-        self.handle_response(response, "people").await
+        let wrapper: ApiListResponse<Person> = self.handle_response(response, "people").await?;
+        Ok(wrapper.data)
     }
 
     // ── Activities ─────────────────────────────────────────────────

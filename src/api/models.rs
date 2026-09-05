@@ -35,7 +35,12 @@ pub struct ApiListResponse<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaginationMeta {
     pub total: u64,
+    /// Batch-create endpoints return meta without offset/limit
+    /// (e.g. `{"created":1,"skipped":0,"total":1}`) — defaulted so both
+    /// list envelopes and batch envelopes deserialize.
+    #[serde(default)]
     pub offset: u64,
+    #[serde(default)]
     pub limit: u64,
 }
 

@@ -266,3 +266,30 @@ fn deals_list_all_under_ceiling_stays_silent() {
 
     assert_eq!(counter.load(Ordering::SeqCst), 5, "exactly 5 page requests");
 }
+
+#[test]
+fn batch_create_stdin_parses_envelope_with_partial_meta() {
+    // Live-server regression (Phase 13 E2E): POST /deals/batch returns
+    // `{"data":[...],"meta":{"created":N,"skipped":M,"total":N}}` — meta has
+    // NO offset/limit, and the CLI must unwrap the `data` envelope (it used
+    // to deserialize the whole envelope as a bare array and fail on HTTP 200).
+    let (url, _counter) = spawn_stub_server(&[(
+        200,
+        r#"{"data":[{"id":"d_batch_1","title":"e2e-a","value":null,"stage_id":"s1","organization_id":null,"person_id":null,"owner_id":"u1","position":10000,"expected_close_date":null,"notes":null,"custom_fields":{},"created_at":"2026-09-05T00:00:00Z","updated_at":"2026-09-05T00:00:00Z"},{"id":"d_batch_2","title":"e2e-b","value":null,"stage_id":"s1","organization_id":null,"person_id":null,"owner_id":"u1","position":20000,"expected_close_date":null,"notes":null,"custom_fields":{},"created_at":"2026-09-05T00:00:00Z","updated_at":"2026-09-05T00:00:00Z"}],"meta":{"created":2,"skipped":0,"total":2}}"#.to_string(),
+    )]);
+
+    Command::cargo_bin("pipelite")
+        .unwrap()
+        .env("PIPELITE_SERVER_URL", &url)
+        .env("PIPELITE_API_KEY", "fake-test-key")
+        .args(["deals", "create", "--stdin", "--format", "json"])
+        .write_stdin(
+            r#"[{"title":"e2e-a","stage_id":"s1"},{"title":"e2e-b","stage_id":"s1"}]"#,
+        )
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("d_batch_1")
+                .and(predicate::str::contains("d_batch_2")),
+        );
+}
