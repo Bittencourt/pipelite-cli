@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
-status: ready_to_plan
-stopped_at: Phase 12 complete (2/2) — ready to discuss Phase 13
-last_updated: 2026-09-04T12:31:05.673Z
-last_activity: 2026-09-04
+status: executing
+stopped_at: Completed 13-01-PLAN.md (contract matrix — 61 tests, 650 passing, no violations)
+last_updated: "2026-09-05T01:43:55.629Z"
+last_activity: 2026-09-05
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 18
+  completed_plans: 17
   percent: 86
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-02)
 
 **Core value:** Users can manage their entire Pipelite CRM from the terminal — fast, scriptable, and composable with other tools.
-**Current focus:** Phase 13 — integration hardening & docs refresh
+**Current focus:** Phase 13 — integration-hardening-docs-refresh
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-04
+Phase: 13 (integration-hardening-docs-refresh) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-09-05
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | Phase 12 P01 | 25min | 3 tasks | 16 files |
 | Phase 12 P02 | 32min | 3 tasks | 19 files |
 | 12 | 2 | - | - |
+| Phase 13 P01 | 13min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,8 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 12]: definition create/update/delete all invalidate the custom_fields_ cache prefix (two-run stub-proven); filtered lists warm KEY_CUSTOM_FIELDS_<token> — the 12-02 resolver interface
 - [Phase 12]: typed writing runs through ONE shared resolver (src/custom_fields.rs) consumed by all 8 create/update handlers — number i64-first (price=4 stores JSON number 4, wire-pinned), strict boolean, option-validated select/multi_select, formula writes refused exit 2, unknown names sent as strings with one aggregated quiet-suppressible warning
 - [Phase 12]: --custom-field-json gives verbatim raw-object passthrough; it and --custom-field are mutually exclusive with each other and --stdin at exit 2 pre-HTTP across all 8 handlers (create exclusivity normalized Validation->InvalidInput); batch::parse_custom_fields deleted; --dry-run is cache-only (zero HTTP, strings + note when cold, typed when warm)
+- [Phase 13]: Contract matrix (61 tests) proves all Phase 7-12 surfaces honor the v1.0 global contract - zero violations found, zero src changes; first fully-green hardening run
+- [Phase 13]: templates create --workflow dry-run GET is a read exempt from zero-mutation (Phase 9 pinned) - matrix row authored with --trigger for pure zero-HTTP; batch summary pinned on the locked Phase 7 failure-path shape (mixed batch under --quiet)
 
 ### Pending Todos
 
@@ -121,6 +124,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-04T11:25:45.964Z
-Stopped at: Completed 12-01-PLAN.md (custom-fields definitions CRUD — 33 stub tests, 543 passing)
+Last session: 2026-09-05T01:43:27.295Z
+Stopped at: Completed 13-01-PLAN.md (contract matrix — 61 tests, 650 passing, no violations)
 Resume file: None
