@@ -734,3 +734,796 @@ fn dry_run_stub_counter_stays_zero_webhooks_create() {
         "dry-run must not contact even a LIVE server"
     );
 }
+
+// ===================================================== Task 2: presentation
+// axes — --quiet suppression, --no-color zero-ANSI, csv/plain per group.
+// Stub fixtures copy the known-good row shapes from each surface's own stub
+// test file (tests/{webhooks,trash,notes,templates,audit,custom_fields,
+// workflow_runs}_stub_test.rs) rather than inventing new shapes.
+
+use common::cmd_with_server;
+use predicates::prelude::*;
+
+/// Verified empty-page envelope.
+const EMPTY_PAGE: &str = r#"{"data":[],"meta":{"total":0,"offset":0,"limit":50}}"#;
+
+// ---------------------------------------------------- axis: quiet_suppression
+
+/// Shared runner for the two-variant empty-page chatter rows: the SAME
+/// list command against the SAME empty-page stub must print the
+/// informational hint on stderr WITHOUT --quiet, and stay silent WITH it
+/// (exit 0 both ways — the empty page itself is not an error).
+fn quiet_empty_page_hint(args: &[&str], hint_fragment: &str) {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, EMPTY_PAGE)]);
+
+    cmd_with_server(&url)
+        .args(args)
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(hint_fragment));
+
+    let (url_quiet, _c2, _h2, _b2) =
+        common::spawn_head_capturing_stub_server(&[(200, EMPTY_PAGE)]);
+
+    let output = cmd_with_server(&url_quiet)
+        .args(args)
+        .args(["--quiet"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        !stderr.contains(hint_fragment),
+        "--quiet must suppress the informational empty-hint {hint_fragment:?}:\n{stderr}"
+    );
+}
+
+// Per-group empty-page chatter (grammar + wording verified in each surface's
+// handler). runs list uses --status so the group's empty-hint fires without
+// triggering the hidden-test-runs probe (which is itself pinned in
+// workflow_runs_stub_test.rs). templates list has NO empty-hint by design
+// (its render is silent data-only) — the surface's quiet-suppressible
+// chatter is the create multi-trigger warning, covered by
+// quiet_templates_create_multi_trigger_warning below.
+
+#[test]
+fn quiet_runs_list_empty_hint_suppressed() {
+    quiet_empty_page_hint(
+        &["workflows", "runs", "list", "--workflow", "wf1", "--status", "failed"],
+        "No runs match status",
+    );
+}
+
+#[test]
+fn quiet_notes_list_empty_hint_suppressed() {
+    quiet_empty_page_hint(&["notes", "list", "deals", "d1"], "No notes on deals d1");
+}
+
+#[test]
+fn quiet_webhooks_list_empty_hint_suppressed() {
+    quiet_empty_page_hint(&["webhooks", "list"], "No webhooks yet");
+}
+
+#[test]
+fn quiet_trash_list_empty_hint_suppressed() {
+    quiet_empty_page_hint(&["trash", "list"], "No trashed records");
+}
+
+#[test]
+fn quiet_audit_list_empty_hint_suppressed() {
+    quiet_empty_page_hint(&["audit", "list"], "No audit entries");
+}
+
+#[test]
+fn quiet_custom_fields_list_empty_hint_suppressed() {
+    quiet_empty_page_hint(
+        &["custom-fields", "list", "--entity-type", "deals"],
+        "No custom field definitions yet",
+    );
+}
+
+/// templates chatter row: the create multi-trigger warning is informational
+/// stderr — present without --quiet, suppressed with it (the surface has no
+/// list empty-hint; this is its only quiet-suppressible chatter).
+#[test]
+fn quiet_templates_create_multi_trigger_warning_suppressed() {
+    let get_body = serde_json::json!({
+        "data": {
+            "id": "wf_1",
+            "name": "Deal Alert",
+            "description": null,
+            "triggers": [
+                {"type": "crm_event", "entity": "deal"},
+                {"type": "schedule"}
+            ],
+            "nodes": [{"id": "n1"}],
+            "active": false,
+            "created_by": "user_1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }
+    })
+    .to_string();
+    let created = serde_json::json!({
+        "data": {
+            "id": "tpl_new",
+            "name": "T",
+            "description": null,
+            "category": null,
+            "trigger": {"type": "crm_event", "entity": "deal"},
+            "nodes": [{"id": "n1"}],
+            "created_at": "2026-01-01T00:00:00Z"
+        }
+    })
+    .to_string();
+
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &get_body),
+        (201, &created),
+    ]);
+
+    cmd_with_server(&url)
+        .args(["templates", "create", "--name", "T", "--workflow", "wf_1"])
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(
+            "warning: workflow has 2 triggers",
+        ));
+
+    let (url_q, _c2, _h2, _b2) = common::spawn_head_capturing_stub_server(&[
+        (200, &get_body),
+        (201, &created),
+    ]);
+
+    let output = cmd_with_server(&url_q)
+        .args(["templates", "create", "--name", "T", "--workflow", "wf_1", "--quiet"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert!(
+        !stderr.contains("warning: workflow has 2 triggers"),
+        "--quiet must suppress the multi-trigger warning:\n{stderr}"
+    );
+}
+
+/// SC-2 anchor (data): the show-once webhook secret is DATA, not chatter —
+/// `webhooks create` carries it on stdout in BOTH modes; only the
+/// save-it-now warning is quiet-suppressible (stub-level anchor for the
+/// 13-02 live E2E).
+#[test]
+fn quiet_webhooks_create_secret_present_without_quiet() {
+    let secret = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2";
+    let body = serde_json::json!({
+        "data": {
+            "id": "wh1",
+            "url": "https://example.com/hook",
+            "events": ["deal.created"],
+            "active": true,
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z",
+            "secret": secret
+        }
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(201, &body)]);
+
+    cmd_with_server(&url)
+        .args([
+            "webhooks",
+            "create",
+            "--url",
+            "https://example.com/hook",
+            "--events",
+            "deal.created",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains(secret))
+        .stderr(predicate::str::contains("save it now"));
+}
+
+#[test]
+fn quiet_webhooks_create_secret_survives_quiet() {
+    let secret = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2";
+    let body = serde_json::json!({
+        "data": {
+            "id": "wh1",
+            "url": "https://example.com/hook",
+            "events": ["deal.created"],
+            "active": true,
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z",
+            "secret": secret
+        }
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(201, &body)]);
+
+    let output = cmd_with_server(&url)
+        .args([
+            "webhooks",
+            "create",
+            "--url",
+            "https://example.com/hook",
+            "--events",
+            "deal.created",
+            "--format",
+            "json",
+            "--quiet",
+        ])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    assert!(
+        stdout.contains(secret),
+        "the show-once secret is DATA — it must survive --quiet on stdout:\n{stdout}"
+    );
+    assert!(
+        !stderr.contains("save it now"),
+        "--quiet suppresses the save-it-now warning (the secret itself stays):\n{stderr}"
+    );
+}
+
+/// custom-fields delete confirmation: chatter — present without --quiet,
+/// suppressed with it (exit 0 both ways).
+#[test]
+fn quiet_custom_fields_delete_confirmation_present_without_quiet() {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1", "--force"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("Deleted custom field definition cf1"));
+}
+
+#[test]
+fn quiet_custom_fields_delete_confirmation_suppressed() {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, "")]);
+
+    let output = cmd_with_server(&url)
+        .args(["custom-fields", "delete", "cf1", "--force", "--quiet"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    assert!(
+        !stdout.contains("Deleted custom field definition"),
+        "--quiet must suppress the delete confirmation:\n{stdout}"
+    );
+}
+
+/// Phase 7 SC-3 positive pin: the batch "N ok, M failed" summary is DATA,
+/// not chatter — it must SURVIVE --quiet. The locked Phase 7 contract (see
+/// 07-VERIFICATION.md re-probe) prints the summary on the failure path only
+/// ("N/M entity deleted, M failed"), so the honest positive pin is a MIXED
+/// batch under --quiet: exit 1, per-item failure line AND summary present.
+#[test]
+fn quiet_batch_delete_mixed_summary_survives_quiet() {
+    let err_body = serde_json::json!({
+        "type": "https://api.pipelite.app/errors/INTERNAL",
+        "title": "Internal Server Error",
+        "status": 500,
+        "detail": "boom"
+    })
+    .to_string();
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, ""), (500, &err_body)]);
+
+    let output = cmd_with_server(&url)
+        .args(["deals", "delete", "id1", "id2", "--force", "--quiet"])
+        .assert()
+        .code(1)
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "both deletes must be attempted (continue-on-error)"
+    );
+    assert!(
+        stderr.contains("[2/2] Failed"),
+        "the per-item failure line is data and must survive --quiet:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("1/2") && stderr.contains("failed"),
+        "the 'N ok, M failed'-shaped batch summary must survive --quiet (Phase 7 SC-3):\n{stderr}"
+    );
+}
+
+/// Exit-code companion: all-ok batch under --quiet exits 0 (exit 0 only when
+/// EVERY item succeeded — the all-ok path prints no summary by locked
+/// Phase 7 design; the point pinned here is the exit code under --quiet).
+#[test]
+fn quiet_batch_delete_all_ok_exits_zero() {
+    let (url, counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(204, ""), (204, "")]);
+
+    cmd_with_server(&url)
+        .args(["deals", "delete", "id1", "id2", "--force", "--quiet"])
+        .assert()
+        .code(0);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2);
+}
+
+// --------------------------------------------------- axis: no_color_zero_ansi
+
+/// Scan helper: the escaped ANSI control prefix must not appear in `bytes`.
+fn assert_no_ansi(bytes: &[u8], stream: &str, context: &str) {
+    let text = String::from_utf8_lossy(bytes).to_string();
+    assert!(
+        !text.contains("\x1b["),
+        "--no-color: zero ANSI escape bytes expected on {stream} ({context}):\n{text}"
+    );
+}
+
+/// (a) Success-path table render with --no-color: zero ANSI on stdout.
+#[test]
+fn no_color_webhooks_list_table_zero_ansi() {
+    let body = serde_json::json!({
+        "data": [{
+            "id": "wh1",
+            "url": "https://example.com/hook",
+            "events": ["deal.created"],
+            "active": true,
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &body)]);
+
+    let output = cmd_with_server(&url)
+        .args(["webhooks", "list", "--format", "table", "--no-color"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    assert_no_ansi(&output.stdout, "stdout", "webhooks list table success path");
+    assert_no_ansi(&output.stderr, "stderr", "webhooks list table success path");
+}
+
+/// (b) Error path with --no-color: error.rs renders detail/hint with color
+/// when enabled — with --no-color the 404 stderr carries zero ANSI.
+#[test]
+fn no_color_webhooks_get_404_error_path_zero_ansi() {
+    let body = serde_json::json!({
+        "type": "https://api.pipelite.app/errors/NOT_FOUND",
+        "title": "Not Found",
+        "status": 404,
+        "detail": "webhook not found"
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(404, &body)]);
+
+    let output = cmd_with_server(&url)
+        .args(["webhooks", "get", "wh1", "--no-color"])
+        .assert()
+        .code(1)
+        .get_output()
+        .clone();
+    assert_no_ansi(&output.stderr, "stderr", "webhooks get 404 error path");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("webhook not found"),
+        "error detail must still be present (colorless, not missing)"
+    );
+}
+
+/// (c) Truncation-heavy table surface (trash) with --no-color: zero ANSI.
+#[test]
+fn no_color_trash_list_zero_ansi() {
+    let body = serde_json::json!({
+        "data": [{
+            "id": "t1",
+            "entity_type": "deal",
+            "type": "deals",
+            "name": "Acme deal",
+            "secondary": null,
+            "deleted_at": "2026-09-01T12:00:00.000Z",
+            "linked_parents": [],
+            "deleted_by": {"kind": "user", "name": "Jane", "email": "jane@x.com"}
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &body)]);
+
+    let output = cmd_with_server(&url)
+        .args(["trash", "list", "--format", "table", "--no-color"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    assert_no_ansi(&output.stdout, "stdout", "trash list table");
+}
+
+/// (d) Batch path with --no-color: grammar note — `deals update` has no
+/// --force (updates carry no confirmation gate; proven by the proceeds
+/// control row), so the row is `--stdin --no-color`. Both streams scanned.
+#[test]
+fn no_color_batch_update_stdin_zero_ansi() {
+    let deal = |id: &str, title: &str| {
+        serde_json::json!({
+            "data": {
+                "id": id,
+                "title": title,
+                "value": 100.0,
+                "stage_id": "stage_001",
+                "organization_id": null,
+                "person_id": null,
+                "owner_id": "user_001",
+                "position": null,
+                "expected_close_date": null,
+                "notes": null,
+                "custom_fields": null,
+                "created_at": "2026-01-15T10:30:00Z",
+                "updated_at": "2026-03-20T14:22:00Z"
+            }
+        })
+        .to_string()
+    };
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &deal("deal_1", "New Title")),
+        (200, &deal("deal_2", "Other")),
+    ]);
+
+    let output = cmd_with_server(&url)
+        .args(["deals", "update", "--stdin", "--no-color"])
+        .write_stdin(r#"[{"id":"deal_1","title":"New Title"},{"id":"deal_2","title":"Other"}]"#)
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    assert_no_ansi(&output.stdout, "stdout", "batch update success render");
+    assert_no_ansi(&output.stderr, "stderr", "batch update stderr");
+}
+
+// ------------------------------------------------------- axis: csv_and_plain
+
+/// Shared csv runner: exit 0, line 1 is a comma-separated header carrying
+/// the group's default_columns fragments, and a data line exists.
+fn csv_row(args: &[&str], body: &str, header_fragments: &[&str], header_must_not_contain: &[&str]) {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, body)]);
+
+    let output = cmd_with_server(&url)
+        .args(args)
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let first = stdout
+        .lines()
+        .next()
+        .expect("csv output must have a header line");
+
+    assert!(
+        first.contains(','),
+        "csv line 1 must be comma-separated:\n{stdout}"
+    );
+    for fragment in header_fragments {
+        assert!(
+            first.contains(fragment),
+            "csv header must derive from the group's default_columns ({fragment:?}):\n{stdout}"
+        );
+    }
+    for forbidden in header_must_not_contain {
+        assert!(
+            !first.contains(forbidden),
+            "csv header must NOT contain {forbidden:?} (this group has no such column):\n{stdout}"
+        );
+    }
+    assert!(
+        stdout.lines().count() >= 2,
+        "csv must carry the 1-row fixture as a second line:\n{stdout}"
+    );
+}
+
+/// Shared plain runner: exit 0, non-empty, contains the fixture's
+/// first-column value (plain renders raw values, tab-separated, no header).
+fn plain_row(args: &[&str], body: &str, first_column_value: &str) {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, body)]);
+
+    let output = cmd_with_server(&url)
+        .args(args)
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    assert!(
+        !stdout.trim().is_empty(),
+        "plain output must be non-empty:\n{stdout:?}"
+    );
+    assert!(
+        stdout.contains(first_column_value),
+        "plain output must contain the fixture's first-column value {first_column_value:?}:\n{stdout}"
+    );
+}
+
+// -- per-group fixtures (1 row each, copied from the surface stub tests) --
+
+fn runs_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "run1",
+            "workflow_id": "wf1",
+            "status": "completed",
+            "trigger_data": {"dealId": "deal_001"},
+            "error": null,
+            "depth": 0,
+            "dry_run": false,
+            "current_node_id": null,
+            "started_at": "2026-01-01T00:00:00Z",
+            "completed_at": "2026-01-01T00:00:05Z",
+            "created_at": "2026-01-01T00:00:00Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+fn templates_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "tpl_1",
+            "name": "Deal Alert",
+            "description": null,
+            "category": "sales",
+            "trigger": {"type": "crm_event", "entity": "deal"},
+            "nodes": [],
+            "created_at": "2026-01-01T00:00:00Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+fn notes_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "n1",
+            "entity_type": "deal",
+            "entity_id": "d1",
+            "content": "hello",
+            "author_id": "u1",
+            "source": "user",
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+fn webhooks_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "wh1",
+            "url": "https://example.com/hook",
+            "events": ["deal.created"],
+            "active": true,
+            "created_at": "2026-09-01T10:00:00.000Z",
+            "updated_at": "2026-09-01T10:00:00.000Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+fn trash_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "t1",
+            "entity_type": "deal",
+            "type": "deals",
+            "name": "Acme deal",
+            "secondary": null,
+            "deleted_at": "2026-09-01T12:00:00.000Z",
+            "linked_parents": [],
+            "deleted_by": {"kind": "user", "name": "Jane", "email": "jane@x.com"}
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+fn audit_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "a1",
+            "entity_type": "deal",
+            "entity_id": "d1",
+            "action": "updated",
+            "changes": {"value": {"from": 100, "to": 200}},
+            "actor_kind": "user",
+            "actor_user_id": "u1",
+            "workflow_run_id": null,
+            "import_session_id": null,
+            "created_at": "2026-09-01T12:00:00.000Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+fn custom_fields_1row() -> String {
+    serde_json::json!({
+        "data": [{
+            "id": "cf1",
+            "entity_type": "deal",
+            "name": "price",
+            "type": "number",
+            "config": null,
+            "required": false,
+            "position": 10000.5,
+            "show_in_list": false,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string()
+}
+
+// -- csv rows (7 groups; headers derive from each group's default_columns —
+//    trash and audit have NO id column, models.rs trash/audit table configs) --
+
+#[test]
+fn csv_runs_list_header_and_data_row() {
+    csv_row(
+        &["workflows", "runs", "list", "--workflow", "wf1", "--format", "csv"],
+        &runs_1row(),
+        &["id", "status"],
+        &[],
+    );
+}
+
+#[test]
+fn csv_templates_list_header_and_data_row() {
+    csv_row(
+        &["templates", "list", "--format", "csv"],
+        &templates_1row(),
+        &["id", "name"],
+        &[],
+    );
+}
+
+#[test]
+fn csv_notes_list_header_and_data_row() {
+    csv_row(
+        &["notes", "list", "deals", "d1", "--format", "csv"],
+        &notes_1row(),
+        &["id", "created_at", "content"],
+        &[],
+    );
+}
+
+#[test]
+fn csv_webhooks_list_header_and_data_row() {
+    csv_row(
+        &["webhooks", "list", "--format", "csv"],
+        &webhooks_1row(),
+        &["id", "url", "events"],
+        &[],
+    );
+}
+
+#[test]
+fn csv_trash_list_header_exact_no_id_column() {
+    csv_row(
+        &["trash", "list", "--format", "csv"],
+        &trash_1row(),
+        &["name,type,deleted_at,deleted_by,linked_parents"],
+        &["id"],
+    );
+}
+
+#[test]
+fn csv_audit_list_header_exact_no_id_column() {
+    csv_row(
+        &["audit", "list", "--format", "csv"],
+        &audit_1row(),
+        &["created_at,actor,action,entity"],
+        &["id"],
+    );
+}
+
+#[test]
+fn csv_custom_fields_list_header_and_data_row() {
+    csv_row(
+        &["custom-fields", "list", "--entity-type", "deals", "--format", "csv"],
+        &custom_fields_1row(),
+        &["id", "entity_type", "name", "type"],
+        &[],
+    );
+}
+
+// -- plain rows (7 groups) --
+
+#[test]
+fn plain_runs_list_first_column_value() {
+    plain_row(
+        &["workflows", "runs", "list", "--workflow", "wf1", "--format", "plain"],
+        &runs_1row(),
+        "run1",
+    );
+}
+
+#[test]
+fn plain_templates_list_first_column_value() {
+    plain_row(
+        &["templates", "list", "--format", "plain"],
+        &templates_1row(),
+        "tpl_1",
+    );
+}
+
+#[test]
+fn plain_notes_list_first_column_value() {
+    plain_row(
+        &["notes", "list", "deals", "d1", "--format", "plain"],
+        &notes_1row(),
+        "n1",
+    );
+}
+
+#[test]
+fn plain_webhooks_list_first_column_value() {
+    plain_row(
+        &["webhooks", "list", "--format", "plain"],
+        &webhooks_1row(),
+        "wh1",
+    );
+}
+
+#[test]
+fn plain_trash_list_first_column_value() {
+    plain_row(
+        &["trash", "list", "--format", "plain"],
+        &trash_1row(),
+        "Acme deal",
+    );
+}
+
+#[test]
+fn plain_audit_list_first_column_value() {
+    plain_row(
+        &["audit", "list", "--format", "plain"],
+        &audit_1row(),
+        "2026-09-01T12:00:00.000Z",
+    );
+}
+
+#[test]
+fn plain_custom_fields_list_first_column_value() {
+    plain_row(
+        &["custom-fields", "list", "--entity-type", "deals", "--format", "plain"],
+        &custom_fields_1row(),
+        "cf1",
+    );
+}
