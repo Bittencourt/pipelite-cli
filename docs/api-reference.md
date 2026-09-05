@@ -576,7 +576,7 @@ Table columns: name, type, deleted_at, deleted_by, linked_parents. Table cells t
 
 ```bash
 pipelite trash list
-pipelite trash list --type deals --format json | jq -r '.data[].id'   # round-trip: ids feed restore
+pipelite trash list --type deals --format json | jq -r '.[].id'   # round-trip: ids feed restore
 pipelite trash list --all
 ```
 
