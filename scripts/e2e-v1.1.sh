@@ -192,13 +192,15 @@ J2
 webhook_show_once_secret() {
   local out rc secret id list_out get_out occurrences
   set +e
-  out="$("$BIN" webhooks create --url "https://example.com/e2e-hook-$TS" --events deal.created 2>&1)"
+  out="$("$BIN" webhooks create --url "https://example.com/e2e-hook-$TS" --events deal.created --format json 2>&1)"
   rc=$?
   set -e
   if [[ $rc -ne 0 ]]; then fail webhook_show_once_secret "create failed: $(head -c 200 <<<"$out")"; return 0; fi
 
-  secret="$(awk '/Signing secret/{getline; gsub(/^[[:space:]]+|[[:space:]]+$/,""); print; exit}' <<<"$out")"
-  id="$(grep -oE 'wh_[A-Za-z0-9_-]+' <<<"$out" | head -1)"
+  local out_json
+  out_json="$(awk '/^\{/{f=1} f{print} /^\}/{exit}' <<<"$out")"   # exactly the JSON object (warning may precede or trail via 2>&1)
+  secret="$(jq -r '.secret // empty' <<<"$out_json")"
+  id="$(jq -r '.id // empty' <<<"$out_json")"
   CREATED_WEBHOOKS+=("$id")
 
   if [[ -z "$secret" ]]; then
