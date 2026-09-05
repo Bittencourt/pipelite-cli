@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Server v2 Parity
 status: executing
-stopped_at: Completed 13-01-PLAN.md (contract matrix — 61 tests, 650 passing, no violations)
-last_updated: "2026-09-05T01:43:55.629Z"
+stopped_at: 13-02 Tasks 1-3 complete; BLOCKED on human-action checkpoint — run scripts/e2e-v1.1.sh with session credentials, fill docs/e2e-v1.1-report.md, then resume
+last_updated: "2026-09-05T02:10:56.949Z"
 last_activity: 2026-09-05
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 18
   completed_plans: 17
-  percent: 86
+  percent: 94
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 ## Current Position
 
 Phase: 13 (integration-hardening-docs-refresh) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Plan: 2 of 2 — Tasks 1-3 done (commits b0576ee, b61abcb, b408a61); Task 4 = human-action checkpoint
+Status: Blocked on live E2E run (needs user's admin credentials, session env only)
 Last activity: 2026-09-05
 
 Progress: [█████████░] 94%
@@ -62,6 +62,7 @@ Progress: [█████████░] 94%
 | Phase 12 P02 | 32min | 3 tasks | 19 files |
 | 12 | 2 | - | - |
 | Phase 13 P01 | 13min | 3 tasks | 1 files |
+| Phase 13 P02 | 20min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,10 @@ Full log in PROJECT.md Key Decisions table. Recent decisions affecting v1.1:
 - [Phase 12]: --custom-field-json gives verbatim raw-object passthrough; it and --custom-field are mutually exclusive with each other and --stdin at exit 2 pre-HTTP across all 8 handlers (create exclusivity normalized Validation->InvalidInput); batch::parse_custom_fields deleted; --dry-run is cache-only (zero HTTP, strings + note when cold, typed when warm)
 - [Phase 13]: Contract matrix (61 tests) proves all Phase 7-12 surfaces honor the v1.0 global contract - zero violations found, zero src changes; first fully-green hardening run
 - [Phase 13]: templates create --workflow dry-run GET is a read exempt from zero-mutation (Phase 9 pinned) - matrix row authored with --trigger for pure zero-HTTP; batch summary pinned on the locked Phase 7 failure-path shape (mixed batch under --quiet)
+- [Phase 13]: api/mod.rs is 1805 lines (< ~2000 threshold) — KEEP SINGLE FILE, no split; watch item closed for the milestone audit
+- [Phase 13]: E2E v1.1 authored but NOT executed — human-action checkpoint pending (PIPELITE_SERVER_URL/PIPELITE_API_KEY session env); docs/e2e-v1.1-report.md template awaits the live run
+- [Phase 13]: deferred-items dispositioned — env-dependent test trio RESOLVED via WR-03 hermetic env (verified with real config present); 3 build warnings CARRIED; config unit-test flake CARRIED (reproduced 4/20 runs live)
+- [Phase 13]: --continue-on-error documented as BUILT-IN batch semantics, not a flag (plan inventory said flag; --help/src prove unconditional continue + summary); batch stdin is JSON array only (no NDJSON)
 
 ### Pending Todos
 
@@ -109,9 +114,11 @@ None.
 
 ### Blockers/Concerns
 
+- **ACTIVE (13-02 Task 4):** live E2E run requires the user's admin credentials — `export PIPELITE_SERVER_URL=... && export PIPELITE_API_KEY=<ADMIN key> && bash scripts/e2e-v1.1.sh`, then fill `docs/e2e-v1.1-report.md` from its output; plan completes only after this checkpoint
 - Orchestrator to rename `.planning/phases/01-batch-operations-for-all-entities/` → `07-*` (plans + context docs) after roadmap approval
 - Research flags to resolve during planning: webhook PUT semantics + trash `linked_parents` rendering (Phase 11), definition soft-delete marker + `multi_select` shape (Phase 12)
-- `api/mod.rs` size watch item: split into `api/client.rs` + `api/methods/` if it crosses ~2,000 lines
+- ~~`api/mod.rs` size watch item~~ DECIDED 2026-09-04: 1805 lines < ~2000 → keep single file
+- 3 build warnings carried to milestone audit (WorkflowRunTrigger, TTL_WORKFLOWS, get_workflows_cached — deletion candidates); config unit-test flake carried (4/20 live reproduction)
 - Dead-flag removals in Phase 8 are breaking — changelog callout required
 
 ## Deferred Items
@@ -124,6 +131,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-09-05T01:43:27.295Z
-Stopped at: Completed 13-01-PLAN.md (contract matrix — 61 tests, 650 passing, no violations)
-Resume file: None
+Last session: 2026-09-05T02:10:56.919Z
+Stopped at: 13-02 Tasks 1-3 complete (b0576ee, b61abcb, b408a61); Task 4 checkpoint pending — human runs scripts/e2e-v1.1.sh with session credentials and fills docs/e2e-v1.1-report.md
+Resume file: .planning/phases/13-integration-hardening-docs-refresh/13-02-SUMMARY.md
