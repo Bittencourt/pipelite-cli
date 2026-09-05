@@ -143,7 +143,11 @@ Plans:
   2. Cross-cutting contracts pass end-to-end: batch exit codes under `--quiet`, untruncated webhook secret, trash list→restore round-trip, Forbidden hints on all admin-gated surfaces
   3. `docs/SKILL.md` and `docs/api-reference.md` document every new command group with endpoints and conventions
   4. Full test suite passes with no regressions against the v1.0 baseline (98 unit + 13 integration tests)
-**Plans**: TBD
+**Plans**: 2 plans, sequential waves — 13-01 (contract matrix + fixes) → 13-02 (docs refresh + E2E + loose ends)
+
+Plans:
+- [ ] 13-01-PLAN.md — Table-driven contract matrix (tests/contract_matrix_test.rs): every Phase 7-12 surface × global-flag axis (--dry-run zero-HTTP, --no-input locked refusals, --quiet data-survives, --no-color zero-ANSI) + csv/plain per list-bearing group + v1.0-surface smoke; violations fixed in-phase with pinning tests + deviation log; full-suite gate
+- [ ] 13-02-PLAN.md — Docs refresh (SKILL.md 9 new surfaces + exit-code contract + batch/cache/typed-writing patterns; api-reference.md gap audit vs --help; README enumeration; CHANGELOG v1.1 released-ready) + api/mod.rs keep-single-file decision + deferred-items audit + live E2E script/report template (human-run checkpoint, env-var credentials)
 
 ## Progress
 
