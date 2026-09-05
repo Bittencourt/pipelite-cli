@@ -27,7 +27,7 @@ pub enum NotesCommands {
     )]
     Delete(NotesDeleteArgs),
 
-    /// [SERVER] No single-note GET exists — list and read --json instead.
+    /// [SERVER] No single-note GET exists — list and read via `--format json` instead.
     #[command(hide = true)]
     Get(NotesGetArgs),
 }
@@ -80,7 +80,7 @@ pub struct NotesEditArgs {
     /// note ID)
     pub parent_id: String,
 
-    /// Note ID to edit (from `notes list <type> <id> --json`)
+    /// Note ID to edit (from `notes list <type> <id> --format json`)
     pub note_id: String,
 
     /// New note text, @filepath to read from a file, or @- to read stdin
@@ -102,7 +102,7 @@ pub struct NotesDeleteArgs {
     /// note ID)
     pub parent_id: String,
 
-    /// Note ID to delete (from `notes list <type> <id> --json`)
+    /// Note ID to delete (from `notes list <type> <id> --format json`)
     pub note_id: String,
 
     /// Skip confirmation prompt (required in non-interactive mode)
