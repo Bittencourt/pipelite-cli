@@ -1527,3 +1527,158 @@ fn plain_custom_fields_list_first_column_value() {
         "cf1",
     );
 }
+
+// =========================================================== Task 3: v1.0
+// surface smoke — the 7 original entities' CRUD paths still behave
+// (ROADMAP SC-4: "no regressions against v1.0 behavior"). These are SMOKE
+// rows — deep v1.0 coverage stays in the existing integration suites
+// (deals/orgs/people/activities/pipelines/stages/workflows *_integration.rs).
+
+/// Verified v1.0 Deal wire shape (deals_integration.rs row shape).
+fn smoke_deal_json(id: &str) -> String {
+    serde_json::json!({
+        "id": id,
+        "title": "Smoke Deal",
+        "value": 100.0,
+        "stage_id": "stage_001",
+        "organization_id": null,
+        "person_id": null,
+        "owner_id": "user_001",
+        "position": null,
+        "expected_close_date": null,
+        "notes": null,
+        "custom_fields": null,
+        "created_at": "2026-01-15T10:30:00Z",
+        "updated_at": "2026-03-20T14:22:00Z"
+    })
+    .to_string()
+}
+
+/// smoke: deals list (stub 200, 1 row) renders the table, exit 0.
+#[test]
+fn smoke_deals_list_table_render() {
+    let body = serde_json::json!({
+        "data": [serde_json::from_str::<serde_json::Value>(&smoke_deal_json("deal_1")).expect("deal json")],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &body)]);
+
+    cmd_with_server(&url)
+        .args(["deals", "list", "--format", "table", "--no-color"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("deal_1"))
+        .stdout(predicate::str::contains("Smoke Deal"));
+}
+
+/// smoke: deals get --format json parses as JSON with the fixture id.
+#[test]
+fn smoke_deals_get_json_parses() {
+    let body = serde_json::json!({
+        "data": serde_json::from_str::<serde_json::Value>(&smoke_deal_json("d1")).expect("deal json")
+    })
+    .to_string();
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, &body)]);
+
+    let output = cmd_with_server(&url)
+        .args(["deals", "get", "d1", "--format", "json"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("deals get --format json stdout parses as JSON");
+    assert_eq!(parsed["id"], "d1", "json: {stdout}");
+}
+
+/// smoke: orgs create --dry-run (unreachable server) previews the POST with
+/// zero HTTP — the v1.0 dry-run contract held on an original surface.
+#[test]
+fn smoke_orgs_create_dry_run_zero_http() {
+    let output = common::cmd()
+        .args(["orgs", "create", "--name", "Acme", "--dry-run"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    assert!(
+        !stderr.contains(CONNECTION_FAILED),
+        "v1.0 dry-run must be zero HTTP:\n{stderr}"
+    );
+    assert!(
+        stdout.contains("POST") && stdout.contains("/api/v1/organizations"),
+        "preview must name the method + endpoint:\n{stdout}"
+    );
+}
+
+/// smoke: ping against a stub 200 {"status":"ok"} body exits 0.
+#[test]
+fn smoke_ping_stub_ok() {
+    let (url, _counter, _heads, _bodies) =
+        common::spawn_head_capturing_stub_server(&[(200, r#"{"status":"ok"}"#)]);
+
+    cmd_with_server(&url)
+        .args(["ping"])
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains("Status:"));
+}
+
+/// smoke: dashboard against stubbed pipelines/stages/deals/workflows pages
+/// exits 0 (HOME redirected so no real cache dir is touched).
+#[test]
+fn smoke_dashboard_stub_pages_exit_zero() {
+    let tmp = tempfile::TempDir::new().expect("temp HOME dir");
+    let pipelines = serde_json::json!({
+        "data": [{
+            "id": "pipe1",
+            "name": "Sales",
+            "is_default": true,
+            "owner_id": "user_1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }],
+        "meta": {"total": 1, "offset": 0, "limit": 50}
+    })
+    .to_string();
+
+    // Fetch order: pipelines (1 row) → stages per pipeline (empty) →
+    // deals (empty) → workflows (empty). Extra empty pages are harmless.
+    let (url, _counter, _heads, _bodies) = common::spawn_head_capturing_stub_server(&[
+        (200, &pipelines),
+        (200, EMPTY_PAGE),
+        (200, EMPTY_PAGE),
+        (200, EMPTY_PAGE),
+        (200, EMPTY_PAGE),
+        (200, EMPTY_PAGE),
+    ]);
+
+    cmd_with_server(&url)
+        .env("HOME", tmp.path())
+        .args(["dashboard", "--no-color"])
+        .assert()
+        .code(0);
+}
+
+/// smoke: shell completions generation exits 0 with non-empty output.
+#[test]
+fn smoke_completions_bash_exit_zero() {
+    let output = common::cmd()
+        .args(["completions", "bash"])
+        .assert()
+        .code(0)
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    assert!(
+        !stdout.trim().is_empty(),
+        "completions bash must emit a non-empty script"
+    );
+}
