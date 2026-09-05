@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1 (unreleased)
+## v1.1 — Server v2 Parity (released 2026-09-04)
 
 This release removes dead flags for real — every Breaking Changes entry
 below names what to use instead.
@@ -62,6 +62,51 @@ out of scope for this release and remains unchanged.
 
 ### Added
 
+- **Batch update/delete across all 7 entities** — `<entity> update --stdin`
+  (JSON array of `{"id":...}` objects, per-item PUT) and
+  `<entity> delete id1 id2 ...` / `--stdin` (JSON array of IDs) with
+  confirmation-bypassing `--force` for scripts. Per-item failures never abort
+  the batch; the final `N ok, M failed` summary survives `--quiet`. Exit
+  codes are trustable: `0` only when every item succeeded, `1` on any item
+  failure, `2` for structurally broken input rejected before the first HTTP
+  call. Batch `deals/orgs/people create --stdin` posts to the server batch
+  endpoints; activities/pipelines/stages loop individual creates with the
+  same summary.
+- **Workflow runs** — `workflows runs list --workflow <id>` (`--status`,
+  `--include-dry-run`) and `workflows runs get <run-id> --workflow <id>`
+  with `--watch` (2-second poll, tolerates 3 consecutive failed polls) and
+  `--exit-status` (exit 1 when the watched run ends `failed`).
+- **Workflow templates** — `templates list/get/create/delete`. Create
+  snapshots `--workflow <id>` (first trigger + nodes, multi-trigger warning)
+  or takes inline `--trigger`/`--nodes` JSON or a verbatim `--stdin` body.
+  There is no update — the server exposes none.
+- **`pipelite docs`** — fetches the server's OpenAPI 3.1 spec from the
+  public route (a keyless client: the API key is never sent);
+  `--save <file>` creates parent directories and refuses overwrites unless
+  `--force`.
+- **Notes** — `notes list/add/edit/delete` on deals, organizations, people,
+  and activities, with body-source precedence (`--body`/`@file`/`@-`,
+  `--stdin`, or a TTY prompt — exactly one). No single-note GET (the server
+  has none); table output truncates, JSON keeps full text.
+- **Webhooks** — CRUD with the signing secret shown exactly once at create
+  (never on list/get), 13-event vocabulary validated before any request,
+  https-only URLs, and verbatim `--stdin` bodies. Another user's webhook
+  403s even with an admin key.
+- **Trash** — `trash list` (dual type vocabulary: 9 singular/plural aliases
+  normalized to the 4 plural URL tabs), `trash restore` (no confirmation),
+  and admin-only `trash purge` (per-record DELETEs with an
+  "N permanently destroyed, M failed" summary; refuses non-TTY without
+  `--force` at exit 2 before any request).
+- **Audit log viewer** — `audit list` (admin key required) with four
+  verbatim filters (`--entity-type`, `--entity-id`, `--actor-kind`,
+  `--workflow-run-id`), client-side `--limit` clamping to the server's
+  1..=100 range, and per-field `{from, to}` change payloads via
+  `--format json`.
+- **Custom-field definitions + typed writing** — `custom-fields
+  list/get/create/update/delete` (the type source for `--custom-field`),
+  with typed values resolved from cached definitions (cross-referenced
+  above in Changed/Fixed — that data-correctness fix is the headline of
+  this release).
 - RFC 7807 error parsing: API errors now surface the server's real reason
   (joined `errors[]` detail) instead of generic messages.
 - `403 Forbidden` is distinguished from `401 Unauthorized`, with

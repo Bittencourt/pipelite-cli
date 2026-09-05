@@ -123,13 +123,11 @@ pipelite config set display.no_color true
 
 ### `deals update <id>`
 
-Same options as `create` (all optional), plus `id` as positional argument.
+Same options as `create` (all optional), plus `id` as positional argument. Or pass `--stdin` with a JSON array of `{"id":..., ...}` objects for batch update — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
-### `deals delete <id>`
+### `deals delete <ids>...`
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `id` | string | Deal ID to delete |
+Accepts multiple IDs, `--stdin` (JSON array of IDs), and `--force` (required in non-interactive mode) — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ---
 
@@ -166,9 +164,11 @@ Same options as `create` (all optional), plus `id` as positional argument.
 
 ### `orgs update <id>`
 
-Same options as `create` (all optional).
+Same options as `create` (all optional). Supports `--stdin` batch update (see [Batch operations](#batch-operations-updatedeletecreate-via-stdin)).
 
-### `orgs delete <id>`
+### `orgs delete <ids>...`
+
+Multi-ID / `--stdin` / `--force` — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ---
 
@@ -198,9 +198,11 @@ Standard get options (`--fields`, `--expand`).
 
 ### `people update <id>`
 
-Same options as `create` (all optional).
+Same options as `create` (all optional). Supports `--stdin` batch update (see [Batch operations](#batch-operations-updatedeletecreate-via-stdin)).
 
-### `people delete <id>`
+### `people delete <ids>...`
+
+Multi-ID / `--stdin` / `--force` — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ---
 
@@ -230,9 +232,11 @@ Standard get options.
 
 ### `activities update <id>`
 
-Same options as `create` (all optional).
+Same options as `create` (all optional). Supports `--stdin` batch update (see [Batch operations](#batch-operations-updatedeletecreate-via-stdin)).
 
-### `activities delete <id>`
+### `activities delete <ids>...`
+
+Multi-ID / `--stdin` / `--force` — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ---
 
@@ -255,9 +259,11 @@ Standard get options.
 
 ### `pipelines update <id>`
 
-Same options as `create` (all optional).
+Same options as `create` (all optional). Supports `--stdin` batch update (see [Batch operations](#batch-operations-updatedeletecreate-via-stdin)).
 
-### `pipelines delete <id>`
+### `pipelines delete <ids>...`
+
+Multi-ID / `--stdin` / `--force` — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ---
 
@@ -288,9 +294,11 @@ Standard get options.
 
 ### `stages update <id>`
 
-Same options as `create` (all optional except `id`).
+Same options as `create` (all optional except `id`). Supports `--stdin` batch update (see [Batch operations](#batch-operations-updatedeletecreate-via-stdin)).
 
-### `stages delete <id>`
+### `stages delete <ids>...`
+
+Multi-ID / `--stdin` / `--force` — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ---
 
@@ -324,13 +332,16 @@ Standard get options.
 
 ### `workflows update <id>`
 
-Same options as `create` (all optional).
+Same options as `create` (all optional). Supports `--stdin` batch update (see [Batch operations](#batch-operations-updatedeletecreate-via-stdin)).
 
-### `workflows delete <id>`
+### `workflows delete <ids>...`
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `--force` | flag | Skip confirmation prompt |
+| `--force` | flag | Skip confirmation prompt (required in non-interactive mode) |
+| `--stdin` | flag | Read a JSON array of workflow IDs from stdin |
+
+Accepts multiple IDs — see [Batch operations](#batch-operations-updatedeletecreate-via-stdin).
 
 ### `workflows trigger <id>`
 
@@ -707,6 +718,168 @@ pipelite custom-fields delete cf_abc123 --dry-run
 The server does NOT validate custom-field values on the API — this client-side validation is the only kind in existence. `--dry-run` never fetches definitions: with a cold cache it falls back to raw strings and prints a note (run once without `--dry-run` to warm the cache); with a warm cache it still writes typed values.
 
 `--custom-field-json '<object>'` bypasses inference entirely — the object is written verbatim (nested objects, arrays, nulls, floats untouched). It is mutually exclusive with `--custom-field` and `--stdin` (exit 2, before any HTTP), consistently across all 8 create/update commands.
+
+---
+
+## Batch operations (update/delete/create via stdin)
+
+Every entity (deals, orgs, people, activities, pipelines, stages, workflows) shares the batch flows in `src/batch.rs`. Three rules apply to all of them:
+
+- **Trustable exit codes**: exit `0` only when EVERY item succeeded; exit `1` when any item failed. A malformed or structurally broken input (missing `id`, invalid JSON) rejects **before the first HTTP call** with exit `2`.
+- **Built-in continue-on-error**: per-item failures never abort the batch — every item is attempted and the final summary (`N ok, M failed`) always prints, including under `--quiet`. There is deliberately NO `--continue-on-error` flag: the behavior is unconditional.
+- **Dry-run previews every payload** before any request.
+
+### `<entity> update --stdin` (batch update)
+
+Reads a **JSON array** from stdin; each object must carry an `id` key plus the fields to change. Each item is applied as an individual PUT — one broken item fails alone, the rest still apply.
+
+```bash
+echo '[
+  {"id":"deal_1","title":"Renamed A"},
+  {"id":"deal_2","value":99000}
+]' | pipelite deals update --stdin
+
+# Related caches invalidate on success (e.g. batch stage updates clear the stages_ prefix)
+echo '[{"id":"stg_1","name":"Qualified"}]' | pipelite stages update --stdin
+```
+
+### `<entity> delete [IDS]... | --stdin` (batch delete)
+
+Positional IDs or `--stdin` (JSON array of ID strings) — mutually exclusive, exit 2 if both. Confirmation is prompted unless `--force`; **non-interactive runs must pass `--force`** (refusal is exit 1, before any request). Each delete is an individual DELETE.
+
+```bash
+pipelite deals delete deal_1 deal_2 deal_3 --force
+echo '["deal_1","deal_2"]' | pipelite deals delete --stdin --force
+pipelite orgs delete org_1 org_2 --dry-run   # previews every DELETE
+```
+
+### `<entity> create --stdin` (batch create)
+
+Reads a JSON array of create objects. Deals, orgs, and people POST once to the server's batch endpoints (`/api/v1/deals/batch`, `/api/v1/organizations/batch`, `/api/v1/people/batch`); activities, pipelines, and stages have no server batch endpoint, so the CLI loops individual creates with the same per-item summary. `workflows create --stdin` takes a SINGLE JSON object, not an array.
+
+```bash
+echo '[{"title":"Deal A","stage_id":"stg_001"},{"title":"Deal B","stage_id":"stg_001"}]' \
+  | pipelite deals create --stdin
+echo '[{"name":"Top of funnel"}]' | pipelite pipelines create --stdin
+```
+
+---
+
+## `pipelite workflows runs`
+
+Executions of a workflow. The server path carries the WORKFLOW id — `--workflow` is required everywhere (there is no run-to-workflow lookup).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/workflows/:id/runs?status&dry_run&limit&offset` | List runs of one workflow |
+| GET | `/api/v1/workflows/:id/runs/:runId` | Get one run with its steps |
+
+### `workflows runs list --workflow <id>`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--workflow` | string | (required) | Workflow ID whose runs to list |
+| `--status` | string | | Pass-through filter: `pending`, `running`, `completed`, `failed`, `waiting` (an unrecognized value yields an empty result, never an error) |
+| `--include-dry-run` | flag | | Include server-created test runs (distinct from the global `--dry-run` preview flag, which never affects listing) |
+| `--limit` | u64 | `50` | Maximum results |
+| `--offset` | u64 | `0` | Pagination offset |
+| `--fields` | string[] | | Select columns |
+
+Test runs are hidden unless `--include-dry-run`. An empty page fires the hidden-runs probe (one extra `limit=1&dry_run=true` request) only when NO `--status` filter is set — with `--status` you get the empty-page hint instead.
+
+```bash
+pipelite workflows runs list --workflow wf_abc123
+pipelite workflows runs list --workflow wf_abc123 --status failed
+pipelite workflows runs list --workflow wf_abc123 --include-dry-run --format json
+```
+
+### `workflows runs get <run-id> --workflow <id>`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--workflow` | string | Owning workflow ID (required — server path needs both IDs) |
+| `--watch` | flag | Poll every 2 seconds until a terminal state; no timeout (Ctrl-C stops; shells report exit 130). Tolerates up to 3 consecutive failed polls |
+| `--exit-status` | flag | With `--watch`: exit 1 if the run ends `failed`, else 0 |
+| `--fields` | string[] | Select columns |
+
+A run in `waiting` is mid-flight — the steps' `resume_at` shows why it waits.
+
+```bash
+pipelite workflows runs get run_abc123 --workflow wf_abc123 --format json
+pipelite workflows runs get run_abc123 --workflow wf_abc123 --watch --exit-status
+```
+
+---
+
+## `pipelite templates`
+
+Workflow templates snapshot a workflow's trigger and nodes for reuse — instantiating a template creates a workflow. Templates are deployment-global (any valid API key can read or delete them). **There is NO update**: the server exposes none — delete and recreate to change a template.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/workflow-templates?limit&offset` | List templates (created_at DESC) |
+| GET | `/api/v1/workflow-templates/:id` | Get one template |
+| POST | `/api/v1/workflow-templates` | Create (201; trigger resolved from exactly one source) |
+| DELETE | `/api/v1/workflow-templates/:id` | Delete (irreversible; templates are global) |
+
+### `templates list` / `templates get <id>`
+
+Standard list options (`--limit`, `--offset`, `--fields`); get takes `--fields`.
+
+```bash
+pipelite templates list
+pipelite templates get tpl_abc123 --format json
+```
+
+### `templates create`
+
+The trigger is resolved from EXACTLY ONE source — two sources exit 2 pre-HTTP:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--name` | string | Template name (required unless `--stdin`; prompted on a TTY) |
+| `--workflow` | string | Snapshot this workflow: trigger = its FIRST trigger, nodes = its nodes (a stderr warning fires when the workflow has multiple triggers) |
+| `--description` | string | Template description |
+| `--category` | string | Template category |
+| `--trigger` | json | Trigger object as a raw JSON string (local escape hatch — resolves without fetching) |
+| `--nodes` | json | Nodes as a raw JSON array (requires `--trigger`; rejected with `--workflow`) |
+| `--stdin` | flag | Raw JSON body, posted verbatim |
+
+```bash
+pipelite templates create --name "Alert" --workflow wf_abc123
+pipelite templates create --name "Nightly" --trigger '{"type":"schedule"}' --nodes '[{"type":"action"}]'
+echo '{"name":"T","trigger":{"type":"schedule"},"nodes":[]}' | pipelite templates create --stdin
+```
+
+### `templates delete [IDS]... | --stdin`
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--stdin` | flag | JSON array of template IDs |
+| `--force` | flag | Skip confirmation (required in non-interactive mode) |
+
+```bash
+pipelite templates delete tpl_abc123 --force
+```
+
+---
+
+## `pipelite docs`
+
+Fetches the server's OpenAPI 3.1 spec from the PUBLIC `/api/v1/docs` route. **Unauthenticated by design**: the request is built with a local headerless HTTP client — the API key is never sent (wire-tested). `--format` is accepted but ignored (the spec is JSON, not tabular output).
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--save <file>` | string | Write the spec to FILE (creates missing parent directories) |
+| `--force` | flag | Allow `--save` to overwrite an existing file |
+
+`--save` refuses to overwrite an existing file **before any request** (exit 2) unless `--force` is given. Server errors (404/Api) keep the server's detail with a server-version hint.
+
+```bash
+pipelite docs | jq '.info.version'
+pipelite docs --save spec.json
+pipelite docs --save dir/spec.json --force
+```
 
 ---
 

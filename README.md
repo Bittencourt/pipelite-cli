@@ -14,6 +14,8 @@ A fast, scriptable command-line interface for managing your [Pipelite](https://a
 ## Features
 
 - **Full CRM management** -- Deals, Organizations, People, Activities, Pipelines, Stages, and Workflows
+- **Automation surfaces** -- workflow runs with `--watch`, templates, webhooks, notes, trash/audit, typed custom fields
+- **Batch operations** -- create/update/delete via stdin across every entity with trustable exit codes
 - **Multiple output formats** -- JSON, Table, CSV, and Plain text
 - **Smart shell completions** -- Fuzzy ID + name suggestions for Bash, Zsh, and Fish
 - **Interactive & headless modes** -- Prompts for missing fields or run fully automated
@@ -185,8 +187,121 @@ pipelite workflows trigger wf_abc123
 pipelite workflows trigger wf_abc123 --data '{"dealId":"deal_001"}'
 pipelite workflows trigger wf_abc123 --data @payload.json
 
+# Watch runs (executions) of a workflow
+pipelite workflows runs list --workflow wf_abc123
+pipelite workflows runs list --workflow wf_abc123 --status failed
+pipelite workflows runs get run_abc123 --workflow wf_abc123 --format json
+pipelite workflows runs get run_abc123 --workflow wf_abc123 --watch --exit-status
+
 # Delete (with force to skip confirmation)
 pipelite workflows delete wf_abc123 --force
+```
+
+#### Workflow Runs (`workflows runs`)
+
+Every execution of a workflow, with live progress:
+
+```bash
+# List runs (test runs hidden unless --include-dry-run)
+pipelite workflows runs list --workflow wf_abc123 --status failed
+
+# Follow a run until it finishes (2s poll); exit 1 if it fails
+pipelite workflows runs get run_abc123 --workflow wf_abc123 --watch --exit-status
+```
+
+#### Templates (`templates`)
+
+Snapshot a workflow's trigger and nodes for reuse. No update — delete and recreate:
+
+```bash
+pipelite templates list
+pipelite templates create --name "Alert" --workflow wf_abc123
+pipelite templates create --name "Nightly" --trigger '{"type":"schedule"}' --nodes '[{"type":"action"}]'
+pipelite templates delete tpl_abc123 --force
+```
+
+#### Notes (`notes`)
+
+Notes on deals, organizations, people, and activities:
+
+```bash
+pipelite notes list deals deal_abc123
+pipelite notes add deals deal_abc123 --body "Followed up"
+pipelite notes add deals deal_abc123 --body @note.md
+echo "Note text" | pipelite notes add deals deal_abc123 --stdin
+pipelite notes edit deals deal_abc123 note_abc123 --body "Updated text"
+pipelite notes delete deals deal_abc123 note_abc123 --force
+```
+
+#### Webhooks (`webhooks`)
+
+Push CRM events to external automations. The signing secret is shown exactly once at creation:
+
+```bash
+pipelite webhooks create --url https://example.com/hook --events deal.created,deal.updated
+pipelite webhooks list
+pipelite webhooks get wh_abc123
+pipelite webhooks update wh_abc123 --inactive
+pipelite webhooks delete wh_abc123 --force
+```
+
+#### Trash (`trash`)
+
+Soft-deleted records — list, restore, or purge (admin-only):
+
+```bash
+pipelite trash list --type deals
+pipelite trash restore deals t_abc123
+pipelite trash purge --type deals --force   # permanent, admin-only
+```
+
+#### Audit Log (`audit`)
+
+Who changed what (admin key required):
+
+```bash
+pipelite audit list
+pipelite audit list --entity-type deal --actor-kind workflow_run
+pipelite audit list --offset 100   # next page
+```
+
+#### Custom Fields (`custom-fields`)
+
+Define typed custom fields — the type source for `--custom-field` writing:
+
+```bash
+pipelite custom-fields list --entity-type deals
+pipelite custom-fields create --entity-type deals --key price --type number
+pipelite custom-fields create --entity-type deals --key stage --type select --options a,b,c
+pipelite custom-fields update cf_abc123 --position 20000
+pipelite custom-fields delete cf_abc123 --force
+
+# Typed writing: price=4 stores JSON number 4 (resolved from cached definitions)
+pipelite deals create --title "Big Deal" --stage stg_001 --custom-field price=4
+pipelite orgs create --name "Acme" --custom-field price=4
+```
+
+#### OpenAPI Docs (`docs`)
+
+Fetch the server's OpenAPI spec (public route — no API key sent):
+
+```bash
+pipelite docs | jq '.info.version'
+pipelite docs --save spec.json
+```
+
+#### Batch Operations
+
+Every entity supports batch create/update/delete via stdin — exit `0` only when every item succeeded, `1` on any item failure, `2` for structurally broken input before any HTTP. Per-item failures never abort the batch; the final `N ok, M failed` summary always prints (even with `--quiet`):
+
+```bash
+# Batch update from a JSON array (each object needs an "id")
+echo '[{"id":"deal_1","title":"Renamed"},{"id":"deal_2","value":99000}]' \
+  | pipelite deals update --stdin
+
+# Batch delete by ID list (--force required in scripts)
+pipelite deals delete deal_1 deal_2 deal_3 --force
+echo '["deal_1","deal_2"]' | pipelite deals delete --stdin --force
 ```
 
 ### Utility Commands
@@ -485,6 +600,13 @@ src/
     pipelines.rs    # Pipeline subcommands
     stages.rs       # Stage subcommands
     workflows.rs    # Workflow subcommands
+    templates.rs    # Workflow template subcommands
+    notes.rs        # Notes subcommands
+    webhooks.rs     # Webhook subcommands
+    trash.rs        # Trash subcommands
+    audit.rs        # Audit log subcommands
+    custom_fields.rs # Custom-field definition subcommands
+    docs.rs         # OpenAPI spec fetch args
     config.rs       # Config subcommands
     cache.rs        # Cache subcommands
     dashboard.rs    # Dashboard args
@@ -497,7 +619,13 @@ src/
     activities/
     pipelines/
     stages/
-    workflows/      # + trigger.rs
+    workflows/      # + trigger.rs, runs/
+    templates/      # list/get/create/delete
+    notes/          # list/add/edit/delete
+    webhooks/       # list/get/create/update/delete
+    trash/          # list/restore/purge
+    audit/          # list
+    custom_fields/  # list/get/create/update/delete
     config/
     cache/
     init.rs
@@ -507,6 +635,8 @@ src/
   api/
     mod.rs          # PipeliteClient (HTTP client)
     models.rs       # Data types (Deal, Org, Person, etc.)
+  batch.rs          # Shared batch flows (stdin parsing, outcome summary, confirmation)
+  custom_fields.rs  # Shared typed --custom-field resolver
   output/
     mod.rs          # Format dispatch
     json.rs         # JSON renderer
