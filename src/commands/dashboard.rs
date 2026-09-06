@@ -66,11 +66,16 @@ async fn fetch_all_pipelines(
         };
         let response = ctx.client.list_pipelines(&params).await?;
         let total = response.meta.total;
+        let got = response.data.len() as u64;
         all.extend(response.data);
-        if all.len() as u64 >= total {
+        if all.len() as u64 >= total || got == 0 {
             break;
         }
-        offset += limit;
+        // Advance by the number of records ACTUALLY received, not the
+        // requested limit — servers may cap the page size below `limit`,
+        // and advancing by `limit` would skip records and/or spin forever
+        // on empty pages once offset passes the end of the collection.
+        offset += got;
     }
     Ok(all)
 }
@@ -93,11 +98,16 @@ async fn fetch_all_stages(
         };
         let response = ctx.client.list_stages(&params).await?;
         let total = response.meta.total;
+        let got = response.data.len() as u64;
         all.extend(response.data);
-        if all.len() as u64 >= total {
+        if all.len() as u64 >= total || got == 0 {
             break;
         }
-        offset += limit;
+        // Advance by the number of records ACTUALLY received, not the
+        // requested limit — servers may cap the page size below `limit`,
+        // and advancing by `limit` would skip records and/or spin forever
+        // on empty pages once offset passes the end of the collection.
+        offset += got;
     }
     Ok(all)
 }
@@ -119,11 +129,16 @@ async fn fetch_all_deals(ctx: &AppContext) -> Result<Vec<crate::api::models::Dea
         };
         let response = ctx.client.list_deals(&params).await?;
         let total = response.meta.total;
+        let got = response.data.len() as u64;
         all.extend(response.data);
-        if all.len() as u64 >= total {
+        if all.len() as u64 >= total || got == 0 {
             break;
         }
-        offset += limit;
+        // Advance by the number of records ACTUALLY received, not the
+        // requested limit — servers may cap the page size below `limit`,
+        // and advancing by `limit` would skip records and/or spin forever
+        // on empty pages once offset passes the end of the collection.
+        offset += got;
     }
     Ok(all)
 }
@@ -142,11 +157,16 @@ async fn fetch_all_workflows(ctx: &AppContext) -> Result<Vec<crate::api::models:
         };
         let response = ctx.client.list_workflows(&params).await?;
         let total = response.meta.total;
+        let got = response.data.len() as u64;
         all.extend(response.data);
-        if all.len() as u64 >= total {
+        if all.len() as u64 >= total || got == 0 {
             break;
         }
-        offset += limit;
+        // Advance by the number of records ACTUALLY received, not the
+        // requested limit — servers may cap the page size below `limit`,
+        // and advancing by `limit` would skip records and/or spin forever
+        // on empty pages once offset passes the end of the collection.
+        offset += got;
     }
     Ok(all)
 }

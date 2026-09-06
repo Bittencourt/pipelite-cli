@@ -1,12 +1,11 @@
-use std::io::IsTerminal;
-
 use anyhow::Result;
+
+use crate::batch;
 
 use crate::cli::custom_fields::CustomFieldsDeleteArgs;
 use crate::commands::custom_fields::TOMBSTONE_NOTE;
 use crate::context::AppContext;
 use crate::dry_run;
-use crate::error::CliError;
 
 /// Delete a single custom field definition (SOFT delete).
 ///
@@ -44,27 +43,16 @@ pub async fn run(ctx: &AppContext, args: &CustomFieldsDeleteArgs) -> Result<()> 
     }
 
     // TTY confirmation check
-    if !args.force {
-        if std::io::stdin().is_terminal() && !ctx.no_input {
-            let confirmed = dialoguer::Confirm::new()
-                .with_prompt(format!(
-                    "Delete custom field definition {id}? Values already stored on records remain."
-                ))
-                .default(false)
-                .interact()?;
-            if !confirmed {
-                println!("Aborted");
-                return Ok(());
-            }
-        } else {
-            return Err(CliError::Validation {
-                detail: "Refusing to delete without confirmation in non-interactive mode."
-                    .to_string(),
-                hint: "Use --force to skip confirmation: pipelite custom-fields delete <id> --force"
-                    .to_string(),
-            }
-            .into());
-        }
+    match batch::ensure_delete_consent(
+        ctx,
+        args.force,
+        format!(
+            "Delete custom field definition {id}? Values already stored on records remain."
+        ),
+        "Use --force to skip confirmation: pipelite custom-fields delete <id> --force".to_string(),
+    )? {
+        batch::Consent::Declined => return Ok(()),
+        batch::Consent::Granted => {}
     }
 
     ctx.client.delete_custom_field_definition(id).await?;

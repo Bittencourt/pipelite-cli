@@ -8,7 +8,8 @@ use crate::dry_run;
 
 /// Delete one or more people.
 ///
-/// A single positional ID executes the original delete flow (v1.0 behavior).
+/// A single positional ID executes the single-delete flow (dry-run intercept,
+/// shared consent gate, delete).
 /// Multiple IDs — or --stdin with a JSON array of string IDs, even a 1-ID
 /// list — run a batch delete with confirmation prompt, continue-on-error
 /// semantics, and a summary report. Non-interactive runs (e.g. piped --stdin)
@@ -19,9 +20,9 @@ pub async fn run(ctx: &AppContext, args: &PeopleDeleteArgs) -> Result<()> {
 
     // WR-06: piped --stdin input always takes the batch path (with its
     // --force gate) regardless of item count; only a single positional ID
-    // keeps the v1.0 gate-free flow.
+    // keeps the single-delete flow, now behind the same shared consent gate.
     if ids.len() == 1 && !args.stdin {
-        return single_delete(ctx, &ids[0]).await;
+        return single_delete(ctx, args.force, &ids[0]).await;
     }
 
     batch::run_batch_delete(
@@ -38,11 +39,21 @@ pub async fn run(ctx: &AppContext, args: &PeopleDeleteArgs) -> Result<()> {
     .await
 }
 
-/// Delete a single person (original behavior).
-async fn single_delete(ctx: &AppContext, id: &str) -> Result<()> {
+/// Delete a single person (dry-run intercept, shared consent gate, delete).
+async fn single_delete(ctx: &AppContext, force: bool, id: &str) -> Result<()> {
     if ctx.dry_run {
         let url = format!("{}/api/v1/people/{}", ctx.client.base_url(), id);
         return dry_run::render_dry_run_delete("person", id, &url, &ctx.output_format, ctx.color);
+    }
+
+    match batch::ensure_delete_consent(
+        ctx,
+        force,
+        format!("Delete person {id}?"),
+        "Use --force to skip confirmation: pipelite people delete <id> --force".to_string(),
+    )? {
+        batch::Consent::Declined => return Ok(()),
+        batch::Consent::Granted => {}
     }
 
     ctx.client.delete_person(id).await?;

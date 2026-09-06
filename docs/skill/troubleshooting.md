@@ -24,7 +24,8 @@ Exit 2 always fires before the first HTTP request — safe to fix and re-run.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `Refusing to batch-delete without confirmation in non-interactive mode` | Non-TTY delete without `--force` | Add `--force` (deliberate script gate) |
+| `Refusing to delete without confirmation in non-interactive mode` | Non-TTY delete without `--force` — applies to single-ID and batch deletes alike | Add `--force` (deliberate script gate) |
+| `API error (HTTP 500)` on `workflows delete` of a workflow with run history | Known server bug: `DELETE /api/v1/workflows/{id}` 500s once runs exist (works with 204 when no runs) — see pipelite issue #11 | No API-side recovery yet; the workflow stays. Track the upstream issue |
 | `N ok, M failed` + `[i/n] Failed <id>: …` | Batch partial failure | Good items mutated; retry the failed IDs from stderr |
 | `Not found` on get/update/delete | Wrong/typo'd ID or already deleted (soft-deleted records are gone from list) | Re-list to get the current ID; check trash (recipes.md § R7) |
 | `Record not found` on `trash restore` | Not in trash — already restored or purged | Verify with a `get` |

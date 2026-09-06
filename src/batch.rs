@@ -131,6 +131,52 @@ pub fn collect_delete_ids(
     Ok(raw_ids.to_vec())
 }
 
+/// Outcome of the shared delete-consent gate.
+pub enum Consent {
+    /// Deletion may proceed.
+    Granted,
+    /// User declined the interactive prompt — exit 0, nothing deleted.
+    Declined,
+}
+
+/// The STANDARD delete-consent gate, shared by single-delete and
+/// batch-delete paths (CR-01 / WR-06):
+///
+/// 1. `--force` → proceed with no prompt;
+/// 2. interactive TTY without `--force` → `dialoguer::Confirm` (default
+///    false); decline prints "Aborted" and yields `Consent::Declined`
+///    (exit 0, zero HTTP);
+/// 3. non-interactive (piped stdin or `--no-input`) without `--force` →
+///    `CliError::Validation` refusal (exit 1, zero HTTP).
+///
+/// Call this AFTER the dry-run intercept so `--dry-run` never prompts.
+pub fn ensure_delete_consent(
+    ctx: &AppContext,
+    force: bool,
+    prompt: String,
+    hint: String,
+) -> Result<Consent> {
+    if force {
+        return Ok(Consent::Granted);
+    }
+    if io::stdin().is_terminal() && !ctx.no_input {
+        let confirmed = dialoguer::Confirm::new()
+            .with_prompt(prompt)
+            .default(false)
+            .interact()?;
+        if confirmed {
+            return Ok(Consent::Granted);
+        }
+        println!("Aborted");
+        return Ok(Consent::Declined);
+    }
+    Err(CliError::Validation {
+        detail: "Refusing to delete without confirmation in non-interactive mode.".to_string(),
+        hint,
+    }
+    .into())
+}
+
 /// Shared batch delete flow: dry-run preview, confirmation gate, per-item
 /// deletes with continue-on-error, conditional cache invalidation, summary.
 ///
@@ -165,31 +211,20 @@ where
         return Ok(());
     }
 
-    // SECOND: Confirmation (CR-01) — prompt on an interactive terminal; REFUSE
-    // in non-interactive mode unless --force was given. Stdin cannot serve as
-    // both the ID source (--stdin) and the confirmation prompt, so piped batch
-    // deletes require explicit --force, matching the workflows single-delete
-    // precedent. Note ctx.no_input is auto-derived from TTY-ness, so only the
-    // explicit --force flag counts as opt-out here.
-    if !force {
-        if io::stdin().is_terminal() && !ctx.no_input {
-            let confirm = dialoguer::Confirm::new()
-                .with_prompt(format!("Delete {} {}?", total, plural))
-                .default(false)
-                .interact()?;
-            if !confirm {
-                return Ok(());
-            }
-        } else {
-            return Err(CliError::Validation {
-                detail:
-                    "Refusing to batch-delete without confirmation in non-interactive mode."
-                        .to_string(),
-                hint: "Re-run with --force to skip the confirmation prompt (intended for scripts)."
-                    .to_string(),
-            }
-            .into());
-        }
+    // SECOND: Confirmation (CR-01) via the shared gate — prompt on an
+    // interactive terminal; REFUSE in non-interactive mode unless --force was
+    // given. Stdin cannot serve as both the ID source (--stdin) and the
+    // confirmation prompt, so piped batch deletes require explicit --force.
+    // Note ctx.no_input is auto-derived from TTY-ness, so only the explicit
+    // --force flag counts as opt-out here.
+    match ensure_delete_consent(
+        ctx,
+        force,
+        format!("Delete {} {}?", total, plural),
+        "Re-run with --force to skip the confirmation prompt (intended for scripts).".to_string(),
+    )? {
+        Consent::Declined => return Ok(()),
+        Consent::Granted => {}
     }
 
     let mut outcome = BatchOutcome::new(total);

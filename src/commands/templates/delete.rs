@@ -1,5 +1,3 @@
-use std::io::IsTerminal;
-
 use anyhow::Result;
 
 use crate::batch;
@@ -7,12 +5,11 @@ use crate::cache::KEY_TEMPLATES;
 use crate::cli::templates::TemplatesDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
-use crate::error::CliError;
 
 /// Delete one or more workflow templates.
 ///
 /// Mirrors the workflows delete flow exactly: single ID executes the
-/// original delete flow (--force skips confirmation), multiple IDs (or
+/// single-delete flow (shared consent gate, --force skips), multiple IDs (or
 /// --stdin with a JSON array of string IDs) route through the Phase 7 batch
 /// delete (confirmation, continue-on-error, summary report). The dry-run
 /// preview comes FIRST — --dry-run never prompts.
@@ -58,26 +55,14 @@ async fn single_delete(ctx: &AppContext, args: &TemplatesDeleteArgs, id: &str) -
         );
     }
 
-    // TTY confirmation check
-    if !args.force {
-        if std::io::stdin().is_terminal() && !ctx.no_input {
-            let confirmed = dialoguer::Confirm::new()
-                .with_prompt(format!("Delete template {id}?"))
-                .default(false)
-                .interact()?;
-            if !confirmed {
-                println!("Aborted");
-                return Ok(());
-            }
-        } else {
-            return Err(CliError::Validation {
-                detail: "Refusing to delete without confirmation in non-interactive mode."
-                    .to_string(),
-                hint: "Use --force to skip confirmation: pipelite templates delete <id> --force"
-                    .to_string(),
-            }
-            .into());
-        }
+    match batch::ensure_delete_consent(
+        ctx,
+        args.force,
+        format!("Delete template {id}?"),
+        "Use --force to skip confirmation: pipelite templates delete <id> --force".to_string(),
+    )? {
+        batch::Consent::Declined => return Ok(()),
+        batch::Consent::Granted => {}
     }
 
     ctx.client.delete_workflow_template(id).await?;

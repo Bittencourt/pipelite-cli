@@ -9,7 +9,7 @@ set, `--no-input` everywhere, `--force` on deletes.
 
 ```bash
 pipelite ping                          # exit 0 = reachable; latency printed
-pipelite config show                   # what am I authenticated as? (no secret echoed)
+pipelite config show                   # what am I authenticated as? (⚠ echoes the API key — don't paste output into tickets/logs)
 pipelite deals list --limit 3 --format json | jq '.[] | {id, title}'
 ```
 

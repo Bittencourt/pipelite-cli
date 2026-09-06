@@ -1,5 +1,3 @@
-use std::io::IsTerminal;
-
 use anyhow::Result;
 
 use crate::batch;
@@ -7,11 +5,10 @@ use crate::cache::KEY_WORKFLOWS;
 use crate::cli::workflows::WorkflowsDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
-use crate::error::CliError;
 
 /// Delete one or more workflows.
 ///
-/// Single ID executes the original delete flow (--force skips confirmation).
+/// Single ID executes the single-delete flow (shared consent gate; --force skips).
 /// Multiple IDs (or --stdin with a JSON array of string IDs) run a batch
 /// delete with confirmation prompt, continue-on-error semantics, and a
 /// summary report. --force skips the batch confirmation too, and is required
@@ -53,26 +50,14 @@ async fn single_delete(ctx: &AppContext, args: &WorkflowsDeleteArgs, id: &str) -
         );
     }
 
-    // TTY confirmation check
-    if !args.force {
-        if std::io::stdin().is_terminal() && !ctx.no_input {
-            let confirmed = dialoguer::Confirm::new()
-                .with_prompt(format!("Delete workflow {}?", id))
-                .default(false)
-                .interact()?;
-            if !confirmed {
-                println!("Aborted");
-                return Ok(());
-            }
-        } else {
-            return Err(CliError::Validation {
-                detail: "Refusing to delete without confirmation in non-interactive mode."
-                    .to_string(),
-                hint: "Use --force to skip confirmation: pipelite workflows delete <id> --force"
-                    .to_string(),
-            }
-            .into());
-        }
+    match batch::ensure_delete_consent(
+        ctx,
+        args.force,
+        format!("Delete workflow {}?", id),
+        "Use --force to skip confirmation: pipelite workflows delete <id> --force".to_string(),
+    )? {
+        batch::Consent::Declined => return Ok(()),
+        batch::Consent::Granted => {}
     }
 
     ctx.client.delete_workflow(id).await?;

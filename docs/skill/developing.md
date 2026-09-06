@@ -18,7 +18,7 @@ src/
   api/
     mod.rs             # PipeliteClient -- all HTTP methods (~1805 lines; keep single-file until ~2000)
     models.rs          # Entity structs: Base, Create, Update (~2344 lines)
-  batch.rs             # Shared batch flows: stdin parsing, BatchOutcome, confirmation gate
+  batch.rs             # Shared batch flows: stdin parsing, BatchOutcome, delete-consent gate (shared by single- and batch-delete paths)
   custom_fields.rs     # Shared typed-writing resolver (all 8 create/update handlers)
   output/
     mod.rs             # render_list(), render_single(), detect_format()

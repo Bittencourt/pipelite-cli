@@ -1,12 +1,11 @@
-use std::io::IsTerminal;
-
 use anyhow::Result;
+
+use crate::batch;
 
 use crate::cache::KEY_WEBHOOKS;
 use crate::cli::webhooks::WebhooksDeleteArgs;
 use crate::context::AppContext;
 use crate::dry_run;
-use crate::error::CliError;
 
 /// Delete a single webhook.
 ///
@@ -34,26 +33,14 @@ pub async fn run(ctx: &AppContext, args: &WebhooksDeleteArgs) -> Result<()> {
         );
     }
 
-    // TTY confirmation check
-    if !args.force {
-        if std::io::stdin().is_terminal() && !ctx.no_input {
-            let confirmed = dialoguer::Confirm::new()
-                .with_prompt(format!("Delete webhook {id}?"))
-                .default(false)
-                .interact()?;
-            if !confirmed {
-                println!("Aborted");
-                return Ok(());
-            }
-        } else {
-            return Err(CliError::Validation {
-                detail: "Refusing to delete without confirmation in non-interactive mode."
-                    .to_string(),
-                hint: "Use --force to skip confirmation: pipelite webhooks delete <id> --force"
-                    .to_string(),
-            }
-            .into());
-        }
+    match batch::ensure_delete_consent(
+        ctx,
+        args.force,
+        format!("Delete webhook {id}?"),
+        "Use --force to skip confirmation: pipelite webhooks delete <id> --force".to_string(),
+    )? {
+        batch::Consent::Declined => return Ok(()),
+        batch::Consent::Granted => {}
     }
 
     ctx.client.delete_webhook(id).await?;

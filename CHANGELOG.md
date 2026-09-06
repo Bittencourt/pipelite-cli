@@ -1,5 +1,46 @@
 # Changelog
 
+## Unreleased
+
+Three live-server bugs found by the new full E2E suite
+(`scripts/e2e-full.sh` — 168 assertions against a real Pipelite instance,
+covering CRUD for all 7 entities, notes, webhooks, trash restore, typed
+custom fields, workflows/runs/templates, batch exit-code contracts,
+pagination, output formats, error UX, audit, config/cache, dashboard) and
+fixed:
+
+- **Fixed: `activities update --mark-done` rejected by the server** — the CLI
+  sent `Utc::now().to_rfc3339()` (`2026-09-05T…+00:00`, nanosecond
+  precision), which the server's datetime validator refuses. It now sends a
+  Z-suffixed millisecond timestamp (`2026-09-05T21:19:04.970Z`), the same
+  shape the server emits and accepts back. Explicit `--completed-at` was
+  already correct and is unchanged.
+- **Fixed: single-ID deletes bypassed the non-TTY `--force` gate** — for
+  deals, orgs, people, activities, pipelines, and stages, `delete <id>`
+  without `--force` went straight to HTTP and really deleted the record,
+  contradicting the documented contract ("non-TTY deletes refuse without
+  `--force`, exit 1, zero HTTP") that only the batch path honored. All 11
+  delete paths (7 entities + notes, webhooks, templates, custom-fields) now
+  share one consent gate (`batch::ensure_delete_consent`): `--force` skips,
+  an interactive TTY prompts, and non-interactive runs refuse with exit 1
+  before any HTTP. The batch refusal message changed from "Refusing to
+  batch-delete…" to the standard "Refusing to delete without confirmation in
+  non-interactive mode." (two assertions in `tests/batch_delete_test.rs`
+  updated to the unified wording).
+- **Fixed: `dashboard` could loop forever against servers that cap page
+  size** — the four `fetch_all_*` helpers advanced `offset` by the requested
+  `limit` (500) while the server returned a capped page (100 items), so past
+  the collection end the loop fetched empty pages forever and never reached
+  `meta.total`. Offsets now advance by the number of records actually
+  received, and an empty page terminates the loop. On a 25k-deal instance
+  the full dashboard scan dropped from unbounded hang to ~32s.
+- **Documented: `config show` echoes the API key** — recipes.md § R0 no
+  longer claims "no secret echoed"; it now warns not to paste the output
+  into tickets/logs.
+- **Documented: known server bug** in troubleshooting.md —
+  `DELETE /api/v1/workflows/{id}` returns 500 for workflows with run
+  history (204 when no runs); tracked upstream as pipelite#11.
+
 ## v1.1 — Server v2 Parity (released 2026-09-04)
 
 This release removes dead flags for real — every Breaking Changes entry

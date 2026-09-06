@@ -123,7 +123,7 @@ fn deals_batch_delete_stdin_without_force_refuses() {
         .args(["deals", "delete", "--stdin"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Refusing to batch-delete"))
+        .stderr(predicate::str::contains("Refusing to delete without confirmation"))
         .stderr(predicate::str::contains("--force"));
 }
 
@@ -148,7 +148,7 @@ fn deals_batch_delete_positional_without_force_refuses() {
         .args(["deals", "delete", "deal_1", "deal_2"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Refusing to batch-delete"));
+        .stderr(predicate::str::contains("Refusing to delete without confirmation"));
 }
 
 // -- Invalid --stdin input --

@@ -1,12 +1,11 @@
-use std::io::IsTerminal;
-
 use anyhow::Result;
+
+use crate::batch;
 
 use crate::cli::notes::NotesDeleteArgs;
 use crate::commands::notes::resolve_entity_type;
 use crate::context::AppContext;
 use crate::dry_run;
-use crate::error::CliError;
 
 /// Delete (soft-delete) a note by ID — the exact templates `single_delete`
 /// contract (Phase 7/9/10 lock), verbatim-adjusted:
@@ -36,26 +35,14 @@ pub async fn run(ctx: &AppContext, args: &NotesDeleteArgs) -> Result<()> {
         return dry_run::render_dry_run_delete("note", id, &url, &ctx.output_format, ctx.color);
     }
 
-    // TTY confirmation check
-    if !args.force {
-        if std::io::stdin().is_terminal() && !ctx.no_input {
-            let confirmed = dialoguer::Confirm::new()
-                .with_prompt(format!("Delete note {id}?"))
-                .default(false)
-                .interact()?;
-            if !confirmed {
-                println!("Aborted");
-                return Ok(());
-            }
-        } else {
-            return Err(CliError::Validation {
-                detail: "Refusing to delete without confirmation in non-interactive mode."
-                    .to_string(),
-                hint: "Use --force to skip confirmation: pipelite notes delete <type> <parent-id> <note-id> --force"
-                    .to_string(),
-            }
-            .into());
-        }
+    match batch::ensure_delete_consent(
+        ctx,
+        args.force,
+        format!("Delete note {id}?"),
+        "Use --force to skip confirmation: pipelite notes delete <type> <parent-id> <note-id> --force".to_string(),
+    )? {
+        batch::Consent::Declined => return Ok(()),
+        batch::Consent::Granted => {}
     }
 
     ctx.client.delete_note(id).await?;

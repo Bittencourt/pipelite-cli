@@ -93,7 +93,9 @@ pub async fn run(ctx: &AppContext, args: &ActivitiesUpdateArgs) -> Result<()> {
     }
 
     let completed_at = if args.mark_done {
-        Some(Utc::now().to_rfc3339())
+        // Server validator wants a Z-suffixed ISO datetime (it rejects the
+        // RFC3339 "+00:00" offset form to_rfc3339() produces).
+        Some(Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
     } else {
         args.completed_at.clone()
     };
